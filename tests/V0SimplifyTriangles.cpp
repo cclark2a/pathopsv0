@@ -3,7 +3,7 @@
 // optimized for speed, reduced memory, and random access
 #include "TinySkiaTests.h"
 
-void V0SimplifyTriangles(TestOptions* options) {
+static void simplifyTriangles(TestOptions* options) {
     auto test = [options](int a, int b, int c) {
         float ax = (float) (a & 0x03);
         float ay = (float) (a >> 2);
@@ -38,15 +38,15 @@ void V0SimplifyTriangles(TestOptions* options) {
                     path.lineTo(fx, fy);
                     path.close();
                     path.setFillType(SkPathFillType::kWinding);
-                    if (!options->testOne(path))
-                        return false;
+                    if (TestDone::yes == options->testOne(path))
+                        return TestDone::yes;
                     path.setFillType(SkPathFillType::kEvenOdd);
-                    if (!options->testOne(path))
-                        return false;
+                    if (TestDone::yes == options->testOne(path))
+                        return TestDone::yes;
                 }
             }
         }
-        return true;
+        return TestDone::no;
     };
     const int testCount = 2064;
     options->buggySkiaNumbering(testCount);  // skia test framework bug skips first set of tests
@@ -64,12 +64,19 @@ void V0SimplifyTriangles(TestOptions* options) {
                 int cy = c >> 2;
                 if ((bx - ax) * (cy - ay) == (by - ay) * (cx - ax))
                     continue;
-                if (!options->skipTests(testCount) && !test(a, b, c))
+                if (!options->skipTests(testCount) && TestDone::yes == test(a, b, c))
                     return;
                 options->checkTestCount(testCount);
             }
-            if (!options->extended) 
+            if (!options->extended()) 
                 return;
         }
     }
+}
+
+void V0SimplifyTriangles(TestTrack* track) {
+    static std::vector<TestFunc> tests = {
+        TEST_FUNC_NUMBERED(simplifyTriangles),
+    };
+    track->runTests(tests);
 }

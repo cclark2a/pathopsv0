@@ -3,7 +3,7 @@
 // optimized for speed, reduced memory, and random access
 #include "TinySkiaTests.h"
 
-void V0SimplifyQuads(TestOptions* options) {
+static void simplifyQuads(TestOptions* options) {
     auto test = [options](int a, int b, int c, int d) {
         float ax = (float) (a & 0x03);
         float ay = (float) (a >> 2);
@@ -37,16 +37,16 @@ void V0SimplifyQuads(TestOptions* options) {
                         path.quadTo(gx, gy, hx, hy);
                         path.close();
                         path.setFillType(SkPathFillType::kWinding);
-                        if (!options->testOne(path))
-                            return false;
+                        if (TestDone::yes == options->testOne(path))
+                            return TestDone::yes;
                         path.setFillType(SkPathFillType::kEvenOdd);
-                        if (!options->testOne(path))
-                            return false;
+                        if (TestDone::yes == options->testOne(path))
+                            return TestDone::yes;
                     }
                 }
             }
         }
-        return true;
+        return TestDone::no;
     };
     // 4 axis triangular number (pentatope number) is 3876 for 16
     // since each path is evaluated twice (winding, even odd) skip by 7752
@@ -57,13 +57,20 @@ void V0SimplifyQuads(TestOptions* options) {
         for (int b = a; b < 16; ++b) {
             for (int c = b; c < 16; ++c) {
                 for (int d = c; d < 16; ++d) {
-                    if (!options->skipTests(testCount) && !test(a, b, c, d))
+                    if (!options->skipTests(testCount) && TestDone::yes == test(a, b, c, d))
                         return;
                     options->checkTestCount(testCount);
                 }
-                if (!options->extended) 
+                if (!options->extended()) 
                     return;
             }
         }
     }
+}
+
+void V0SimplifyQuads(TestTrack* track) {
+    static std::vector<TestFunc> tests = {
+        TEST_FUNC_NUMBERED(simplifyQuads),
+    };
+    track->runTests(tests);
 }

@@ -9,7 +9,7 @@
 #define SKIP_TO_V0 0  // set to 1 to ignore file, test first and run first test in v0
 #define SKIP_TO_FILE "tiger" // e.g., "simplify"  one file
 #if !OP_DEBUG_ALT
-#define TEST_FIRST "tiger8a" // chalkboard1123394"  // "chalkboard1177426"  // e.g., "testLoops40320" if file, one test
+#define TEST_FIRST "tiger_threaded70031" // "tiger8a_x33570817""  // e.g., "testLoops40320" if file, one test
                         // !!! "loop8478" fails sometimes (san/valgrind found no error)
                         // cubic9092  cubic454498  cubic327361 troublesome unsectables
 #else

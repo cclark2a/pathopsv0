@@ -611,12 +611,20 @@ static void debugContextCallbacksDumpSet(PathOpsV0Lib::DebugContextCallbacks& de
     DEBUG_FIND_FUNCTION(debugContextCallbacks, debugDumpWindingSetFuncPtr, debugDumpOutFuncPtr);
     DEBUG_FIND_FUNCTION(debugContextCallbacks, debugDumpOutFuncPtr, debugImageWindingOutFuncPtr);
     DEBUG_FIND_FUNCTION(debugContextCallbacks, debugImageWindingOutFuncPtr, debugImageWindingNamesFuncPtr);
-    DEBUG_FIND_FUNCTION(debugContextCallbacks, debugImageWindingNamesFuncPtr, debugEdgeColorFuncPtr);
-    DEBUG_FIND_FUNCTION(debugContextCallbacks, debugEdgeColorFuncPtr, debugWindingVisibleFuncPtr);
+    DEBUG_FIND_FUNCTION(debugContextCallbacks, debugImageWindingNamesFuncPtr, debugWindingVisibleFuncPtr);
     DEBUG_FIND_FUNCTION(debugContextCallbacks, debugWindingVisibleFuncPtr, debugSafetyLinksFuncPtr);
-    static_assert(offsetof(PathOpsV0Lib::DebugContextCallbacks, debugSafetyLinksFuncPtr) 
-            + sizeof(debugContextCallbacks.debugSafetyLinksFuncPtr) == sizeof(debugContextCallbacks));
-
+#if OP_DEBUGGER
+    OpDebugOptional(str, "debugEdgeColorFuncName");
+    DEBUG_FIND_FUNCTION(debugContextCallbacks, debugSafetyLinksFuncPtr, debugEdgeColorFuncPtr);
+    static_assert(offsetof(PathOpsV0Lib::DebugContextCallbacks, debugEdgeColorFuncPtr) 
+            + sizeof(debugContextCallbacks.debugEdgeColorFuncPtr) == sizeof(debugContextCallbacks));
+#else
+    ASSERT_SERIAL(debugContextCallbacks, debugSafetyLinksFuncPtr, debugEdgeColorFuncName);
+    if (OpDebugOptional(str, "debugEdgeColorFuncName"))
+        debugContextCallbacks.debugEdgeColorFuncName = OpDebugLabel(str);
+    static_assert(offsetof(PathOpsV0Lib::DebugContextCallbacks, debugEdgeColorFuncName) 
+            + sizeof(debugContextCallbacks.debugEdgeColorFuncName) == sizeof(debugContextCallbacks));
+#endif
 }
 
 void OpContext::dumpSet(const char*& str) {
@@ -1168,11 +1176,6 @@ void OpContour::dumpSet(const char*& str) {
         }
     }
     ASSERT_ORDERED(debugCurveData, debugWinding);
-#endif
-#if OP_DEBUG_IMAGE
-    ASSERT_ORDERED(debugWinding, debugColor);
-	if (OpDebugOptional(str, "debugColor"))
-        debugColor = OpDebugHexToInt(str);
 #endif
 }
 
@@ -3500,6 +3503,7 @@ void dmpFull(const OpSegments& segs) {
 }
 #endif
 
+#if OP_DEBUGGER
 void dmpColor(uint32_t c) {
     OpDebugOut(debugDumpColor(DebugLevel::normal, c) + "\n");
 }
@@ -3519,6 +3523,7 @@ void dmpColor(const OpEdge& e) {
     uint32_t color = debugEdgeColor ? (*debugEdgeColor)(e.winding.w, edgeType) : debugBlack;
     dmpColor(color);
 }
+#endif
 
 // for typing in immediate window as parameters to dmpBase
 extern int dec, hex, hexdec;

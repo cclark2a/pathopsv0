@@ -1169,7 +1169,6 @@ static void rRect1(TestOptions* options) {
     SkPath path;
     path.setFillType(SkPathFillType::kInverseEvenOdd);
     for (int index = 0; index < 5; ++index) {
-        options->customName = __func__ + STR(index);
         options->testOne(path, paths[index], tinyOps[index]); // , uniqueName.c_str());
     }
 }
@@ -9054,7 +9053,7 @@ path2.close();
     options->testOne(path, path2, TinyOps::intersect);
 }
 
-void V0Op(TestOptions* options) {
+void V0Op(TestTrack* track) {
 
     static std::vector<TestFunc> tests = {
         TEST_FUNC(bug8380),
@@ -9325,7 +9324,7 @@ void V0Op(TestOptions* options) {
         TEST_FUNC(skp3),
         TEST_FUNC(skp2),
         TEST_FUNC(skp1),
-        TEST_FUNC(rRect1),
+        TEST_FUNC_NUMBERED(rRect1),
         TEST_FUNC(cubicOp70d),
         TEST_FUNC(cubicOp69d),
         TEST_FUNC(cubicOp68u),
@@ -9420,7 +9419,7 @@ void V0Op(TestOptions* options) {
         TEST_FUNC(cubicOp2d),
         TEST_FUNC(cubicOp1d),
     };
-    runTests(tests, options);
+    track->runTests(tests);
 }
 
 static void fuzz767834(TestOptions* options) {
@@ -12357,7 +12356,7 @@ path.conicTo(SkBits2Float(0x6c8879ff), SkBits2Float(0x08761b1b), SkBits2Float(0x
     options->testOne(path1, path2, (TinyOps) 2);
 }
 
-void V0OpFail(TestOptions* options) {
+void V0OpFail(TestTrack* track) {
     static std::vector<TestFunc> failTests = {
         TEST_FUNC(fuzz767834),
         TEST_FUNC(fuzz754434_1),
@@ -12445,5 +12444,5 @@ void V0OpFail(TestOptions* options) {
         TEST_FUNC(fuzz433b),
         TEST_FUNC(bufferOverflow),
     };
-    runTests(failTests, options);
+    track->runTests(failTests);
 }

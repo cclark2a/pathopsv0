@@ -12,7 +12,7 @@
 
 #define CONSTRUCT_SKIPPER_DATA 0
 
-void V0SimplifyRects(TestOptions* options) {
+static void simplifyRects(TestOptions* options) {
     auto test = [options](int oA, int oB, int oC, int oD) {
 #if CONSTRUCT_SKIPPER_DATA
         options->skip = 100000;
@@ -81,12 +81,12 @@ void V0SimplifyRects(TestOptions* options) {
         path.close();
         if (options->skipTests(1))
             continue;
-        if (!options->testOne(path))
-            return false;
+        if (TestDone::yes == options->testOne(path))
+            return TestDone::yes;
         if (options->skipTests(1))
             continue;
-        if (!options->testOne(path))
-            return false;
+        if (TestDone::yes == options->testOne(path))
+            return TestDone::yes;
     }
                                 }
                             }
@@ -95,7 +95,7 @@ void V0SimplifyRects(TestOptions* options) {
                 }
             }
         }
-        return true;
+        return TestDone::no;
     };
     int skipOuter = 0;
 #if CONSTRUCT_SKIPPER_DATA
@@ -134,7 +134,7 @@ void V0SimplifyRects(TestOptions* options) {
 #else
                     skipOuter = skipper[innerTest++];
 #endif
-                    if (!options->skipTests(skipOuter) && !test(a, b, c, d))
+                    if (!options->skipTests(skipOuter) && TestDone::yes == test(a, b, c, d))
                         return;
 #if CONSTRUCT_SKIPPER_DATA
                     std::string skipWord = STR(100000 - options->skip) + ", ";
@@ -145,7 +145,7 @@ void V0SimplifyRects(TestOptions* options) {
                     skipLine += skipWord;
 #endif
                 }
-                if (!options->extended) 
+                if (!options->extended()) 
                     return;
             }
         }
@@ -153,4 +153,11 @@ void V0SimplifyRects(TestOptions* options) {
 #if CONSTRUCT_SKIPPER_DATA
     OpDebugOut(skipTable + skipLine + "\n");
 #endif
+}
+
+void V0SimplifyRects(TestTrack* track) {
+    static std::vector<TestFunc> tests = {
+        TEST_FUNC_NUMBERED(simplifyRects),
+    };
+    track->runTests(tests);
 }

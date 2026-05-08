@@ -4,8 +4,6 @@
 #include "TinySkiaTests.h"
 
 static void tiger8(TestOptions* options) {
-    if (options->skipTests(1))
-        return;
     SkPath path;
     path.moveTo(SkBits2Float(0x43f639c5), SkBits2Float(0x4361375a));  // 492.451f, 225.216f
 path.quadTo(SkBits2Float(0x43f58ce4), SkBits2Float(0x435d2a04), SkBits2Float(0x43f71bd9), SkBits2Float(0x435ac7d8));  // 491.101f, 221.164f, 494.218f, 218.781f
@@ -87,8 +85,6 @@ path.close();
 
 // fails to include a line of edges, probably mis-sorting
 static void tiger8a(TestOptions* options) {
-    if (options->skipTests(1))
-        return;
     SkPath path;
     path.moveTo(SkBits2Float(0x43f639c5), SkBits2Float(0x4361375a));  // 492.451f, 225.216f
 path.quadTo(SkBits2Float(0x43f58ce4), SkBits2Float(0x435d2a04), SkBits2Float(0x43f71bd9), SkBits2Float(0x435ac7d8));  // 491.101f, 221.164f, 494.218f, 218.781f
@@ -131,8 +127,6 @@ path.close();
 }
 
 static void tiger8a_x(TestOptions* options, uint64_t testlines) {
-    if (options->skipTests(1))
-        return;
     SkPath path;
 uint64_t i = 0;
 if (testlines & (1LL << i++)) path.moveTo(SkBits2Float(0x43f639c5), SkBits2Float(0x4361375a));  // 492.451f, 225.216f
@@ -172,20 +166,19 @@ if (testlines & (1LL << i++)) path.lineTo(SkBits2Float(0x43f63638), SkBits2Float
 if (testlines & (1LL << i++)) path.lineTo(SkBits2Float(0x43f6b333), SkBits2Float(0x4360e666));  // 493.4f, 224.9f
 if (testlines & (1LL << i++)) path.lineTo(SkBits2Float(0x43f639c5), SkBits2Float(0x4361375a));  // 492.451f, 225.216f
 if (testlines & (1LL << i++)) path.close();
-    options->customName = "tiger8a_x" + STR(testlines);
     options->testOne(path);
 }
 
 // #include "include/utils/SkRandom.h"
 
 static void tiger8a_h_1(TestOptions* options) {
+    if (options->skipTests(1))
+        return;
     uint64_t testlines = 0x0000000000002008;  // best so far: 0x0000001d14c14bb1;
     tiger8a_x(options, testlines);
 }
 
 static void tiger8b_x(TestOptions* options, uint64_t testlines) {
-    if (options->skipTests(1))
-        return;
     SkPath path;
 uint64_t i = 0;
 if (testlines & (1LL << i++)) path.moveTo(SkBits2Float(0x43f72ca1), SkBits2Float(0x43609572));  // 494.349f, 224.584f
@@ -226,7 +219,6 @@ if (testlines & (1LL << i++)) path.lineTo(SkBits2Float(0x43f8e5e7), SkBits2Float
 if (testlines & (1LL << i++)) path.quadTo(SkBits2Float(0x43f84300), SkBits2Float(0x435b88fd), SkBits2Float(0x43f7b75b), SkBits2Float(0x435c5e8e));  // 496.523f, 219.535f, 495.432f, 220.369f
 if (testlines & (1LL << i++)) path.quadTo(SkBits2Float(0x43f6b984), SkBits2Float(0x435de2c4), SkBits2Float(0x43f72ca1), SkBits2Float(0x43609572));  // 493.449f, 221.886f, 494.349f, 224.584f
 if (testlines & (1LL << i++)) path.close();
-    options->customName = "tiger8b_x" + STR(testlines);
     options->testOne(path);
 }
 
@@ -239,14 +231,9 @@ static void testTiger(TestOptions* options, int oA, int oB, int oC) {
 }
 
 static void tiger_threaded(TestOptions* options) {
-    options->customName = "";
-    if (!options->testFirst.empty()) {
-        const char* firstStr = options->testFirst.c_str();
-        options->skip = OpDebugReadNamedInt(firstStr, options->baseName.c_str());
-    }
     for (int ab = 0; ab < 2; ++ab) {
         SkRandom r;
-        int testCount = options->extended ? 10000 : 100;
+        int testCount = options->extended() ? 10000 : 100;
         for (int samples = 2; samples < 37; ++samples) {
             for (int tests = 0; tests < testCount; ++tests) {
                 uint64_t testlines = 0;
@@ -269,16 +256,12 @@ static void tiger_threaded(TestOptions* options) {
 }
 
 static void tiger8b_h_1(TestOptions* options) {
-    if (options->skipTests(1))
-        return;
     uint64_t testlines = 0x000000000f27b9e3;  // best so far: 0x000000201304b4a3
     tiger8b_x(options, testlines);
 }
 
 // tries to add same edge twice
 static void tiger8b(TestOptions* options) {
-    if (options->skipTests(1))
-        return;
     SkPath path;
 path.moveTo(SkBits2Float(0x43f72ca1), SkBits2Float(0x43609572));  // 494.349f, 224.584f
 path.conicTo(SkBits2Float(0x43f72ebd), SkBits2Float(0x4360a219), SkBits2Float(0x43f7302e), SkBits2Float(0x4360af1f), SkBits2Float(0x3f7fa741));  // 494.365f, 224.633f, 494.376f, 224.684f, 0.998646f
@@ -321,14 +304,14 @@ path.close();
     options->testOne(path);
 }
 
-void V0Tiger(TestOptions* options) {
+void V0Tiger(TestTrack* track) {
     static std::vector<TestFunc> tests = {
         TEST_FUNC(tiger8a_h_1),
         TEST_FUNC(tiger8a),
         TEST_FUNC(tiger8b_h_1),
         TEST_FUNC(tiger8b),
         TEST_FUNC(tiger8),
-        TEST_FUNC(tiger_threaded),
+        TEST_FUNC_NUMBERED(tiger_threaded),
     };
-    runTests(tests, options);
+    track->runTests(tests);
 }

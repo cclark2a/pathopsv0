@@ -66,11 +66,11 @@ set (COMMON_SOURCES
 
 # Add source to this project's executable.
 set (SKIA_TESTS
-	"debug/OpDebugColor.cpp"
+#	"debug/OpDebugColor.cpp"
 	"debug/OpDebugDump.cpp"
-	"debug/OpDebugGenerator.cpp"
+#	"debug/OpDebugGenerator.cpp"
 	"debug/OpDebugRaster.cpp"
-	"debug/OpDebugRecord.cpp"
+#	"debug/OpDebugRecord.cpp"
 	"public/port/SkiaPaths.cpp"
 	"debug/SkiaPathsDebug.cpp"
     "tests/TinySkia.cpp"

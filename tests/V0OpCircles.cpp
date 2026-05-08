@@ -4,7 +4,7 @@
 #include "TinySkiaTests.h"
 
 // Skia tests omitted reverse difference; put those tests at the end to preserve numbering
-void V0OpCircles(TestOptions* options) {
+static void circles(TestOptions* options) {
     auto test = [options](float oA, float oB, float oC, SkPathDirection oD, bool testRevDiff) {
         SkPath pathA;
         pathA.addCircle(oA, oB, oC, oD);
@@ -21,13 +21,13 @@ void V0OpCircles(TestOptions* options) {
                                 pathB.setFillType(f);
                                 pathB.addCircle(a, b, c, d);
                                 if (testRevDiff) {
-                                    if (!options->testOne(pathA, pathB, TinyOps::reverseDifference))
-                                        return false;
+                                    if (TestDone::yes == options->testOne(pathA, pathB, TinyOps::reverseDifference))
+                                        return TestDone::yes;
                                 } else {
                                     for (TinyOps op = TinyOps::difference; 
                                                 op <= TinyOps::exclusiveOr; ++op)    {
-                                        if (!options->testOne(pathA, pathB, op))
-                                            return false;
+                                        if (TestDone::yes == options->testOne(pathA, pathB, op))
+                                            return TestDone::yes;
                                     }
                                 }
                             }
@@ -36,7 +36,7 @@ void V0OpCircles(TestOptions* options) {
                 }
             }
         }
-        return true;
+        return TestDone::no;
     };
     const int oneOpCount = (6 * 7 / 2) * 6 * 2 * 2 * 2;
     const int skiaOpsCount = oneOpCount * 5;
@@ -48,14 +48,21 @@ void V0OpCircles(TestOptions* options) {
             for (int b = a + 1; b < 7; ++b) {
                 for (int c = 0 ; c < 6; ++c) {
                         for (auto d : { SkPathDirection::kCW, SkPathDirection::kCCW }) {
-                            if (!options->skipTests(skiaOpsCount) && !test(a, b, c, d, testRevDiff))
+                            if (!options->skipTests(skiaOpsCount) && TestDone::yes == test(a, b, c, d, testRevDiff))
                                 return;
                         options->checkTestCount(testCount);
                     }
                 }
-                if (!options->extended) 
+                if (!options->extended()) 
                     return;
             }
         }
     }
+}
+
+void V0OpCircles(TestTrack* track) {
+    static std::vector<TestFunc> tests = {
+        TEST_FUNC_NUMBERED(circles),
+    };
+    track->runTests(tests);
 }

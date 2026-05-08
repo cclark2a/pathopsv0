@@ -227,7 +227,7 @@ struct OpContour {
 	std::vector<PathOpsV0Lib::DebugCurveData> debugCurveData;
 	OpWinding debugWinding = OpWinding(WindingUninitialized::dummy);
 #endif
-#if OP_DEBUG_IMAGE || OP_DEBUGGER
+#if OP_DEBUGGER
     // AddQuads/AddCubics/AddLine/AddConics save original curve for graphics debugger
 	uint32_t debugColor = blue;
 #endif

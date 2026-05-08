@@ -28,6 +28,7 @@ DrawLevel DumpWindow::click(const DebuggerEvent* event) {
     if (debuggerState->currentDump == index)
         return DrawLevel::none;
     debuggerState->saveSelection();
+    debuggerState->clickDump = index;
     debuggerState->currentDump = index;
     return DrawLevel::file;  //  preserve selected, switch, and restore selected
 }

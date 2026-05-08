@@ -372,7 +372,8 @@ void TextWindow::update() {
             return;
         }
     };
-    readTest(TestInFile, testIn);
+    if (this->debuggerState->allowUpdate)
+        readTest(TestInFile, testIn);
     int safetyCheck = 0;
     innerUpdate(safetyCheck);
 }

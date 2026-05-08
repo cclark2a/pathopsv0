@@ -4,6 +4,7 @@
 #if OP_DEBUG_SERIALIZE
 
 #define OP_TAGGED_FUNCTION(f) { reinterpret_cast<DebugFunction>(PathOpsV0Lib::f), #f }
+#define OP_TAGGED_EMPTY_FUNCTION(f) { EmptyFunction, #f }
 
 #include "curves/Line.h"
 #include "curves/QuadBezier.h"
@@ -15,6 +16,9 @@
 #include "curves/CutWinding.h"
 #include "port/SkiaPaths.h"
 #include "OpDebugDump.h"
+
+void EmptyFunction() {
+}
 
 struct DebugTags {
     DebugFunction function;
@@ -50,8 +54,11 @@ std::vector<DebugTags> debugTags {
 #if OP_DEBUG_IMAGE
     UNARY_IMAGE_TAGGED_FUNCTIONS
     BINARY_IMAGE_TAGGED_FUNCTIONS
-    OP_TAGGED_FUNCTION(dumpSkiaOutPath)
+    OP_TAGGED_FUNCTION(dumpSkiaOutPath),
 #endif
+    UNARY_COLOR_TAGGED_FUNCTIONS
+    BINARY_COLOR_TAGGED_FUNCTIONS
+    FRAME_COLOR_TAGGED_FUNCTIONS
 };
 
 #undef OP_TAGGED_FUNCTION

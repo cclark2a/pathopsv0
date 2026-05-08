@@ -530,14 +530,14 @@ int OpCurve::pointCount() const {
 
 OpPoint OpCurve::ptAtT(float t) const {
 	if (0 == t)
-		return firstPt();
+		return c.data->start;
 	if (1 == t)
-		return lastPt();
+		return c.data->end;
 	PathOpsV0Lib::PtAtT funcPtr = context().callback(c.type).ptAtTFuncPtr;
-	OpPoint result = funcPtr ? (*funcPtr)(c, t) : (1 - t) * firstPt() + t * lastPt();
+	OpPoint result = funcPtr ? (*funcPtr)(c, t) : (1 - t) * c.data->start + t * c.data->end;
 	// loop8846, testCubics295953 requires pinning on horizontal when there's no function to call
 	if (!funcPtr)
-		result.pin(firstPt(), lastPt());
+		result.pin(c.data->start, c.data->end);
 	return result;
 }
 
@@ -547,7 +547,7 @@ OpPoint OpCurve::ptDAtT(float t) const {
 	if (1 == t)
 		return lastPt();
 	PathOpsV0Lib::PtAtT funcPtr = context().callback(c.type).ptDAtTFuncPtr;
-	OpPoint result = funcPtr ? (*funcPtr)(c, t) : (1 - t) * firstPt() + t * lastPt();
+	OpPoint result = funcPtr ? (*funcPtr)(c, t) : (1 - t) * c.data->start + t * c.data->end;
 	// !!! required by release_13: but, should caller's point at T function do the pinning?
 	// !!! counterpoint: loop8846 requires pinning on horizontal line (there's no function to call)
 //	result.pin(firstPt(), lastPt());

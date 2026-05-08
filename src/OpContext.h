@@ -34,6 +34,11 @@ struct OpUserData {
     PathOpsV0Lib::UserDataType type;
 };
 
+enum class SortSmall {
+	no,
+	yes
+};
+
 typedef PathOpsV0Lib::Context* ContextPtr;
 
 struct OpContext {
@@ -207,7 +212,7 @@ struct OpContext {
 	bool setError(PathOpsV0Lib::ContextError  OP_DEBUG_PARAMS(int id, int id2 = 0));
 	void setSortedBounds();
 	void setThreshold();
-	void sortIntersections();
+	void sortIntersections(SortSmall );
 
 	void transferCoins() {
 	   for (auto contour : contours) {

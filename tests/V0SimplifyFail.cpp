@@ -240,7 +240,23 @@ path.quadTo(SkBits2Float(0x7b9c7b79), SkBits2Float(0xf4f2d886), SkBits2Float(0xf
     options->testOne(path);
 }
 
-void V0SimplifyFail(TestOptions* options) {
+static void fail(TestOptions* options) {
+    for (int index = 0; index < (int) (13 * nonFinitePtsCount * finitePtsCount); ++index) {
+        if (options->skipTests(1))
+            continue;
+        failOne(options, index);
+    }
+}
+
+static void dontFail(TestOptions* options) {
+    for (int index = 0; index < (int) (11 * finitePtsCount); ++index) {
+        if (options->skipTests(1))
+            continue;
+        dontFailOne(options, index);
+    }
+}
+
+void V0SimplifyFail(TestTrack* track) {
     static std::vector<TestFunc> tests = {
         TEST_FUNC(fuzz_k1), 
         TEST_FUNC(fuzz_x3), 
@@ -248,27 +264,9 @@ void V0SimplifyFail(TestOptions* options) {
         TEST_FUNC(fuzz763_1), 
         TEST_FUNC_FAIL(fuzz_x2), 
         TEST_FUNC_FAIL(fuzz_x1), 
-        TEST_FUNC_FAIL(fuzz_59)
+        TEST_FUNC_FAIL(fuzz_59),
+        TEST_FUNC_NUMBERED_FAIL(fail),
+        TEST_FUNC_NUMBERED(dontFail),
     };
-    if (runTests(tests, options))
-        return;
-    bool testOne = !options->testFirst.empty();
-    if (testOne) {
-        const char* firstStr = options->testFirst.c_str();
-        options->skip = OpDebugReadNamedInt(firstStr, options->baseName.c_str());
-    }
-    for (int index = 0; index < (int) (13 * nonFinitePtsCount * finitePtsCount); ++index) {
-        if (--options->skip > 0)
-            continue;
-        failOne(options, index);
-        if (testOne)
-            return;
-    }
-    for (int index = 0; index < (int) (11 * finitePtsCount); ++index) {
-        if (--options->skip > 0)
-            continue;
-        dontFailOne(options, index);
-        if (testOne)
-            return;
-    }
+    track->runTests(tests);
 }

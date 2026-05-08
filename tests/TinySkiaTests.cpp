@@ -20,39 +20,32 @@
 #include "DebugOps.h"
 #endif
 
-enum class Skippable {
-    no,
-    yes
-};
-
 struct TinySuite {
-    void (*func)(TestOptions* );
+    void (*func)(TestTrack* );
     std::string name;
-    Skippable skippable;
 };
 
 std::vector<TinySuite> tinySuites = {
-    { V0Battles, "battle", Skippable::no },
-    { V0Chalkboard, "chalkboard", Skippable::yes },
-    { V0Fuzz763, "fuzz763", Skippable::no },
-    { V0Inverse, "inverse", Skippable::no },
-    { V0Issue3651, "issue3651", Skippable::no },
-    { V0Op, "op", Skippable::no },
-    { V0OpCircles, "circle", Skippable::yes },
-    { V0OpCubics, "cubic", Skippable::yes },
-    { V0OpFail, "opFail", Skippable::no },
-    { V0OpLoops, "loop", Skippable::yes },
-    { V0OpRects, "opRect", Skippable::yes },
-    { V0OpFastRects, "fastRect", Skippable::yes },
-    { V0Simplify, "simplify", Skippable::no },
-    { V0SimplifyDegenerates, "degenerate", Skippable::yes },
-    { V0SimplifyFail, "simplifyFail", Skippable::no },
-    { V0SimplifyQuadralaterals, "quadralateral", Skippable::yes },
-    { V0SimplifyQuads, "quad", Skippable::yes },
-    { V0SimplifyRects, "simplifyRect", Skippable::yes },
-    { V0SimplifyTriangles, "triangle", Skippable::yes },
-    { V0Tiger, "tiger", Skippable::yes },
-    { V0Tests, "v0", Skippable::no },
+    { V0Battles, "battle" },
+    { V0Chalkboard, "chalkboard" },
+    { V0Fuzz763, "fuzz763" },
+    { V0Inverse, "inverse" },
+    { V0Issue3651, "issue3651" },
+    { V0Op, "op" },
+    { V0OpCircles, "circle" },
+    { V0OpCubics, "cubic" },
+    { V0OpFail, "opFail" },
+    { V0OpLoops, "loop" },
+    { V0OpRects, "opRect" },
+    { V0Simplify, "simplify" },
+    { V0SimplifyDegenerates, "degenerate" },
+    { V0SimplifyFail, "simplifyFail" },
+    { V0SimplifyQuadralaterals, "quadralateral" },
+    { V0SimplifyQuads, "quad" },
+    { V0SimplifyRects, "simplifyRect" },
+    { V0SimplifyTriangles, "triangle" },
+    { V0Tiger, "tiger" },
+    { V0Tests, "v0" },
 };
 
 thread_local std::string currentTest;  // can't be in a struct
@@ -104,7 +97,7 @@ struct TinyState {
 void TestOptions::checkTestCount(int testCount) {
     if (!testCountCheck || TESTS_TO_SKIP || OP_DEBUG_FAST_TEST || strlen(TEST_FIRST))
         return;
-    OP_ASSERT(run == testCount);
+    OP_ASSERT(testTrack.run == testCount);
     testCountCheck = false;
 }
 
@@ -253,27 +246,22 @@ static void dumpSimplifyTest(std::string testname, const SkPath& path, std::stri
 }
 #endif
 
-bool TestOptions::testOne(SkPath& a, SkPath& b, TinyOps op) {
+TestDone TestOptions::testOne(SkPath& a, SkPath& b, TinyOps op) {
     // !!! add support for TEST_PATH_SKIP_TESTS
-    ++index;
-    bool reportRasterErr = !ignoreRaster;
-    ignoreRaster = false;
-    if (--skip >= 0)
-        return true;
-    testName = customName.empty() ? baseName + STR(index) : customName;
-    for (std::string skipName : TEST_PATH_SKIP_TESTS) {
-        if (testName == skipName)
-            return true;
-    }
+    if (0 >= testTrack.toRun)
+        return TestDone::yes;
+    std::string testName = testFunc.name;
+    if (testFunc.numbered)
+        testName += STR(testTrack.testIndex);
     using namespace PathOpsV0Lib;
     Context* context = CreateContext();
     SkPath out;
     ContextUserData data { &out, sizeof(&out), UserDataType::outPath };
     AddUserData(context, data);
-    OpDebugData debugData(testName, 
-            v0MayFail ? OpDebugExpect::fail : OpDebugExpect::success, 
+    OpDebugData debugData(testName, testFunc.mayFail ? OpDebugExpect::fail : OpDebugExpect::success, 
             CURVE_CURVE_1, CURVE_CURVE_2, CURVE_CURVE_DEPTH, CURVE_CURVE_DUMP,
-            tinyState.defeatBreak, TEST_DEFEAT_DUMPS, tinyState.runOne || runOne, reportRasterErr);
+            tinyState.defeatBreak, TEST_DEFEAT_DUMPS, tinyState.runOne, 
+            !ignoreRaster);
     OP_DEBUG_CODE(SetDebugData(context, debugData));
     SetSkiaContextCallbacks(context);
     SetSkiaCurveCallbacks(context);
@@ -283,7 +271,7 @@ bool TestOptions::testOne(SkPath& a, SkPath& b, TinyOps op) {
     }; 
     if (TinyOps::simplify == op) {
 #if OP_DEBUG_SERIALIZE
-        if (tinyState.runOne)
+        if (tinyState.runOne && !TEST_DEFEAT_DUMPS)
             dumpSimplifyTest(testName, a, TestInFile);
 #endif
         int simpleData[] = { 1 };
@@ -293,7 +281,7 @@ bool TestOptions::testOne(SkPath& a, SkPath& b, TinyOps op) {
     } else {
         SkPathOp mappedOp = MapInvertedSkPathOp((SkPathOp) op, a.isInverseFillType(), b.isInverseFillType());
 #if OP_DEBUG_SERIALIZE
-        if (tinyState.runOne)
+        if (tinyState.runOne && !TEST_DEFEAT_DUMPS)
             dumpOpTest(testName, a, b, mappedOp, TestInFile);
 #endif
         bool aIsWinding = isWindingFill(a);
@@ -334,71 +322,69 @@ bool TestOptions::testOne(SkPath& a, SkPath& b, TinyOps op) {
 #endif
     DeleteContext(context);
     tinyState.addADot(debugData);
-    ++run;
-    return --toRun != 0;
+    ++testTrack.run;
+    ++testTrack.testIndex;
+    --testTrack.toRun;
+    return testTrack.toRun <= 0 ? TestDone::yes : TestDone::no;
 }
 
-static void threadTest(TinySuite tinySuite, TestOptions options) {
-    (*tinySuite.func)(&options);
+static void threadTest(TinySuite tinySuite, TestTrack track) {
+    (*tinySuite.func)(&track);
 }
+
+#define THREAD_DEBUG 1
 
 void TinyState::test() {
-    TestOptions options;
-    options.extended = TEST_EXTENDED;
+    TestTrack track;
+    track.extended = TEST_EXTENDED;
     for (const TinySuite& tinySuite : tinySuites) {
         if (!tinyState.skipTo.empty() && tinyState.skipTo != tinySuite.name)
             continue;
-        options.baseName = tinySuite.name;
-        options.skippable = Skippable::yes == tinySuite.skippable;
-        if (isdigit(options.baseName.back()))
-            options.baseName += "_";
+        track.baseName = tinySuite.name;
+//        options.skippable = Skippable::yes == tinySuite.skippable;
+        if (isdigit(track.baseName.back()))  // e.g. fuzz763
+            track.baseName += "_";
         if (!OP_DEBUG_FAST_TEST) {
-            if (!testFirst.empty()) {
-                options.testFirst = testFirst;
-                options.skip = 0;
-                options.toRun = 1;
+            std::string testOnly = testFirst;
+            if (runOne) {
                 int skip = 0;
-                if (options.skippable) {
-                    const char* firstStr = testFirst.c_str();
-                    size_t firstSize = testFirst.size();
-                    // skip only if firstStr == basename + #
-                    const char* baseStr = options.baseName.c_str();
-                    size_t baseSize = options.baseName.size();
-                    if (firstSize > baseSize && 0 == strncmp(firstStr, baseStr, baseSize)) {
-                        while (baseSize < firstSize) {
-                            char digit = firstStr[baseSize++];
-                            if (!isdigit(digit)) {
-                                skip = 0;
-                                break;
-                            }
-                            skip = skip * 10 + digit - '0';
-                        }
-                    }
-                    if (skip) {
-                        options.testFirst = "";
-                        options.skip = skip - 1;
-                    }
+                int tens = 1;
+                while (isdigit(testOnly.back())) {
+                    skip += (testOnly.back() - '0') * tens;
+                    tens *= 10;
+                    testOnly.pop_back();
                 }
+                track.testSet = testOnly;
+                track.skip = skip;
+                track.toRun = 1;
             } else {
-                options.skip = tinyState.testsToSkip;
-                options.toRun = tinyState.testsToRun;
+                track.skip = tinyState.testsToSkip;
+                track.toRun = tinyState.testsToRun;
             }
-            (*tinySuite.func)(&options);
+        #if  THREAD_DEBUG
+            OpDebugOut("(unthreaded) baseName:" + track.baseName + " testSet:" + track.testSet
+                    + " skip:" + STR(track.skip) + " toRun:" + STR(track.toRun) + "\n");
+        #endif
+            (*tinySuite.func)(&track);
             continue;
         }
         // split tests into threads
-        options.skip = INT_MAX;
-        (*tinySuite.func)(&options);
-        int totalTests = options.index + options.indexOffset;
-        OpDebugOut(options.baseName + " totalTests:" + STR(totalTests) + "\n");
+        track.skip = INT_MAX;
+        (*tinySuite.func)(&track);
+        int totalTests = track.testIndex + track.indexOffset;
+        OpDebugOut(track.baseName + " totalTests:" + STR(totalTests) + "\n");
         std::vector<std::thread> t;
-        options.skip = 0;
-        options.toRun = std::max(totalTests / maxThreads, 1);
+        track.skip = 0;
+        track.toRun = std::max(totalTests / maxThreads, 1);
         for (int index = 0; index < maxThreads; ) {
-            t.push_back(std::thread(threadTest, tinySuite, options));
-            options.skip += options.toRun;
+    #if  THREAD_DEBUG
+            OpDebugOut("thread:" + STR(index) + " baseName:" + track.baseName 
+                    + " skip:" + STR(track.skip) + " toRun:" + STR(track.toRun) + "\n");
+    #endif
+            t.push_back(std::thread(threadTest, tinySuite, track));
+            track.skip += track.toRun;
             ++index;
-            options.toRun = totalTests * (index + 1) / maxThreads - options.skip;
+            track.toRun = totalTests * (index + 1) / maxThreads - track.skip;
         }
         for (unsigned index = 0; index < maxThreads; ++index)
             t[index].join();
@@ -407,19 +393,29 @@ void TinyState::test() {
     OpDebugOut(s + "\n");
 }
 
-bool runTests(const std::vector<TestFunc>& tests, TestOptions* options) {
-    bool testOne = !options->testFirst.empty();
+bool TestTrack::runTests(const std::vector<TestFunc>& tests) {
+    auto testOne = [this](const TestFunc& test) {
+        for (std::string skipName : TEST_PATH_SKIP_TESTS) {
+            if (test.name == skipName)
+                return false;
+        }
+        TestOptions options(*this, test);
+        (*test.func)(&options);
+        return true;
+    };
     for (const TestFunc& test : tests) {
-        if (testOne && test.name != options->testFirst)
+        testIndex = 0;
+        if (1 == toRun) {
+            if (test.name != testSet)
+                continue;
+        }
+        if (!test.numbered) {
+            if (skipTests(1))
+                continue;
+        }
+        if (!testOne(test))
             continue;
-        if (!options->skippable && options->skipTests(1))
-            continue;
-        options->customName = test.name;
-        options->v0MayFail = test.mayFail;
-        (*test.func)(options);
-        if (testOne)
-            return true;
-        if (!options->toRun)
+        if (0 >= toRun)
             return true;
     }
     return false;

@@ -74,7 +74,7 @@ if (testlines & (1LL << i++)) path.cubicTo(SkBits2Float(0x4470f5e4), SkBits2Floa
 if (testlines & (1LL << i++)) path.cubicTo(SkBits2Float(0x4470e8f6), SkBits2Float(0x439c4e35), SkBits2Float(0x4470ee98), SkBits2Float(0x439c5333), SkBits2Float(0x4470eed9), SkBits2Float(0x439c1ac1));  // 963.64f, 312.611f, 963.728f, 312.65f, 963.732f, 312.209f
 SkASSERT(64 == i);
 path.close();
-return options->testOne(path);
+return TestDone::yes == options->testOne(path);
 }
 
 static void chalkboard_threaded(TestOptions* options) {
@@ -92,10 +92,10 @@ static void chalkboard_threaded(TestOptions* options) {
                 testCount = 64;
                 break;
             case 2:
-                testCount = options->extended ? 63 * 62 / 2 : 100;
+                testCount = options->extended() ? 63 * 62 / 2 : 100;
                 break;
             default:
-                testCount = options->extended ? 10000 : 100;
+                testCount = options->extended() ? 10000 : 100;
                 break;
         }
         if (options->skipTests(testCount))
@@ -110,7 +110,7 @@ static void chalkboard_threaded(TestOptions* options) {
                     testlines = 1LL << test;
                     break;
                 case 2:
-                    if (options->extended) {
+                    if (options->extended()) {
                         SkASSERT(index1 >= 1);
                         SkASSERT(index2 >= 0);
                         testlines = 1LL << index1;
@@ -140,16 +140,14 @@ static void chalkboard_threaded(TestOptions* options) {
     }
 }
 
-static bool chalkboard_1(TestOptions* options) {
-    if (options->skipTests(1))
-        return false;
-    options->customName = __func__;
-    return !chalkboard(options, 0xFFFFFFFFFFFFFFFFLL) || 0 == options->toRun;
+static void chalkboard_1(TestOptions* options) {
+    chalkboard(options, 0xFFFFFFFFFFFFFFFFLL);
 }
 
-void V0Chalkboard(TestOptions* options) {
-    if (chalkboard_1(options))
-        return;
-    options->customName = "";
-    chalkboard_threaded(options);
+void V0Chalkboard(TestTrack* track) {
+    static std::vector<TestFunc> tests = {
+        TEST_FUNC(chalkboard_1),
+        TEST_FUNC_NUMBERED(chalkboard_threaded),
+    };
+    track->runTests(tests);
 }

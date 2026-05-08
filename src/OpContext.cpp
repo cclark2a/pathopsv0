@@ -529,12 +529,12 @@ WindingCondition OpContext::pathOps() {
 	    OP_DEBUG_VALIDATE_CODE(debugValidateIntersections());
 	    if (allowError(PathOpsV0Lib::ContextError::missing))
 		    addDisjointIntersections();
-	    sortIntersections();
+	    sortIntersections(SortSmall::yes);
 		mergeEndPoints();
 		mergeIntersections();  // merge intersections that are close together in each segment
 //		mergeOpposites();  // further merge sectable opposite intersections
 //		aliasIntersections();  // alias close by intersections so they share a common point
-	    sortIntersections();
+	    sortIntersections(SortSmall::no);
 //		tripleSect(); // if three or more segments intersect, make the points the same 
 //	    disableSmallSegments();  // moved points may allow disabling some segments
 	    if (checkEmpty())
@@ -543,16 +543,16 @@ WindingCondition OpContext::pathOps() {
 //	    sortIntersections();
 	    if (!fixCCSects())  // curve-curve intersections may have enough error to put sect list out of order
 		    OP_DEBUG_FAIL(*this, -1);
-	    sortIntersections();
+	    sortIntersections(SortSmall::no);
 //	    findMissingEnds();  // moved pts may require looking in aliases for an end match
 	    manyCoincidences();  // fill in intersections in coin runs that are missing in other coins
-	    sortIntersections();
+	    sortIntersections(SortSmall::no);
 	    betweenCoincidence();  // fill in intersections in coin runs that are missing in other coins
-	    sortIntersections();
+	    sortIntersections(SortSmall::no);
 	    markInCoincidence();
 	    makeEdges();
 	    makeCoins();
-	    sortIntersections();
+	    sortIntersections(SortSmall::no);
 	    transferCoins();
 	    makePals();  // edges too close to each other to sort or precisely intersect
 	    rebuildOverlaps(); // add coincident contours to intersecting contour bounds arrays
@@ -751,10 +751,10 @@ void OpContext::setThreshold() {
 	thresholdLength = threshold.length();
 }
 
-void OpContext::sortIntersections() {
+void OpContext::sortIntersections(SortSmall sortSmall) {
 	for (auto contour : contours) {
 		for (auto& segment : contour->segments) {
-            if (segment.disabled)
+            if (SortSmall::no == sortSmall && segment.disabled)
                 continue;
 			segment.sects.sort();
 		}

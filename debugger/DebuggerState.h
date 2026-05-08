@@ -84,7 +84,7 @@ struct DebuggerDump {
     std::string filename;
     OpContext* context = nullptr;
     time_t lastTime = 0;
-    int maxUpdateAttempts = 16;
+    int maxUpdateAttempts = 36;
     int updateAttempts = 0;
     int updateDelay = 1;
     int updateCount = 0;
@@ -123,11 +123,13 @@ struct DebuggerState {
     HelpWindow helpWindow;
     CompareWindow compareWindow;
     DumpWindow dumpWindow;
+    int clickDump = 0;
     int currentDump = 0;
     int depth = 0;
     int verboseLevel = 1;
     SDL_AppResult error = (SDL_AppResult) 0;
     bool bitsToShow = true;
+    bool allowUpdate = true;
     bool showContours = false;
     bool showEdges = true;
     bool showHex = false;

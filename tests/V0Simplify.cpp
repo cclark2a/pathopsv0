@@ -9430,7 +9430,7 @@ static void bug11958_c(TestOptions* options) {
     options->testOne(path);
 }
 
-void V0Simplify(TestOptions* options) {
+void V0Simplify(TestTrack* track) {
     static std::vector<TestFunc> tests = {
         TEST_FUNC(bug8290),
         TEST_FUNC(bug8249),
@@ -9902,5 +9902,5 @@ void V0Simplify(TestOptions* options) {
         TEST_FUNC(testLine2),
         TEST_FUNC(testLine1),
     };
-    runTests(tests, options);
+    track->runTests(tests);
 }

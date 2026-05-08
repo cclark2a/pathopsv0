@@ -73,6 +73,8 @@ typedef void (*DebugDumpWindingSet)(const char*& , Winding& );
 typedef std::string (*DebugDumpOut)(Context* );
 typedef std::string (*DebugImageWindingOut)(Winding );
 typedef std::vector<std::string> (*DebugImageWindingNames)();
+#endif
+#if OP_DEBUGGER
 typedef uint32_t (*DebugEdgeColor)(Winding , DebugEdgeType );
 #endif
 
@@ -86,9 +88,13 @@ struct DebugContextCallbacks {
     DebugDumpOut debugDumpOutFuncPtr = nullptr;
 	DebugImageWindingOut debugImageWindingOutFuncPtr = nullptr;
     DebugImageWindingNames debugImageWindingNamesFuncPtr = nullptr;
-    DebugEdgeColor debugEdgeColorFuncPtr = nullptr;
     WindingKeep debugWindingVisibleFuncPtr = nullptr;  // if winding effects fill for one contour
     DebugValue debugSafetyLinksFuncPtr = nullptr;
+#if OP_DEBUGGER
+    DebugEdgeColor debugEdgeColorFuncPtr = nullptr;
+#else
+    std::string debugEdgeColorFuncName;  // name only: colors aren't defined in engine scope
+#endif
 #endif
 };
 

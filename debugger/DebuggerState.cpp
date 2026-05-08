@@ -60,6 +60,8 @@ DebuggerState::DebuggerState()
 }
 
 SDL_AppResult DebuggerState::checkForNewFiles() {
+    if (!allowUpdate)
+        return SDL_APP_CONTINUE;
     struct stat info;
     size_t fileNumber = 0;
     for (;;) {
@@ -68,7 +70,7 @@ SDL_AppResult DebuggerState::checkForNewFiles() {
         if (stat(filePath.c_str(), &info) == -1) {
             if (dumps.size() >= fileNumber)
                 dumps.resize(fileNumber - 1);
-            currentDump = std::max(0, std::min(currentDump, (int) dumps.size() - 1));
+            currentDump = std::max(0, std::min(clickDump, (int) dumps.size() - 1));
             break;
         }
         if (dumps.size() < fileNumber)
@@ -168,12 +170,13 @@ void DebuggerState::playback() {
             foundID->selected = true;
     }
     // !!! add any additional global state here
-    DEBUG_SET_REQUIRED_VALUE(dumpWindow, currentDump);
+    DEBUG_SET_REQUIRED_VALUE(dumpWindow, clickDump);
     DEBUG_SET_REQUIRED_VALUE(currentDump, depth);
     DEBUG_SET_REQUIRED_VALUE(depth, verboseLevel);
     DEBUG_SET_REQUIRED_VALUE(verboseLevel, error);
     ASSERT_ORDERED(error, bitsToShow);  // don't restore
-    DEBUG_SET_BOOL(bitsToShow, showContours);
+    DEBUG_SET_BOOL(bitsToShow, allowUpdate);
+    DEBUG_SET_BOOL(allowUpdate, showContours);
     DEBUG_SET_BOOL(showContours, showEdges);
     DEBUG_SET_BOOL(showEdges, showHex);
     // !!! need some way to call a custom set function ?
@@ -200,12 +203,13 @@ void DebuggerState::record() {
     if (!s.empty())
         s.back() = '\n';
     // !!! add any additional global state here
-    DEBUG_DUMP_REQUIRED_VALUE(dumpWindow, currentDump);
+    DEBUG_DUMP_REQUIRED_VALUE(dumpWindow, clickDump);
     DEBUG_DUMP_REQUIRED_VALUE(currentDump, depth);
     DEBUG_DUMP_REQUIRED_VALUE(depth, verboseLevel);
     DEBUG_DUMP_REQUIRED_VALUE(verboseLevel, error);
     ASSERT_ORDERED(error, bitsToShow);  // don't save
-    DEBUG_DUMP_BOOL(bitsToShow, showContours);
+    DEBUG_DUMP_BOOL(bitsToShow, allowUpdate);
+    DEBUG_DUMP_BOOL(allowUpdate, showContours);
     DEBUG_DUMP_BOOL(showContours, showEdges);
     DEBUG_DUMP_BOOL(showEdges, showHex);
     DEBUG_DUMP_BOOL(showHex, showIntersections);

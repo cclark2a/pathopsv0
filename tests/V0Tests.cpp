@@ -1139,7 +1139,7 @@ void skiaIssue377820800(TestOptions* options) {
     options->testOne(circle, star, TinyOps::difference);
 }
 
-void V0Tests(TestOptions* options) {
+void V0Tests(TestTrack* track) {
     static std::vector<TestFunc> tests = {
         TEST_FUNC(mikeClifton2),
         TEST_FUNC(mikeClifton1),
@@ -1159,5 +1159,5 @@ void V0Tests(TestOptions* options) {
         TEST_FUNC(pentrek1),
         TEST_FUNC(issue12556),
     };
-    runTests(tests, options);
+    track->runTests(tests);
 }

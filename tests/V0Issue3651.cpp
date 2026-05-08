@@ -1650,7 +1650,7 @@ path.close();
     options->testOne(pathA, path, TinyOps::unite);
 }
 
-void V0Issue3651(TestOptions* options) {
+void V0Issue3651(TestTrack* track) {
     static std::vector<TestFunc> tests = {
         TEST_FUNC(issue3651_6),
         TEST_FUNC(issue3651_1a),
@@ -1661,5 +1661,5 @@ void V0Issue3651(TestOptions* options) {
         TEST_FUNC(issue3651_2),
         TEST_FUNC(issue3651_3),
     };
-    runTests(tests, options);
+    track->runTests(tests);
 }

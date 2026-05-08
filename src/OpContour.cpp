@@ -5,7 +5,7 @@
 #include "OpWinder.h"
 #include "PathOps.h"
 
-#if OP_DEBUG_IMAGE
+#if OP_DEBUGGER
 #include "OpDebugColor.h"
 #endif
 
@@ -722,7 +722,7 @@ void OpContour::init(OpContext* ctxt, PathOpsV0Lib::WindingData wind, size_t siz
 #if OP_TEST
 	debugWinding = OpWinding(this, wind, size);
 #endif
-#if OP_DEBUG_IMAGE
+#if OP_DEBUGGER
     int used = ctxt->contourStorage->used;
     if (1 == used)
         debugColor = blue;

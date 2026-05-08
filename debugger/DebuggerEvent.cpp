@@ -69,7 +69,10 @@ KeyResult DebuggerState::keyEvent(const DebuggerEvent& debuggerEvent, KeyAction 
                 result.l = DrawLevel::update;
             break;
             case KeyAction::show:
-                result.s += (bit ? "hide " : "show ") + postfix;
+                if ("update" == postfix)  // !!! add way to choose verbs (hardcode for now)
+                    result.s += (bit ? "defeat " : "allow ") + postfix;
+                else
+                    result.s += (bit ? "hide " : "show ") + postfix;
             break;
             default:
                 OP_ASSERT(0);
@@ -233,6 +236,9 @@ KeyResult DebuggerState::keyEvent(const DebuggerEvent& debuggerEvent, KeyAction 
         case 'T': 
             if (picTop) flip(pictureWindow.drawTs, "t values"); 
             if (textTop) flip(textWindow.showTest, "test");
+        break;
+        case 'u':  // manual override; lockout updates from dump files
+            flip(allowUpdate, "update");
         break;
         case 'v': if (picTop) flip(pictureWindow.drawValues, "point values"); break;
         case 'w': if (picTop) flip(pictureWindow.drawWindings, "windings"); break;

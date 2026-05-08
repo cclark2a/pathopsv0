@@ -648,11 +648,19 @@ static std::string debugContextCallbacksDump(const PathOpsV0Lib::DebugContextCal
     DEBUG_FIND_TAG(debugContextCallbacks, debugDumpWindingSetFuncPtr, debugDumpOutFuncPtr);
     DEBUG_FIND_TAG(debugContextCallbacks, debugDumpOutFuncPtr, debugImageWindingOutFuncPtr);
     DEBUG_FIND_TAG(debugContextCallbacks, debugImageWindingOutFuncPtr, debugImageWindingNamesFuncPtr);
-    DEBUG_FIND_TAG(debugContextCallbacks, debugImageWindingNamesFuncPtr, debugEdgeColorFuncPtr);
-    DEBUG_FIND_TAG(debugContextCallbacks, debugEdgeColorFuncPtr, debugWindingVisibleFuncPtr);
+    DEBUG_FIND_TAG(debugContextCallbacks, debugImageWindingNamesFuncPtr, debugWindingVisibleFuncPtr);
     DEBUG_FIND_TAG(debugContextCallbacks, debugWindingVisibleFuncPtr, debugSafetyLinksFuncPtr);
-    static_assert(offsetof(PathOpsV0Lib::DebugContextCallbacks, debugSafetyLinksFuncPtr) 
-            + sizeof(debugContextCallbacks.debugSafetyLinksFuncPtr) == sizeof(debugContextCallbacks));
+#if OP_DEBUGGER
+    DEBUG_FIND_TAG(debugContextCallbacks, debugSafetyLinksFuncPtr, debugEdgeColorFuncPtr);
+    static_assert(offsetof(PathOpsV0Lib::DebugContextCallbacks, debugEdgeColorFuncPtr) 
+            + sizeof(debugContextCallbacks.debugEdgeColorFuncPtr) == sizeof(debugContextCallbacks));
+#else
+    ASSERT_SERIAL(debugContextCallbacks, debugSafetyLinksFuncPtr, debugEdgeColorFuncName);
+    if (!debugContextCallbacks.debugEdgeColorFuncName.empty())
+        s += "debugEdgeColorFuncName:" + debugContextCallbacks.debugEdgeColorFuncName + " ";
+    static_assert(offsetof(PathOpsV0Lib::DebugContextCallbacks, debugEdgeColorFuncName) 
+            + sizeof(debugContextCallbacks.debugEdgeColorFuncName) == sizeof(debugContextCallbacks));
+#endif
     return s;
 }
 
@@ -1254,7 +1262,7 @@ std::string OpContext::debugDump(DebugLevel l, DebugBase b) const {
     s += "threshold:" + threshold.debugDump(DebugLevel::error, b) + " ";
     ASSERT_ORDERED(threshold, thresholdLength);
     if (!OpMath::IsDebugNaN(thresholdLength))
-        s += debugValue(DebugLevel::error, b, "thresholdLength", thresholdLength);
+        s += debugValue(DebugLevel::error, b, "thresholdLength", thresholdLength) + " ";
     ASSERT_ORDERED(thresholdLength, error);
     if (PathOpsV0Lib::ContextError::none != error)
         s += "error:" + PathOpsV0Lib::contextErrorName(error) + "\n";
@@ -1580,13 +1588,6 @@ std::string OpContour::debugDump(DebugLevel l, DebugBase b) const {
 		s += closeBracket;
     }
     ASSERT_ORDERED(debugCurveData, debugWinding);
-#endif
-#if OP_DEBUG_IMAGE
-    ASSERT_ORDERED(debugWinding, debugColor);
-    if (DebugLevel::file == l) {
-        s += "debugColor:";
-        s += debugDumpColor(l, debugColor) + " ";
-    }
 #endif
     return debugPopMatching(s, ' ');
 }
@@ -2316,7 +2317,7 @@ std::string OpLimb::debugDumpIDs(DebugLevel l, bool bracket) const {
 int OpLimbStorage::debugCount() const {
     int result = used;
     OpLimbStorage* block = nextBlock;
-    while (nextBlock) {
+    while (block) {
         result += block->used;
         block = block->nextBlock;
     }
@@ -2335,9 +2336,11 @@ OpLimb* OpLimbStorage::debugFind(int ID) const {
 
 OpLimb* OpLimbStorage::debugIndex(int index) const  {
     const OpLimbStorage* block = this;
-    while (index > block->used) {
-        index -= block->used;
+    while (block->nextBlock)
         block = block->nextBlock;
+    while (index >= block->used) {
+        index -= block->used;
+        block = block->prevBlock;
         if (!block)
             return nullptr;
     }
@@ -2702,23 +2705,6 @@ std::string SnipPtTs::debugDump(DebugLevel l, DebugBase b) const {
     return s;
 }
 
-#if OP_DEBUG_IMAGE
-std::string debugDumpColor(DebugLevel l, uint32_t c) {
-    char asHex[11];
-    int written = snprintf(asHex, sizeof(asHex), "0x%08x", c);
-    if (written != 10)
-        return "snprintf of " + STR_E(c) + " to hex failed (written:" + STR(written) + ")";
-    if (DebugLevel::file != l) {
-        auto result = std::find_if(debugColorArray.begin(), debugColorArray.end(), [c](auto color) {
-            return color.first == c; });
-        if (debugColorArray.end() == result)
-            return "color " + std::to_string(c) + " (" + std::string(asHex) + ") not found";
-        return std::string(asHex) + " " + (*result).second;
-    }
-    return std::string(asHex);
-}
-#endif
-
 std::string dmpFileToStr(std::string name) {
     std::string filename = dmpFileToPath(name);
     std::string buffer;
@@ -2772,6 +2758,23 @@ std::string dmpFileToStr(std::string name) {
 #endif
     return buffer;
 }
+
+#if OP_DEBUGGER
+std::string debugDumpColor(DebugLevel l, uint32_t c) {
+    char asHex[11];
+    int written = snprintf(asHex, sizeof(asHex), "0x%08x", c);
+    if (written != 10)
+        return "snprintf of " + STR_E(c) + " to hex failed (written:" + STR(written) + ")";
+    if (DebugLevel::file != l) {
+        auto result = std::find_if(debugColorArray.begin(), debugColorArray.end(), [c](auto color) {
+            return color.first == c; });
+        if (debugColorArray.end() == result)
+            return "color " + std::to_string(c) + " (" + std::string(asHex) + ") not found";
+        return std::string(asHex) + " " + (*result).second;
+    }
+    return std::string(asHex);
+}
+#endif
 
 #if OP_DEBUG_VALIDATE && OP_DEBUG_DUMP
 OpContext* fromFile(std::string filename) {

@@ -3,7 +3,7 @@
 // optimized for speed, reduced memory, and random access
 #include "TinySkiaTests.h"
 
-void V0OpLoops(TestOptions* options) {
+static void loops(TestOptions* options) {
     auto test = [options](float oA, float oB, float oC, float oD) {
         for (float a = 0 ; a < 6; ++a) {
             for (float b = a + 1 ; b < 7; ++b) {
@@ -28,13 +28,13 @@ void V0OpLoops(TestOptions* options) {
                         pathB.moveTo(c, d);
                         pathB.cubicTo(endC.x, endC.y, endD.x, endD.y, a, b);
                         pathB.close();
-                        if (!options->testOne(pathA, pathB, TinyOps::intersect))
-                            return false;
+                        if (TestDone::yes == options->testOne(pathA, pathB, TinyOps::intersect))
+                            return TestDone::yes;
                     }
                 }
             }
         }
-        return true;
+        return TestDone::no;
     };
     const int testCount = (6 * 7 / 2) * (6 * 7 / 2);
     options->buggySkiaNumbering(testCount);  // skia test framework bug skips first set of tests
@@ -43,13 +43,20 @@ void V0OpLoops(TestOptions* options) {
         for (int b = a + 1; b < 7; ++b) {
             for (int c = 0 ; c < 6; ++c) {
                 for (int d = c + 1; d < 7; ++d) {
-                    if (!options->skipTests(testCount) && !test(a, b, c, d))
+                    if (!options->skipTests(testCount) && TestDone::yes == test(a, b, c, d))
                         return;
                     options->checkTestCount(testCount);
                 }
             }
-            if (!options->extended) 
+            if (!options->extended()) 
                 return;
         }
     }
+}
+
+void V0OpLoops(TestTrack* track) {
+    static std::vector<TestFunc> tests = {
+        TEST_FUNC_NUMBERED(loops),
+    };
+    track->runTests(tests);
 }

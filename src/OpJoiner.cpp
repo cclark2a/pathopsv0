@@ -767,6 +767,7 @@ void OpTree::makeTrunk(OpEdge* edge) {
 				limb.addEach(*member, *this);
 			}
 			if (totalUsed > maxLimbs) {
+				OP_DEBUG_DUMP_CODE(context->dumpFile("treeError"));
 				context->setError(PathOpsV0Lib::ContextError::tree  
 						OP_DEBUG_PARAMS(edge->id));
 				return;

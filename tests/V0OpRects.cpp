@@ -11,7 +11,7 @@
 // cw or ccw (1 bit)
 
 // Skia tests omitted reverse difference; put those tests at the end to preserve numbering
-void V0OpRects(TestOptions* options) {
+static void rects(TestOptions* options) {
     auto test = [options](float oA, float oB, float oC, float oD, bool testRevDiff) {
         SkPath pathA;
         pathA.addRect(oA, oA, oB, oB, SkPathDirection::kCW);
@@ -32,13 +32,13 @@ void V0OpRects(TestOptions* options) {
                                 pathB.addRect(c, c, d, d, SkPathDirection::kCW);
                                 pathB.close();
                                 if (testRevDiff) {
-                                    if (!options->testOne(pathA, pathB, TinyOps::reverseDifference))
-                                        return false;
+                                    if (TestDone::yes == options->testOne(pathA, pathB, TinyOps::reverseDifference))
+                                        return TestDone::yes;
                                 } else {
                                     for (TinyOps op = TinyOps::difference; 
                                                 op <= TinyOps::exclusiveOr; ++op) {
-                                            if (!options->testOne(pathA, pathB, op))
-                                                return false;
+                                            if (TestDone::yes == options->testOne(pathA, pathB, op))
+                                                return TestDone::yes;
                                     }
                                 }
                             }
@@ -47,7 +47,7 @@ void V0OpRects(TestOptions* options) {
                 }
             }
         }
-        return true;
+        return TestDone::no;
     };
     const int oneOpCount = (6 * 7 / 2) * (6 * 7 / 2) * 2 * 2;
     const int skiaOpsCount = oneOpCount * 4;
@@ -59,25 +59,25 @@ void V0OpRects(TestOptions* options) {
             for (float b = a + 1; b < 7; ++b) {
                 for (float c = 0 ; c < 6; ++c) {
                     for (float d = c + 1; d < 7; ++d) {
-                        if (!options->skipTests(testCount) && !test(a, b, c, d, testRevDiff))
+                        if (!options->skipTests(testCount) && TestDone::yes == test(a, b, c, d, testRevDiff))
                             return;
                         options->checkTestCount(testCount);
                     }
                 }
-                if (!options->extended) 
+                if (!options->extended()) 
                     return;
             }
         }
     }
 }
 
-void V0OpFastRects(TestOptions* options) {
+static void fastRects(TestOptions* options) {
     auto test = [options](float oA, float oB, float oC, float oD, bool testRevDiff) {
         const SkPathFillType fts[] = {
             SkPathFillType::kWinding,        SkPathFillType::kEvenOdd,
             SkPathFillType::kInverseWinding, SkPathFillType::kInverseEvenOdd
         };
-        float step = options->extended ? 2 : 5;
+        float step = options->extended() ? 2 : 5;
         for (bool a : { false, true } ) {
             for (bool b : { false, true } ) {
                 for (float c = 0; c < 6; c += step) {
@@ -96,13 +96,13 @@ void V0OpFastRects(TestOptions* options) {
                                     pathB.addRect(oC, oC, oD + d, oD, SkPathDirection::kCW);
                                 pathB.close();
                                 if (testRevDiff) {
-                                    if (!options->testOne(pathA, pathB, TinyOps::reverseDifference))
-                                        return false;
+                                    if (TestDone::yes == options->testOne(pathA, pathB, TinyOps::reverseDifference))
+                                        return TestDone::yes;
                                 } else {
                                     for (TinyOps op = TinyOps::difference; 
                                                 op <= TinyOps::exclusiveOr; ++op) {
-                                        if (!options->testOne(pathA, pathB, op))
-                                            return false;
+                                        if (TestDone::yes == options->testOne(pathA, pathB, op))
+                                            return TestDone::yes;
                                     }
                                 }
                             }
@@ -111,9 +111,9 @@ void V0OpFastRects(TestOptions* options) {
                 }
             }
         }
-        return true;
+        return TestDone::no;
     };
-    int stepTests = options->extended ? 2 : 3;
+    int stepTests = options->extended() ? 2 : 3;
     int oneOpCount = 2 * 2 * stepTests * stepTests * 4 * 4;
     int skiaOpsCount = oneOpCount * 4;
     options->buggySkiaNumbering(skiaOpsCount);  // skia test framework bug skips first set of tests
@@ -124,14 +124,22 @@ void V0OpFastRects(TestOptions* options) {
             for (float b = a + 1; b < 7; ++b) {
                 for (float c = 0 ; c < 6; ++c) {
                     for (float d = c + 1; d < 7; ++d) {
-                        if (!options->skipTests(skiaOpsCount) && !test(a, b, c, d, testRevDiff))
+                        if (!options->skipTests(skiaOpsCount) && TestDone::yes == test(a, b, c, d, testRevDiff))
                             return;
                         options->checkTestCount(testCount);
                     }
                 }
-                if (!options->extended) 
+                if (!options->extended()) 
                     return;
             }
         }
     }
+}
+
+void V0OpRects(TestTrack* track) {
+    static std::vector<TestFunc> tests = {
+        TEST_FUNC_NUMBERED(rects),
+        TEST_FUNC_NUMBERED(fastRects),
+    };
+    track->runTests(tests);
 }

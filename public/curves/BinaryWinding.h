@@ -238,6 +238,7 @@ inline bool binaryDebugIsFill(Winding winding) {
 #endif
 
 #if OP_DEBUG_SERIALIZE
+
 inline std::string binaryDumpOutFunc(Winding winding) {
     BinaryData binary(winding);
     std::string s = "{" + STR(binary.left) + ", " + STR(binary.right) + "}";
@@ -262,7 +263,7 @@ inline std::string binaryDumpOutFunc(Winding winding) {
 
 #endif
 
-#if OP_DEBUG_DUMP
+#if OP_DEBUG_SERIALIZE
 
 inline void binaryDumpSetFunc(const char*& str, Winding& winding) {
     int left = OpDebugReadSizeT(str);
@@ -274,6 +275,10 @@ inline void binaryDumpSetFunc(const char*& str, Winding& winding) {
 inline std::vector<std::string> binaryImageNamesFunc() {
     return { "left", "right" };
 }
+
+#endif
+
+#if OP_DEBUGGER
 
 inline uint32_t binaryColorFunc(Winding winding, DebugEdgeType edgeType) {
     BinaryData data(winding);
@@ -291,6 +296,18 @@ inline uint32_t binaryColorFunc(Winding winding, DebugEdgeType edgeType) {
 	}
     return data.left ? debugBlack : darkGreen;
 }
+
+#define BINARY_COLOR_TAGGED_FUNCTIONS \
+    OP_TAGGED_FUNCTION(binaryColorFunc), \
+
+#else
+
+#define BINARY_COLOR_TAGGED_FUNCTIONS \
+    OP_TAGGED_EMPTY_FUNCTION(binaryColorFunc), \
+
+#endif
+
+#if OP_DEBUG_SERIALIZE
 
 inline WindKeep binaryVisibleFunc(Winding w, Winding s) {
     BinaryData winding(w);
@@ -313,12 +330,8 @@ inline WindKeep binaryVisibleFunc(Winding w, Winding s) {
 #define DUMP_BINARY_WINDING_TAGGED_FUNCTIONS \
     OP_TAGGED_FUNCTION(binaryDumpSetFunc), \
     OP_TAGGED_FUNCTION(binaryImageNamesFunc), \
-    OP_TAGGED_FUNCTION(binaryColorFunc), \
     OP_TAGGED_FUNCTION(binaryVisibleFunc), \
 
-#endif
-
-#if OP_DEBUG_SERIALIZE
 // !!! this will replace index version
 inline std::string binaryImageOutFunc(Winding winding) {
     BinaryData binaryData(winding);
@@ -337,8 +350,13 @@ inline Context* binaryContext(CurveOutput output = nullptr, EmptyCallerPath empt
 #if OP_DEBUG
 	SetDebugContextCallbacks(context, {
         binaryDebugIsFill, nullptr, nullptr
-        OP_DEBUG_DUMP_PARAMS(binaryDumpOutFunc, binaryDumpSetFunc, nullptr,
-                binaryImageOutFunc, binaryImageNamesFunc, binaryColorFunc, binaryVisibleFunc)
+        OP_DEBUG_SERIALIZE_PARAMS(binaryDumpOutFunc, binaryDumpSetFunc, nullptr,
+                binaryImageOutFunc, binaryImageNamesFunc, binaryVisibleFunc, nullptr)
+#if OP_DEBUGGER
+        , binaryColorFunc
+#else
+        , "binaryColorFunc"
+#endif
     });
 #endif
     return context;

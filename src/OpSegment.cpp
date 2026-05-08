@@ -860,12 +860,12 @@ MatchReverse OpSegment::matchEnds(const OpSegment* opp) const {
 }
 
 bool OpSegment::mergeEndPoints() {
-	if (disabled || sects.i.front()->ptT.t == sects.i.back()->ptT.t) {
+	OP_ASSERT(disabled || !sects.i.empty());
+	if ((disabled && !c.isSmall) || sects.i.front()->ptT.t == sects.i.back()->ptT.t) {
 		disabled = true;
 		endsMerged = true;
 		return false;
 	}
-	OP_ASSERT(!sects.i.empty());
 	OP_ASSERT(sects.i.front()->ptT.t == 0);
 	OP_ASSERT(sects.i.back()->ptT.t == 1);
 	auto merge = [this](float endT, int initial, int delta) {
@@ -874,10 +874,11 @@ bool OpSegment::mergeEndPoints() {
 		OpPoint endPt = endT ? c.c.data->end : c.c.data->start;
         OpPoint masterPt = endT ? c.end : c.start;
 		// scan to see if merge is required
-		for (int index = initial; ; index += delta) {
-			OP_ASSERT(index < sects.i.size());
+		int final = initial ? -1 : (int) sects.i.size();
+		for (int index = initial; index != final; index += delta) {
+			OP_ASSERT(0 <= index && index < (int) sects.i.size());
 			OpIntersection* sect = sects.i[index];
-			if (endT != sect->ptT.t)
+			if (!c.isSmall && endT != sect->ptT.t)
 				break;
 			if (endPt == sect->opp->ptT.pt && endPt == sect->opp->callerPt)
 				continue;
@@ -885,10 +886,10 @@ bool OpSegment::mergeEndPoints() {
 		}
 		return false;
 needsMerge:
-		for (int index = initial; ; index += delta) {
-			OP_ASSERT(index < sects.i.size());
+		for (int index = initial; index != final; index += delta) {
+			OP_ASSERT(0 <= index && index < (int) sects.i.size());
 			OpIntersection* sect = sects.i[index];
-			if (endT != sect->ptT.t)
+			if (!c.isSmall && endT != sect->ptT.t)
 				break;
             if (sect->mergeID) {
                 masterPt = sect->ptT.pt;
@@ -896,17 +897,16 @@ needsMerge:
             } else if (sect->opp->mergeID) {
                 masterPt = sect->opp->ptT.pt;
                 mergeId = sect->opp->mergeID;
-            } else if (!mergeId && sect->opp->segment->c.isSmall) {
+            } else if (!mergeId && sect->opp->segment->c.isSmall)
 				masterPt = sect->opp->segment->c.start;
-			}
         }
 		if (!mergeId)
 			mergeId = contour->nextID();
 		// mark all matching t with merge id
-		for (int index = initial; ; index += delta) {
-			OP_ASSERT(index < sects.i.size());
+		for (int index = initial; index != final; index += delta) {
+			OP_ASSERT(0 <= index && index < (int) sects.i.size());
 			OpIntersection* sect = sects.i[index];
-			if (endT != sect->ptT.t)
+			if (!c.isSmall && endT != sect->ptT.t)
 				break;
 			if (mergeId == sect->mergeID)
 				continue;

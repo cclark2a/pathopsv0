@@ -79,7 +79,8 @@ inline bool unaryDebugIsFill(Winding winding) {
 }
 #endif
 
-#if OP_DEBUG_DUMP
+#if OP_DEBUG_SERIALIZE
+
 inline void unaryDumpSetFunc(const char*& str, Winding& winding) {
     int left = OpDebugReadSizeT(str);
     UnaryData unaryData(left);
@@ -89,9 +90,6 @@ inline void unaryDumpSetFunc(const char*& str, Winding& winding) {
 #define DUMP_UNARY_WINDING_TAGGED_FUNCTIONS \
     OP_TAGGED_FUNCTION(unaryDumpSetFunc), \
 
-#endif
-
-#if OP_DEBUG_SERIALIZE
 inline std::string unaryDumpOutFunc(Winding winding) {
     UnaryData unary(winding);
     std::string s = "{" + STR(unary.value) + "}";
@@ -106,13 +104,17 @@ inline std::string unaryDumpOutFunc(Winding winding) {
     OP_TAGGED_FUNCTION(unaryDebugIsFill), \
     OP_TAGGED_FUNCTION(unaryDumpOutFunc), \
 
-#endif
-
-#if OP_DEBUG_IMAGE
 inline std::string unaryImageOutFunc(Winding winding) {
     UnaryData unaryData(winding);
     return STR(unaryData.value);
 }
+
+#define UNARY_IMAGE_TAGGED_FUNCTIONS \
+    OP_TAGGED_FUNCTION(unaryImageOutFunc), \
+
+#endif
+
+#if OP_DEBUGGER
 
 inline uint32_t unaryColorFunc(Winding winding, DebugEdgeType edgeType) {
     UnaryData unaryData(winding);
@@ -131,9 +133,13 @@ inline uint32_t unaryColorFunc(Winding winding, DebugEdgeType edgeType) {
     return debugBlack;
 }
 
-#define UNARY_IMAGE_TAGGED_FUNCTIONS \
-    OP_TAGGED_FUNCTION(unaryImageOutFunc), \
+#define UNARY_COLOR_TAGGED_FUNCTIONS \
     OP_TAGGED_FUNCTION(unaryColorFunc), \
+
+#else
+
+#define UNARY_COLOR_TAGGED_FUNCTIONS \
+    OP_TAGGED_EMPTY_FUNCTION(unaryColorFunc), \
 
 #endif
 
@@ -143,8 +149,13 @@ inline Context* unaryContext(CurveOutput output = nullptr, EmptyCallerPath empty
     unaryCallbacks(context);
 #if OP_DEBUG
 	SetDebugContextCallbacks(context, { unaryDebugIsFill, nullptr, nullptr
-            OP_DEBUG_DUMP_PARAMS(unaryDumpOutFunc, unaryDumpSetFunc, nullptr,
-            unaryImageOutFunc, nullptr, unaryColorFunc)
+            OP_DEBUG_SERIALIZE_PARAMS(unaryDumpOutFunc, unaryDumpSetFunc, nullptr,
+            unaryImageOutFunc, nullptr, nullptr, nullptr)
+#if OP_DEBUGGER
+            , unaryColorFunc
+#else
+            , "unaryColorFunc"
+#endif
     });
 #endif
     return context;
