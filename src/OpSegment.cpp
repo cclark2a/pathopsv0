@@ -74,15 +74,19 @@ bool OpSegment::activeAtT(OpEdge* edge, EdgeMatch match, MatchZero matchZero,
 			return zeroSide;
 		};
 		auto isSortable = [](const OpEdge* e, OpEdge* o) {
-			if (Unsortable::none != e->isUnsortable)
+		#if 0
+			if (!e->isSortable())
 				return false;
-			if (!e->isUnsectable())
+			if (e->isSummable())
 				return true;
 			if (e->isPal(o))
 				return true;
 			if (!o->ray.find(e))
 				return true;
 			return o->ray.sectsAllPals(e);
+		#else
+			return e->isSortable() && e->isSummable();
+		#endif
 		};
 		auto saveMatch = [edge, &oppEdges, &oSect, checkZero, matchZero, isSortable](EdgeMatch testEnd) {
 			OpSegment* oSeg = oSect->segment;
@@ -101,7 +105,7 @@ bool OpSegment::activeAtT(OpEdge* edge, EdgeMatch match, MatchZero matchZero,
 		saveMatch(EdgeMatch::end);
 	}
 	for (unsigned index = edgesSize; index < oppEdges.size(); ++index) {
-		if (oppEdges[index].edge->isUnsectable())
+		if (oppEdges[index].edge->hasPals())
 			return true;
 	}
 	return false;
@@ -124,11 +128,10 @@ bool OpSegment::activeNeighbor(const OpEdge* edge, EdgeMatch match, AllowLinked 
 			return false;
 	if (AllowLinked::no == allowLinked ? nextDoor->hasLinkTo(neighbor) : !nextDoor->priorEdge)
 		return false;
-	if (Unsortable::none != edge->isUnsortable || edge->windZero == nextDoor->windZero 
-			|| Unsortable::none != nextDoor->isUnsortable) {
+	if (!edge->isSortable() || edge->windZero == nextDoor->windZero || !nextDoor->isSortable()) {
 		oppEdges.emplace_back(nextDoor, EdgeMatch::none);
 		oppEdges.back().neighborEnd = neighbor;
-		return nextDoor->isUnsectable();
+		return nextDoor->hasPals();
 	}
 	return false;
 }
@@ -490,30 +493,6 @@ int OpSegment::coinID(bool flipped) {
 	return flipped ? -coinID : coinID;
 }
 
-#if 0
-// if edge ends are pals sharing the same ID, mark the edge unsortable (loop183811)
-void OpSegment::demotePalLinks() {
-	OP_ASSERT(hasPals);
-	OP_DEBUG_CODE(bool foundPal = false);
-	for (OpEdge& edge : edges) {
-		if (edge.pals.empty())
-			continue;
-		if (Unsortable::none != edge.isUnsortable)
-			continue;
-		OP_DEBUG_CODE(foundPal = true);
-		std::vector<int> palStarts = sects.findPals(edge.startT);
-		std::vector<int> palEnds = sects.findPals(edge.endT);
-		for (int palStart : palStarts) {
-			if (palEnds.end() == std::find(palEnds.begin(), palEnds.end(), palStart)) 
-				continue;
-			edge.isUnsortable = Unsortable::palsEnd;
-			break;
-		}
-	}
-	OP_ASSERT(foundPal);
-}
-#endif
-
 void OpSegment::disableSmall() {
 	if (disabled)
 		return;
@@ -838,6 +817,12 @@ OpPtT OpSegment::matchEnd(OpPoint opp) {
 		alignedEnd.t = OpMath::PinNear(alignedEnd.t);
 	return alignedEnd;
 #else
+	if (c.start == c.end) {
+		if (c.c.data->start == opp)
+			return { c.start, 0 };
+		if (c.c.data->end == opp)
+			return { c.start, 1 };
+	}
 	if (c.start == opp)
 		return { opp, 0 };
 	if (c.end == opp)
@@ -861,7 +846,8 @@ MatchReverse OpSegment::matchEnds(const OpSegment* opp) const {
 
 bool OpSegment::mergeEndPoints() {
 	OP_ASSERT(disabled || !sects.i.empty());
-	if ((disabled && !c.isSmall) || sects.i.front()->ptT.t == sects.i.back()->ptT.t) {
+	if ((disabled && !c.isSmall) || sects.i.front()->ptT.t == sects.i.back()->ptT.t
+			|| sects.i.front()->ptT.t != 0 || sects.i.back()->ptT.t != 1) {
 		disabled = true;
 		endsMerged = true;
 		return false;

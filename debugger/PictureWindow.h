@@ -39,6 +39,7 @@ struct PictureWindow : public DebuggerWindow {
     void addOutput();
     void addPointLabel(OpPoint , OpType& );
     void addPoints();
+    void addRays();
     void addTangents();
     void addTs();
     void addWindings();

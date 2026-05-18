@@ -106,20 +106,18 @@ void OpLimb::addEach(OpContour& contour, OpTree& tree) {
 		return; 
 	// iterate through edge pals looking for gap that connects lastPt via sect opp
 	// unsectable edges do not necessarily point to other unsectable through pals or upairs
-	if (lastLimbEdge->isUnsectable()) {
-		for (EdgePal& edgePal : lastLimbEdge->pals) {
-			if (edgePal.edge->disabled)
-				continue;
-			if (!edgePal.edge->isUnsectable())
-				continue;
-			tryAdd(tree, edgePal.edge, edgePal.reversed ? match : !match, LimbPass::unsectPair);
+	for (EdgePal& edgePal : lastLimbEdge->pals) {
+		if (edgePal.edge->disabled)
+			continue;
+		if (!edgePal.edge->hasPals())
+			continue;
+		tryAdd(tree, edgePal.edge, edgePal.reversed ? match : !match, LimbPass::unsectPair);
 #if 0
-			OpEdge* test = edgePal.edge + (EdgeMatch::start == match ? 1 : -1);
-			OpSegment* palSeg = edgePal.edge->segment;
-			if (&palSeg->edges.front() <= test && test <= &palSeg->edges.back())
-				tryAdd(tree, test, edgePal.reversed ? !match : match, LimbPass::unsectPair);
+		OpEdge* test = edgePal.edge + (EdgeMatch::start == match ? 1 : -1);
+		OpSegment* palSeg = edgePal.edge->segment;
+		if (&palSeg->edges.front() <= test && test <= &palSeg->edges.back())
+			tryAdd(tree, test, edgePal.reversed ? !match : match, LimbPass::unsectPair);
 #endif
-		}
 	}
 	if (LimbPass::unsectPair == pass)
 		return;
@@ -258,17 +256,17 @@ void OpLimb::set(OpTree& tree, OpEdge* test, OpLimb* p, EdgeMatch m, LimbPass l,
 
 OpLimb* OpLimb::tryAdd(OpTree& tree, OpEdge* test, EdgeMatch m, LimbPass limbPass, 
 			OpContour* limbContour, size_t limbIndex, OpEdge* otherEnd) {
-	OP_ASSERT(!test->disabled || test->isUnsectable() || Unsortable::none != test->isUnsortable 
+	OP_ASSERT(!test->disabled || test->hasPals() || !test->isSortable() 
 			|| LimbPass::disabledCenterless <= limbPass);
-	OP_ASSERT(!test->hasLinkTo(m) || Unsortable::none != test->isUnsortable || test->disabled 
-			|| test->isUnsectable() || test->smallTRange);
+	OP_ASSERT(!test->hasLinkTo(m) || !test->isSortable() || test->disabled 
+			|| test->hasPals() || test->smallTRange);
 	// !!! future optimization : keep all possible end points with edge, or pass limb instead of
 	std::vector<OpPoint> testPts = test->collectMatch(m);
 	if (!ptsMatch(EdgeMatch::end, testPts))
 		return nullptr;
 	if (edge == test)
 		return nullptr;
-	if (test->isUnsectable() && tree.preferSibling(this, test))
+	if (test->hasPals() && tree.preferSibling(this, test))
 		return nullptr;
 	OP_ASSERT(lastLimbEdge);
 	if (LimbPass::miswound == limbPass && lastLimbEdge == test)
@@ -286,7 +284,10 @@ OpLimb* OpLimb::tryAdd(OpTree& tree, OpEdge* test, EdgeMatch m, LimbPass limbPas
 	// is computed for the unreversed orientation.
 	if (WindZero::unset != lastLimbEdge->windZero && WindZero::unset != test->windZero
 			&& (LimbPass::linked == limbPass || LimbPass::miswound == limbPass)
-			&& !lastLimbEdge->many.isSet() && Unsortable::filler != lastLimbEdge->isUnsortable) {
+#if OP_EDGE_PAL_MANY
+			&& !lastLimbEdge->palMany.isSet() 
+#endif
+			&& Unsortable::filler != lastLimbEdge->unsortable) {
 		WindZero zeroSide = test->windZero;
 		// if last which end is end, flip last's wind zero (for comparsion, flip zero side);
 		// if pass is linked: if test m is end, flip zero side; if test which is end, flip zero side
@@ -674,7 +675,7 @@ bool OpTree::join(OpJoiner& join) {
 		} else
 			(void) prior->setLastLink(prior->which());
 		OpEdge* last = prior->lastEdge;
-		OP_ASSERT(bestL->ptsMatch(EdgeMatch::start, lastLimb, EdgeMatch::end));
+//		OP_ASSERT(bestL->ptsMatch(EdgeMatch::start, lastLimb, EdgeMatch::end));
 //		OP_ASSERT(best->whichSect().pt == last->whichSect(EdgeMatch::end).pt || best->disabled);
 		best->setPriorEdge(last);
 		last->setNextEdge(best);

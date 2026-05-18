@@ -221,8 +221,11 @@ KeyResult DebuggerState::keyEvent(const DebuggerEvent& debuggerEvent, KeyAction 
                 bump(compareWindow.rightLabel);
                 break;
             }
-            if (isLower)
+            if (isLower) {
+                if (textTop)
+                    flip(showRays, "rays");
                 break;
+            }
             if (KeyAction::act == action)
                 record();
             else

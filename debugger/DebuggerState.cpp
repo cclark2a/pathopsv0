@@ -92,6 +92,7 @@ SDL_AppResult DebuggerState::checkForNewFiles() {
     }
 //    if (1 == fileNumber)  // all dumps have been deleted, but that should be OK
 //        return Fail("no dmp found");
+#if 0
     std::string bitsFilename = dmpFileToPath(BitsFile);
     bitsToShow = stat(bitsFilename.c_str(), &info) != -1;
     if (!bitsToShow) {
@@ -103,6 +104,7 @@ SDL_AppResult DebuggerState::checkForNewFiles() {
         compareWindow.update();
         compareWindow.lastTime = info.st_mtime;
     }
+#endif
     return SDL_APP_CONTINUE;
 }
 
@@ -183,7 +185,8 @@ void DebuggerState::playback() {
     defaultBase = showHex ? DebugBase::hex : DebugBase::dec;
     DEBUG_SET_BOOL(showHex, showIntersections);
     DEBUG_SET_BOOL(showIntersections, showOutput);
-    DEBUG_SET_BOOL(showOutput, showSegments);
+    DEBUG_SET_BOOL(showOutput, showRays);
+    DEBUG_SET_BOOL(showRays, showSegments);
     DEBUG_SET_BOOL(showSegments, showHelp);
     DEBUG_SET_BOOL(showHelp, showBits);
     DEBUG_SET_BOOL(showBits, showDumps);
@@ -214,7 +217,8 @@ void DebuggerState::record() {
     DEBUG_DUMP_BOOL(showEdges, showHex);
     DEBUG_DUMP_BOOL(showHex, showIntersections);
     DEBUG_DUMP_BOOL(showIntersections, showOutput);
-    DEBUG_DUMP_BOOL(showOutput, showSegments);
+    DEBUG_DUMP_BOOL(showOutput, showRays);
+    DEBUG_DUMP_BOOL(showRays, showSegments);
     DEBUG_DUMP_BOOL(showSegments, showHelp);
     DEBUG_DUMP_BOOL(showHelp, showBits);
     DEBUG_DUMP_BOOL(showBits, showDumps);
@@ -344,6 +348,15 @@ void DebuggerState::setIDTypes() {
 void DebuggerState::update() {
     OP_ASSERT(currentDump < dumps.size());
     context = dumps[currentDump].context;
+    DebugRaster* debugRaster = context->debugRaster;
+    bitsToShow = debugRaster && !debugRaster->sampleSets.empty();
+    if (!bitsToShow) {
+        if (showBits) {
+            showBits = false;
+            SDL_HideWindow(compareWindow.window);
+        }
+    } else
+        compareWindow.update();
     setIDTypes();
     redraw();
 }

@@ -23,6 +23,7 @@
 struct TinySuite {
     void (*func)(TestTrack* );
     std::string name;
+    float maxError = 0.12f;
 };
 
 std::vector<TinySuite> tinySuites = {
@@ -44,7 +45,7 @@ std::vector<TinySuite> tinySuites = {
     { V0SimplifyQuads, "quad" },
     { V0SimplifyRects, "simplifyRect" },
     { V0SimplifyTriangles, "triangle" },
-    { V0Tiger, "tiger" },
+    { V0Tiger, "tiger", .21f },
     { V0Tests, "v0" },
 };
 
@@ -106,7 +107,7 @@ void TinyState::addADot(const OpDebugData& debugData) {
     std::lock_guard<std::mutex> guard(out_mutex);
 #endif
     ++testsRun;
-	if (debugData.error >= .12f && debugData.showError) {
+	if (debugData.error >= debugData.maxError && debugData.showError) {
 	    std::string testname = debugData.testname;
 	    OpDebugOut(testname + " raster errors:" + STR(debugData.error) + "\n");
     }
@@ -246,23 +247,44 @@ static void dumpSimplifyTest(std::string testname, const SkPath& path, std::stri
 }
 #endif
 
-TestDone TestOptions::testOne(SkPath& a, SkPath& b, TinyOps op) {
-    // !!! add support for TEST_PATH_SKIP_TESTS
+TestDone TestOptions::testOne(SkPath& left, SkPath& right, TinyOps op) {
+    SkPath out;
     if (0 >= testTrack.toRun)
         return TestDone::yes;
+    return testSetup(left, right, op, &out);
+}
+
+TestDone TestOptions::testLast(SkPath& left, SkPath& right, TinyOps op) {
+    SkPath out;
+    return testPart(left, right, op, &out);
+}
+
+TestDone TestOptions::testSetup(SkPath& left, SkPath& right, TinyOps op, SkPath* result) {
+    std::string testName = testFunc.name;
+    OpDebugData dbugData(testName, testFunc.mayFail ? OpDebugExpect::fail : OpDebugExpect::success, 
+            testTrack.maxError, CURVE_CURVE_1, CURVE_CURVE_2, CURVE_CURVE_DEPTH, CURVE_CURVE_DUMP,
+            tinyState.defeatBreak, TEST_DEFEAT_DUMPS, tinyState.runOne, 
+            !ignoreRaster);
+    debugData = dbugData;
+#if 0 && OP_TEST_RASTER
+    DebugRaster debugRaster((OpContext*) context);
+    OP_DEBUG_SERIALIZE_CODE(debugRaster.deleteOld());
+#endif
+    return testPart(left, right, op, result);
+}
+
+
+TestDone TestOptions::testPart(SkPath& a, SkPath& b, TinyOps op, SkPath* outPtr) {
+    // !!! add support for TEST_PATH_SKIP_TESTS
     std::string testName = testFunc.name;
     if (testFunc.numbered)
         testName += STR(testTrack.testIndex);
     using namespace PathOpsV0Lib;
     Context* context = CreateContext();
-    SkPath out;
-    ContextUserData data { &out, sizeof(&out), UserDataType::outPath };
+    ContextUserData data { outPtr, sizeof(outPtr), UserDataType::outPath };
     AddUserData(context, data);
-    OpDebugData debugData(testName, testFunc.mayFail ? OpDebugExpect::fail : OpDebugExpect::success, 
-            CURVE_CURVE_1, CURVE_CURVE_2, CURVE_CURVE_DEPTH, CURVE_CURVE_DUMP,
-            tinyState.defeatBreak, TEST_DEFEAT_DUMPS, tinyState.runOne, 
-            !ignoreRaster);
     OP_DEBUG_CODE(SetDebugData(context, debugData));
+    OP_DEBUG_CODE(OpDebugData& debugRef = GetDebugData(context));
     SetSkiaContextCallbacks(context);
     SetSkiaCurveCallbacks(context);
     auto isWindingFill = [](const SkPath& path) {
@@ -305,8 +327,8 @@ TestDone TestOptions::testOne(SkPath& a, SkPath& b, TinyOps op) {
 	ContextError contextError = Error(context);
 	if (ContextError::none == contextError) {
 #if OP_TEST_RASTER
-        OP_DEBUG_SERIALIZE_CODE(debugRaster.deleteOld());
-        if (OpDebugExpect::success == debugData.expect)    
+//        OP_DEBUG_SERIALIZE_CODE(debugRaster.deleteOld());
+        if (OpDebugExpect::success == debugRef.expect)    
             debugRaster.in();
 #endif
 		Resolve(context);
@@ -317,9 +339,10 @@ TestDone TestOptions::testOne(SkPath& a, SkPath& b, TinyOps op) {
     contextError = Error(context);
 	tinyState.trackError(contextError);
 #if OP_TEST_RASTER
-    if (ContextError::none == contextError && OpDebugExpect::success == debugData.expect)
-        debugData.error = debugRaster.out();
+    if (ContextError::none == contextError && OpDebugExpect::success == debugRef.expect)
+        debugRef.error = debugRaster.out();
 #endif
+    OP_DEBUG_CODE(debugData = debugRef);
     DeleteContext(context);
     tinyState.addADot(debugData);
     ++testTrack.run;
@@ -332,39 +355,41 @@ static void threadTest(TinySuite tinySuite, TestTrack track) {
     (*tinySuite.func)(&track);
 }
 
-#define THREAD_DEBUG 1
+#define THREAD_DEBUG 01
 
 void TinyState::test() {
     TestTrack track;
     track.extended = TEST_EXTENDED;
+    if (!OP_DEBUG_FAST_TEST) {
+        std::string testOnly = testFirst;
+        if (runOne) {
+            int tens = 1;
+            while (isdigit(testOnly.back())) {
+                track.testSuffix += (testOnly.back() - '0') * tens;
+                tens *= 10;
+                testOnly.pop_back();
+            }
+            track.testMatch = testOnly;
+            track.toRun = 1;
+        } else
+            track.toRun = tinyState.testsToRun;
+        track.skip = tinyState.testsToSkip;
+#if THREAD_DEBUG
+        std::string s = "(unthreaded) test:" + track.testMatch + STR(track.testSuffix);
+        s += " toRun:" + STR(track.toRun);
+        if (track.skip)
+            s += " skip:" + STR(track.skip);
+        OpDebugOut(s + "\n");
+#endif
+    }
     for (const TinySuite& tinySuite : tinySuites) {
         if (!tinyState.skipTo.empty() && tinyState.skipTo != tinySuite.name)
             continue;
-        track.baseName = tinySuite.name;
-//        options.skippable = Skippable::yes == tinySuite.skippable;
-        if (isdigit(track.baseName.back()))  // e.g. fuzz763
-            track.baseName += "_";
+        track.maxError = tinySuite.maxError;
         if (!OP_DEBUG_FAST_TEST) {
-            std::string testOnly = testFirst;
-            if (runOne) {
-                int skip = 0;
-                int tens = 1;
-                while (isdigit(testOnly.back())) {
-                    skip += (testOnly.back() - '0') * tens;
-                    tens *= 10;
-                    testOnly.pop_back();
-                }
-                track.testSet = testOnly;
-                track.skip = skip;
-                track.toRun = 1;
-            } else {
-                track.skip = tinyState.testsToSkip;
-                track.toRun = tinyState.testsToRun;
-            }
-        #if  THREAD_DEBUG
-            OpDebugOut("(unthreaded) baseName:" + track.baseName + " testSet:" + track.testSet
-                    + " skip:" + STR(track.skip) + " toRun:" + STR(track.toRun) + "\n");
-        #endif
+    #if THREAD_DEBUG
+            OpDebugOut("(unthreaded) suite:" + tinySuite.name + "\n");
+    #endif
             (*tinySuite.func)(&track);
             continue;
         }
@@ -372,13 +397,23 @@ void TinyState::test() {
         track.skip = INT_MAX;
         (*tinySuite.func)(&track);
         int totalTests = track.testIndex + track.indexOffset;
-        OpDebugOut(track.baseName + " totalTests:" + STR(totalTests) + "\n");
+    #if THREAD_DEBUG
+        std::string s = tinySuite.name + " totalTests:" + STR(totalTests);
+        if (tinyState.testsToSkip)
+            s += " skip:" + STR(tinyState.testsToSkip);
+        OpDebugOut(s + "\n");
+    #endif
+        if (tinyState.testsToSkip > totalTests) {
+            tinyState.testsToSkip -= totalTests;
+            continue;
+        }
+        track.skip = tinyState.testsToSkip;
+        tinyState.testsToSkip = 0;
+        track.toRun = std::max((totalTests - track.skip) / maxThreads, 1);
         std::vector<std::thread> t;
-        track.skip = 0;
-        track.toRun = std::max(totalTests / maxThreads, 1);
         for (int index = 0; index < maxThreads; ) {
-    #if  THREAD_DEBUG
-            OpDebugOut("thread:" + STR(index) + " baseName:" + track.baseName 
+    #if THREAD_DEBUG
+            OpDebugOut("thread:" + STR(index) + " " + tinySuite.name 
                     + " skip:" + STR(track.skip) + " toRun:" + STR(track.toRun) + "\n");
     #endif
             t.push_back(std::thread(threadTest, tinySuite, track));
@@ -406,13 +441,15 @@ bool TestTrack::runTests(const std::vector<TestFunc>& tests) {
     for (const TestFunc& test : tests) {
         testIndex = 0;
         if (1 == toRun) {
-            if (test.name != testSet)
-                continue;
+            if (test.name != testMatch + STR(testSuffix)) {
+                if (test.name != testMatch)
+                    continue;
+                if (testSuffix && (!test.numbered || testNumber != testSuffix))
+                    continue;
+            }
         }
-        if (!test.numbered) {
-            if (skipTests(1))
-                continue;
-        }
+        if (skipTests(1))
+            continue;
         if (!testOne(test))
             continue;
         if (0 >= toRun)

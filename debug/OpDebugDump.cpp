@@ -295,7 +295,7 @@ std::string debugDumpIntersections() {
 #endif
 
 void dmpFile() {
-    debugGlobalContext->dumpBaseFile();
+    debugGlobalContext->dumpBaseFile(DumpRaster::no);
 }
 
 #if OP_DEBUG_GLOBALS
@@ -400,12 +400,14 @@ void OpContext::dumpResolve(OpIntersection*& sectRef) {
     sectRef = sect;
 }
 
+// note that context array may not be set up when this is first called
 void OpContext::dumpResolve(OpSegment*& segRef) {
     int segID = (int) (size_t) segRef;
     if (0 == segID)
         return;
-    for (auto c : contours) {
-        for (auto& seg : c->segments) {
+    for (int index = 0; index < contourStorage->debugCount(); ++index) {
+        OpContour* contour = contourStorage->debugIndex(index);
+        for (auto& seg : contour->segments) {
             if (segID == seg.id) {
                 OP_ASSERT((int) (size_t) segRef == segID);
                 segRef = &seg;
@@ -512,11 +514,11 @@ void dmpSorted() {
 	OpDebugFormat(s + "]\n");
 }
 
-void dmpUnsectable() {
+void dmpUnsummable() {
     for (const auto& c : contourIterator) {
         for (const auto& seg : c->segments) {
             for (const auto& edge : seg.edges) {
-                if (edge.isUnsectable())
+                if (edge.unsummable)
                     edge.dump(DebugLevel::detailed, defaultBase);
             }
         }
@@ -527,7 +529,7 @@ void dmpUnsortable() {
     for (const auto& c : contourIterator) {
         for (const auto& seg : c->segments) {
             for (const auto& edge : seg.edges) {
-                if (Unsortable::none != edge.isUnsortable)
+                if (!edge.isSortable())
                     edge.dump(DebugLevel::detailed, defaultBase);
             }
         }
@@ -873,18 +875,15 @@ void OpContext::dumpSet(const char*& str) {
         } while (!OpDebugOptional(str, ":debugOutPath"));
         debugOutPath = std::string(outPathStart, outPathEnd - outPathStart - 1);
     }
-    ASSERT_ORDERED(debugOutPath, dumpIndex);  // omit for now
-    ASSERT_ORDERED_OFFSET(dumpIndex, debugDumpErasures, 4);  // omit for now
+    ASSERT_ORDERED(debugOutPath, debugDumpErasures);  // omit for now
     ASSERT_ORDERED(debugDumpErasures, debugDumpInit);  // omit for now
 #if OP_TEST_RASTER
-    // don't dump raster storage for now
     ASSERT_ORDERED(rasterStorage, debugRaster);
     if (OpDebugOptional(str, "debugRaster")) {
         if (!debugRaster)
             debugRaster = new DebugRaster(this);
         debugRaster->dumpSet(str);
     }
-
 #endif
 	debugDumpInit = true;
 }
@@ -1798,10 +1797,14 @@ void OpEdge::dumpSet(const char*& str) {
     ASSERT_ORDERED(winding, sum);
     if (OpDebugOptional(str, "sum"))
         sum.dumpSet(dumpContext, str);
-    ASSERT_ORDERED(sum, many);
-    if (OpDebugOptional(str, "many"))
-        many.dumpSet(dumpContext, str);
-    ASSERT_ORDERED(many, coinPals);
+#if OP_EDGE_PAL_MANY
+    ASSERT_ORDERED(sum, palMany);
+    if (OpDebugOptional(str, "palMany"))
+        palMany.dumpSet(dumpContext, str);
+    ASSERT_ORDERED(palMany, coinPals);
+#else
+    ASSERT_ORDERED(sum, coinPals);
+#endif
     if (OpDebugOptional(str, "coinPals")) {
         coinPals.resize(OpDebugReadSizeT(str));
         for (auto& pal : coinPals) {
@@ -1849,9 +1852,9 @@ void OpEdge::dumpSet(const char*& str) {
     rayFail = EdgeFailStr(str, "rayFail", EdgeFail::none);
     ASSERT_ORDERED(rayFail, windZero);
     windZero = WindZeroStr(str, "windZero", WindZero::unset);
-    ASSERT_ORDERED(windZero, isUnsortable);
-    isUnsortable = UnsortableStr(str, "isUnsortable", Unsortable::none);
-	DEBUG_SET_BOOL(isUnsortable, active_impl);
+    ASSERT_ORDERED(windZero, unsortable);
+    unsortable = UnsortableStr(str, "unsortable", Unsortable::none);
+	DEBUG_SET_BOOL(unsortable, active_impl);
     DEBUG_SET_BOOL(active_impl, inLinkups);
     DEBUG_SET_BOOL(inLinkups, linkHead);
     DEBUG_SET_BOOL(linkHead, inOutput);
@@ -1868,8 +1871,9 @@ void OpEdge::dumpSet(const char*& str) {
     DEBUG_SET_BOOL(startSeen, endSeen);
     DEBUG_SET_BOOL(endSeen, unsectableStart);
     DEBUG_SET_BOOL(unsectableStart, unsectableEnd);
+    DEBUG_SET_BOOL(unsectableEnd, unsummable);
 #if OP_DEBUG
-    ASSERT_SERIAL_OFFSET(*this, unsectableEnd, 3, debugMatch);
+    ASSERT_SERIAL_OFFSET(*this, unsummable, 2, debugMatch);
     debugMatch = (OpEdge*) strID("debugMatch");
     ASSERT_ORDERED(debugMatch, debugZeroErr);
     debugZeroErr = (OpEdge*) strID("debugZeroErr");
@@ -1931,7 +1935,9 @@ void OpEdge::dumpResolveAll(OpContext* c) {
     c->dumpResolve(lastEdge);
     winding.dumpResolveAll(c);
     sum.dumpResolveAll(c);
-    many.dumpResolveAll(c);
+#if OP_EDGE_PAL_MANY
+    palMany.dumpResolveAll(c);
+#endif
     for (auto& coinPal : coinPals)
         c->dumpResolve(coinPal.opp);
     for (auto& unSect : unSects)
@@ -2394,7 +2400,6 @@ void OpEdgeStorage::DumpSet(const char*& str, OpContext* dumpContext, DumpStorag
     size_t count = OpDebugReadSizeT(str);
     for (size_t index = 0; index < count; ++index) {
         OpEdge* edge = nullptr;
-        // !!! hackery ahead: note that 'contours->allocateEdge(this)' won't compile
         if (DumpStorage::cc == type)
             edge = dumpContext->allocateEdge(dumpContext->ccStorage  OP_DEBUG_PARAMS("ccStorage"));
         else if (DumpStorage::filler == type)
@@ -2769,7 +2774,10 @@ void SectRay::dumpSet(const char*& str) {
     erased.resize(size);
     for (Distance& erase : erased)
         erase.dumpSet(str);
-    ASSERT_ORDERED(erased, homeTangent);
+    ASSERT_ORDERED(erased, insideBounds);
+    if (OpDebugOptional(str, "insideBounds"))
+        insideBounds.dumpSet(str);
+    ASSERT_ORDERED(insideBounds, homeTangent);
     if (OpDebugOptional(str, "homeTangent"))
         homeTangent.dumpSet(str);
     ASSERT_ORDERED(homeTangent, normal);
@@ -3517,7 +3525,7 @@ void dmpColor(const OpEdge& e) {
     OpEdge* ccEdge = context->ccStorage->debugFind(e.id);
     bool isCurveCurve = ccEdge && e.id == ccEdge->id;
     PathOpsV0Lib::DebugEdgeType edgeType {
-        e.disabled, e.inOutput, Unsortable::none != e.isUnsortable, isCurveCurve, e.ccOverlaps };
+        e.disabled, e.inOutput, !e.isSortable(), isCurveCurve, e.ccOverlaps };
     PathOpsV0Lib::DebugEdgeColor debugEdgeColor = 
             context->debugContextCallbacks.debugEdgeColorFuncPtr;
     uint32_t color = debugEdgeColor ? (*debugEdgeColor)(e.winding.w, edgeType) : debugBlack;

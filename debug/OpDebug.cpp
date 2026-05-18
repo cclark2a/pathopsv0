@@ -114,6 +114,8 @@ void SetDebugCurveData(Contour* ctour, const DebugCurveData& curveData) {
 }
 
 bool OpDebugOptional(const char*& str, const char* match) {
+    if ('\0' == str[0])
+        return false;
     size_t matchLen = strlen(match);
     while (str[0] && ' ' >= str[0])
         ++str;
@@ -473,6 +475,12 @@ void OpDebugByteArray(const char*& str, size_t size, uint8_t* bytes) {
 float OpDebugReadNamedFloat(const char*& str, const char* label) {
     if (!OpDebugOptional(str, label))
         return OpNaN;        
+    float result = OpDebugHexToFloat(str);
+    return result;
+}
+
+float OpDebugReadRequiredFloat(const char*& str, const char* label) {
+    OpDebugRequired(str, label);
     float result = OpDebugHexToFloat(str);
     return result;
 }
@@ -1075,7 +1083,7 @@ void OpContour::debugMatchRay() {
         do {
             if (!linkup->ray.distances.size())
                 continue;
-            if (Unsortable::none != linkup->isUnsortable)
+            if (!linkup->isSortable())
                 continue;
             if (linkup->disabled)
                 continue;
@@ -1101,7 +1109,7 @@ void OpContour::debugMatchRay() {
             }
             // look to see if edge maps a non-zero ray to a prior edge
             WindZero linkZero = linkup->windZero;
-            OP_ASSERT(WindZero::unset != linkZero || !linkup->winding.isWound());
+//            OP_ASSERT(WindZero::unset != linkZero || !linkup->winding.isWound());
 	        NormalDirection NdotR = linkup->normalDirection(-linkup->ray.axis, 
                     linkDist->edgeInsideT);
             if (NormalDirection::downLeft == NdotR)
@@ -1117,7 +1125,7 @@ void OpContour::debugMatchRay() {
                         for (auto& u : overlap->unsortables)
                             foundOne |= dTest == u && dTest->isActive();
                     }
-                    OP_ASSERT(foundOne || mayFail || Unsortable::none != dTest->isUnsortable);
+                    OP_ASSERT(foundOne || mayFail || !dTest->isSortable());
                 }
                 if (dTest)
                     linkup->debugMatch = dTest;
@@ -1331,6 +1339,11 @@ void SetDebugCurveCallbacks(Context* ctext, CurveType , const DebugCurveCallback
 #if OP_DEBUG
 
 namespace PathOpsV0Lib {
+
+OpDebugData& GetDebugData(Context* ctext) {
+    OpContext* context = (OpContext*) ctext;
+    return context->debugData;
+}
 
 void SetDebugContextCallbacks(Context* ctext, const DebugContextCallbacks& contextCallbacks) {
     OpContext* context = (OpContext*) ctext;

@@ -310,13 +310,9 @@ struct OpSaveDump {
     ASSERT_ORDERED(lastField, thisFloat); \
     thisFloat = OpDebugReadNamedFloat(str, #thisFloat)
 
-#define DEBUG_SET_START_REQUIRED_FLOAT(thisFloat) \
-    OpDebugRequired(str, #thisFloat); \
-    thisFloat = OpDebugReadNamedFloat(str, #thisFloat)
-
 #define DEBUG_SET_REQUIRED_FLOAT(lastField, thisFloat) \
     ASSERT_ORDERED(lastField, thisFloat); \
-    DEBUG_SET_START_REQUIRED_FLOAT(thisFloat)
+    thisFloat = OpDebugReadRequiredFloat(str, #thisFloat)
 
 #define DEBUG_SET_ID(lastField, thisID) \
     ASSERT_ORDERED(lastField, thisID); \

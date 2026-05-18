@@ -507,34 +507,6 @@ void PictureWindow::addTangents() {
     }
 }
 
-void PictureWindow::addTs() {
-    if (!debuggerState->showEdges || !drawTs)
-        return;
-    for (auto& poly : polys) {
-        if (!poly.isPrimary)
-            continue;
-        if (IDType::edge != poly.opType.type)
-            continue;
-        const OpEdge* edge = poly.opType.edge;
-        addLabel(STR(edge->startT), edge->startPt(), poly.color);
-        texts.back().opType = poly.opType;
-        addLabel(STR(edge->endT), edge->endPt(), poly.color);
-        texts.back().opType = poly.opType;
-    }
-}
-
-void PictureWindow::addWindings() {
-    if (!debuggerState->showEdges || !drawWindings)
-        return;
-    for (auto& poly : polys) {
-        if (!poly.isPrimary)
-            continue;
-        if (IDType::edge != poly.opType.type)
-            continue;
-        addWinding(poly);
-    }
-}
-
 void PictureWindow::addOutput() {
     if (!debuggerState->showOutput) 
         return;
@@ -609,6 +581,58 @@ void PictureWindow::addPoints() {
         if (IDType::intersection != id.type)
             continue;
         add(id, id.intersection->ptT.pt, DebugSprite::square);
+    }
+}
+
+void PictureWindow::addRays() {
+    if (!debuggerState->showRays)
+        return;
+    for (auto& id : debuggerState->ids) {
+        if (!id.selected)
+            continue;
+        if (IDType::edge != id.type)
+            continue;
+        if (Axis::horizontal != id.edge->ray.axis && Axis::vertical != id.edge->ray.axis)
+            continue;
+        polys.emplace_back();
+        DebuggerPoly& ray = polys.back();
+        ray.color = red;
+        float normal = id.edge->ray.normal;
+        if (Axis::horizontal == id.edge->ray.axis) {
+            float yToScreen = (float) (screen.top + (normal - focus.top) * scale);
+            addLine({ screen.left,  yToScreen }, { screen.right, yToScreen });
+        } else {
+            float xToScreen = (float) (screen.left + (normal - focus.left) * scale);
+            addLine({ xToScreen, screen.top }, { xToScreen, screen.bottom });
+        }
+    }
+}
+
+void PictureWindow::addTs() {
+    if (!debuggerState->showEdges || !drawTs)
+        return;
+    for (auto& poly : polys) {
+        if (!poly.isPrimary)
+            continue;
+        if (IDType::edge != poly.opType.type)
+            continue;
+        const OpEdge* edge = poly.opType.edge;
+        addLabel(STR(edge->startT), edge->startPt(), poly.color);
+        texts.back().opType = poly.opType;
+        addLabel(STR(edge->endT), edge->endPt(), poly.color);
+        texts.back().opType = poly.opType;
+    }
+}
+
+void PictureWindow::addWindings() {
+    if (!debuggerState->showEdges || !drawWindings)
+        return;
+    for (auto& poly : polys) {
+        if (!poly.isPrimary)
+            continue;
+        if (IDType::edge != poly.opType.type)
+            continue;
+        addWinding(poly);
     }
 }
 
@@ -689,7 +713,7 @@ uint32_t PictureWindow::edgeColor(const OpEdge& e) {
         isCurveCurve = ccEdge && e.id == ccEdge->id;
     }
     PathOpsV0Lib::DebugEdgeType edgeType {
-        e.disabled, e.inOutput, Unsortable::none != e.isUnsortable, isCurveCurve, e.ccOverlaps
+        e.disabled, e.inOutput, !e.isSortable(), isCurveCurve, e.ccOverlaps
     };
     if (WindingType::uninitialized == e.winding.type)
         return black;
@@ -768,6 +792,7 @@ void PictureWindow::update() {
     addTs();
     resolvePoints();
     addWindings();
+    addRays();
     addGrid();
 }
 

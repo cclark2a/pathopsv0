@@ -4,7 +4,16 @@
 
 #include "OpMath.h"
 #include "OpDebugColor.h"
+#if 0
 #include "OpDebugDouble.h"
+#else
+enum class DebugSprite {
+    circle,
+    diamond,
+    square,
+    triangle,
+};
+#endif
 #include "PathOpsTypes.h"
 
 struct DebugOutput;

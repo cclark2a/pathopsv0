@@ -1,6 +1,6 @@
 // (c) 2023, Cary Clark cclark2@gmail.com
 #include "OpDebug.h"
-#include "OpDebugImage.h"
+// #include "OpDebugImage.h"
 #include <algorithm>
 
 #if OP_DEBUG_IMAGE

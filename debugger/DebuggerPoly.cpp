@@ -90,7 +90,7 @@ bool DebuggerAddPoly::add(const PathOpsV0Lib::Curve& c) {
     }
     last = &sects.front();
     for (DebugSect& sect : sects) {
-        if (last->sect.t == sect.sect.t)
+        if (last->sect.t == sect.sect.t || last->sect.pt == sect.sect.pt)
             continue;
         if (last->pin || sect.pin) {
             if (addingFill)

@@ -19,6 +19,7 @@ enum class DebugBase {
 enum class DebugLevel {
 	brief,
 	normal,
+    ray,  // normal + extra linefeeds for distance array
 	detailed,
 	file,
     error      // displays uninitialized and error conditions like nan and infinities
@@ -54,7 +55,10 @@ extern const OpSegment* findSegment(int id);
 extern DebugBase defaultBase;
 extern DebugLevel defaultLevel;
 
-extern std::string stringFormat(std::string , int lineWidth);
+// !!! add max # of lines to help debugger out until debugger text issues are solved
+// add edge formatting that puts distance entries on separate lines
+// add ray to debugger to trigger this formatting, and draw ray, if edge is selected in text view
+extern std::string stringFormat(std::string , int lineWidth, int maxLines = 0); // = 0 to disable
 
 namespace PathOpsV0Lib {
 
@@ -105,7 +109,7 @@ std::string debugDumpID() const;
 	OP_X(linkBounds) \
 	OP_X(winding) \
 	OP_X(sum) \
-	OP_X(many) \
+	OP_X(palMany) \
 	OP_X(coinPals) \
 	OP_X(unSects) \
 	OP_X(pals) \
@@ -120,7 +124,7 @@ std::string debugDumpID() const;
 	OP_X(rayFail) \
 	OP_X(windZero) \
 	OP_X(doSplit) \
-	OP_X(isUnsortable) \
+	OP_X(unsortable) \
 	OP_X(closeSet) \
 	OP_X(active_impl) \
 	OP_X(inLinkups) \
@@ -135,7 +139,8 @@ std::string debugDumpID() const;
 	OP_X(ccStart) \
 	OP_X(centerless) \
 	OP_X(startSeen) \
-	OP_X(endSeen)
+	OP_X(endSeen) \
+    OP_X(unsummable) \
 
 #define EDGE_VIRTUAL \
     OP_X(contour)
@@ -261,7 +266,6 @@ struct EdgeFilterName {
         s += debugValue(DebugLevel::error, b, #thisFloat, thisFloat) + " "
 
 #define DEBUG_DUMP_START_REQUIRED_FLOAT(thisFloat) \
-    s += #thisFloat ":"; \
     s += debugValue(DebugLevel::error, b, #thisFloat, thisFloat) + " "
 
 #define DEBUG_DUMP_REQUIRED_FLOAT(lastField, thisFloat) \
@@ -269,7 +273,6 @@ struct EdgeFilterName {
     DEBUG_DUMP_START_REQUIRED_FLOAT(thisFloat)
 
 #define DEBUG_DUMP_START_REQUIRED_DOUBLE(thisFloat) \
-    s += #thisFloat ":"; \
     s += debugValue(DebugLevel::error, b, #thisFloat, (float) thisFloat) + " "
 
 #define DEBUG_DUMP_REQUIRED_DOUBLE(lastField, thisFloat) \

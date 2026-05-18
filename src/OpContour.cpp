@@ -96,7 +96,7 @@ void OpContour::addJoinEdge(OpJoiner* joiner, OpEdge* e) {
 #if OP_DEBUG_IMAGE
 	e->debugJoin = true;
 #endif
-	if (Unsortable::none != e->isUnsortable || e->isUnsectable()) {
+	if (!e->isSortable() || e->hasPals()) {
 		OP_DEBUG_VALIDATE_CODE(e->debugValidate());
 		unsortables.push_back(e);
 		return;
@@ -224,7 +224,7 @@ void OpContour::aliasIntersections() {
 void OpContour::buildBackwards() {
 	for (auto& segment : segments) {
 		for (auto& e : segment.edges) {
-			if (e.disabled && Unsortable::none == e.isUnsortable && !e.isUnsectable()
+			if (e.disabled && e.isSortable() && !e.hasPals()
 					&& !e.centerless && !e.coinPals.size())
 				disabledBackwards.push_back(&e);
 		}
@@ -237,7 +237,7 @@ void OpContour::buildCenterless() {
 //	OpVector threshold = contours.threshold() * OpMath::smallJoinerFactor;
 	for (auto& segment : segments) {
 		for (auto& e : segment.edges) {
-			if (!e.disabled || Unsortable::none != e.isUnsortable || e.isUnsectable())
+			if (!e.disabled || !e.isSortable() || e.hasPals())
 				continue;
 			// for the very small, include disabled edges
 			// !!! this also tested on windPal, but non-extended tests don't need it
@@ -251,10 +251,10 @@ void OpContour::buildCenterless() {
 void OpContour::buildPals() {
 	for (auto& segment : segments) {
 		for (auto& e : segment.edges) {
-			if (e.disabled && !e.inOutput && Unsortable::none == e.isUnsortable) {
+			if (e.disabled && !e.inOutput && !e.isSortable()) {
 				// !!! test may be overbroad; may need to look at sect and include only
 				//     coin + unsect (or add bit in edge to register coin)
-				if (e.isUnsectable()) {
+				if (e.hasPals()) {
 					disabledPals.push_back(&e);
 					e.setWhich(EdgeMatch::start);
 				}
@@ -337,7 +337,7 @@ bool OpContour::detachIfLoop(OpJoiner* joiner, OpEdge* e, EdgeMatch loopMatch) {
 	auto detachEdge = [this, joiner](OpEdge* e, EdgeMatch match) {
 		if (OpEdge* detach = EdgeMatch::start == match ? e->priorEdge : e->nextEdge) {
 			EdgeMatch::start == match ? detach->clearNextEdge() : detach->clearPriorEdge();
-			if (Unsortable::none == detach->isUnsortable || detach->priorEdge || detach->nextEdge)
+			if (detach->isSortable() || detach->priorEdge || detach->nextEdge)
 				addToLinkups(joiner, detach);	// return front edge
 		}
 	};
@@ -433,7 +433,7 @@ bool OpContour::linkUp(OpJoiner* joiner, OpEdge* e) {
 		bool hasPal = segment->activeAtT(e, linkMatch, MatchZero::yes, foundEdges);
 		hasPal |= segment->activeNeighbor(e, linkMatch, AllowLinked::no, foundEdges);
 		// if oppEdges is count of one and unsortable, don't return any edges (testQuadratic67x)
-		if (foundEdges.size() == 1 && Unsortable::none != foundEdges[0].edge->isUnsortable /* && hadLinkTo */)
+		if (foundEdges.size() == 1 && !foundEdges[0].edge->isSortable() /* && hadLinkTo */)
 			foundEdges.clear(); // hadLinkTo breaks thread_cubics147521
 		// skip pals should choose the pal that minimizes the output path area
 		// if there's not enough info here to do that, the pal choice should be reconsidered

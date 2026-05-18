@@ -20,7 +20,7 @@ constexpr int compareXY = 64;
 constexpr int drawXY = 1000;
 constexpr int compareSub = 8;
 constexpr int drawSub = 4;
-#if OP_DEBUG_SERIALIZE
+#if 0 && OP_DEBUG_SERIALIZE
 inline const std::string BitsFile = "DebuggerBits.txt";
 #endif
 
@@ -66,10 +66,10 @@ struct RasterSample {
 #endif
 	const OpWinding& winding() const;
 
-	OpContour* contour = nullptr;  // if this represents original curve (segment/edge are nullptr)
-	OpSegment* segment = nullptr;  // if set, contour and edge are nullptr
-	OpEdge* edge = nullptr;  // if set, contour and segment are nullptr
-	int curveIndex = -1;  // for contour : index of user-provided curve
+	OpContour* contour = nullptr;  // if set: represents original curve (segment/edge are nullptr)
+	OpSegment* segment = nullptr;  // if set: contour and edge are nullptr
+	OpEdge* edge = nullptr;  // if set: contour and segment are nullptr
+	int curveIndex = -1;  // for contour: index of user-provided curve
     float x  OP_DEBUG_INIT_FLOAT();
 	float t  OP_DEBUG_INIT_FLOAT();  // unused by rasterizer, but useful for debugging
 	bool curveDown = false;  // unused by contour curve (don't use int8_t; confuses compare diff)
@@ -174,19 +174,20 @@ struct DebugRaster {
 	OP_DEBUG_VALIDATE_CODE(void validate());
 #if OP_DEBUG_SERIALIZE
 	std::string debugDump(DebugLevel l, DebugBase b) const;
-	void deleteOld();
+//	void deleteOld();
+//	void dumpSample(const OpDebugSamples& , std::string description);
 #endif
 #if OP_DEBUG_DUMP || OP_DEBUGGER
-	bool playback(std::string filename);
+//	bool playback(std::string filename);
 #endif
 #if OP_DEBUG_DUMP
 	void dumpResolveAll(OpContext* );
 	void dumpSet(char const*& str);
 #endif
 #if OP_DEBUG_SERIALIZE || OP_DEBUGGER
-	void record(std::string filename);
+//	void record(std::string filename);
 #endif
-	std::vector<OpDebugSamples> samples;  // one per initial winding value
+	std::vector<OpDebugSamples> sampleSets;  // one per initial winding value
 	std::vector<DebugOutput> outputs;
 	OpContext* context = nullptr;
 	double scale = OpDoubleNaN;  // apply scale first

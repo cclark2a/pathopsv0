@@ -370,7 +370,7 @@ OpEdge* OpEdge::advanceToEnd(EdgeMatch match) {
 WindingCondition OpEdge::apply() {
 	if (centerless)
 		setDisabled(OP_LINE_FILE_NPARGS());
-	if (disabled || Unsortable::none != isUnsortable)
+	if (disabled || !isSortable() || !isSummable())
 		return 0;
     OpContext* ctxt = context();
 	PathOpsV0Lib::WindKeep keep = winding.keep(sum);
@@ -446,7 +446,7 @@ void OpEdge::calcCenterT() {
 void OpEdge::clearActiveAndPals(OP_LINE_FILE_NP_ARGS()) {
 	setActive(false);
 	for (auto& pal : pals) {
-		if (!pal.edge->isUnsectable())
+		if (!pal.edge->hasPals())
 			continue;  // !!! hack ?
 		pal.edge->setActive(false);
 		pal.edge->setDisabled(OP_LINE_FILE_NP_CARGS());
@@ -586,7 +586,7 @@ float OpEdge::margin() const {
 // Find pals for unsectables created during curve/curve intersection. There should be at most
 // two matching unsectable ids in the distances array. Mark between edges as well.
 void OpEdge::markPals() {
-	OP_ASSERT(isUnsectable());
+	OP_ASSERT(hasPals());
 	// edge is between one or more unsectableID ranges in intersections
 	for (EdgePal& pal : pals) {
 		for (auto& dist : ray.distances) {
@@ -617,7 +617,7 @@ bool OpEdge::output(bool closed) {
 			return true;  // don't reverse if outer normal in direction of inner points to zero
 		OpEdge* iEdge = inner->edge;
 	//	OP_ASSERT(!iEdge->inOutput);  // triggered by cubic1810520
-		if (iEdge->inOutput && !iEdge->isUnsectable()) {  // defer dealing with this until we find an easier test case
+		if (iEdge->inOutput && !iEdge->hasPals()) {  // defer dealing with this until we find an easier test case
 			OpDebugOut("!!! edge already output\n");
 			abort = true;
 			return true;
@@ -826,8 +826,8 @@ void OpEdge::setPriorEdge(OpEdge* edge) {
 	OP_DEBUG_VALIDATE_CODE(if (edge) debugPriorID = edge->id);
 }
 
-void OpEdge::setUnsortable(Unsortable unsortable) {  // setter exists so breakpoints can be set
-	isUnsortable = unsortable;
+void OpEdge::setUnsortable(Unsortable u) {  // setter exists so breakpoints can be set
+	unsortable = u;
 }
 
 const OpCurve& OpEdge::setVertical(const LinePts& pts, MatchEnds match) {
@@ -874,6 +874,7 @@ CalcFail OpEdge::subIfDL(OpContour* winderOwner, Axis axis, float edgeInsideT,
 }
 
 void OpEdge::setSum(const OpWinding& w  OP_LINE_FILE_ARGS()) {
+	OP_ASSERT(!unsummable);
 	OP_ASSERT(WindingType::uninitialized == sum.type);
 	sum.w = w.copyData();
 	OP_ASSERT(sum.w.size);

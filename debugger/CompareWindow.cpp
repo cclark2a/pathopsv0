@@ -25,9 +25,9 @@ std::string CompareLabel::labelAt(int index) {
     if (!window->debugRaster)
         return "(uninitialized)";
     const DebugRaster* raster = window->debugRaster;
-    if (raster->samples.empty())
+    if (raster->sampleSets.empty())
         return "(uninitialized)";
-    const OpDebugSamples& sample = raster->samples[index];
+    const OpDebugSamples& sample = raster->sampleSets[index];
     const OpContext* context = raster->context;
     PathOpsV0Lib::DebugImageWindingNames nameFunc 
             = context->debugContextCallbacks.debugImageWindingNamesFuncPtr;
@@ -79,7 +79,7 @@ int CompareLabel::size() const {
     const DebugRaster* raster = window->debugRaster;
     if (!raster)
         return 0;
-    return (int) raster->samples.size();
+    return (int) raster->sampleSets.size();
 }
 
 CompareWindow::CompareWindow(DebuggerState* state)
@@ -105,7 +105,7 @@ SDL_AppResult CompareWindow::draw() {
         return SDL_APP_CONTINUE;
     if (!debugRaster)
         return SDL_APP_CONTINUE;
-    if (debugRaster->samples.size() <= std::max(leftLabel.lastIndex, rightLabel.lastIndex))
+    if (debugRaster->sampleSets.size() <= std::max(leftLabel.lastIndex, rightLabel.lastIndex))
         return SDL_APP_CONTINUE;
     SDL_SetRenderDrawColor(renderer, 0xEE, 0xEE, 0xEE, 255);
     SDL_RenderClear(renderer);
@@ -205,15 +205,15 @@ SDL_AppResult CompareWindow::draw() {
         }
     };
     clearPixels(); 
-    drawHalf(debugRaster->samples[leftLabel.lastIndex].mask, leftFocus, CompareHalf::left, 
+    drawHalf(debugRaster->sampleSets[leftLabel.lastIndex].mask, leftFocus, CompareHalf::left, 
             0);
     if (!overlay)
-        drawHalf(debugRaster->samples[rightLabel.lastIndex].mask, rightFocus, CompareHalf::right, 
+        drawHalf(debugRaster->sampleSets[rightLabel.lastIndex].mask, rightFocus, CompareHalf::right, 
                 0);
     else {
-        drawHalf(debugRaster->samples[leftLabel.lastIndex].mask, leftFocus, CompareHalf::right, 
+        drawHalf(debugRaster->sampleSets[leftLabel.lastIndex].mask, leftFocus, CompareHalf::right, 
                 0xFF00FFFF);
-        drawHalf(debugRaster->samples[rightLabel.lastIndex].mask, rightFocus, CompareHalf::right, 
+        drawHalf(debugRaster->sampleSets[rightLabel.lastIndex].mask, rightFocus, CompareHalf::right, 
                 0xFFFFFF00);
     }
     SDL_UnlockTexture(polysTexture);  
@@ -234,9 +234,9 @@ DrawLevel CompareWindow::hover(const DebuggerEvent* event) {
         return result;
     }
     int index = event->mouse.x < windowWidth / 2 ? leftLabel.lastIndex : rightLabel.lastIndex;
-    if (index < 0 || index >= (int) debugRaster->samples.size())
+    if (index < 0 || index >= (int) debugRaster->sampleSets.size())
         return result;
-    const OpDebugSamples& sample = debugRaster->samples[index];
+    const OpDebugSamples& sample = debugRaster->sampleSets[index];
     OpRect area;
     if (event->mouse.x < windowWidth / 2) {
         area = OpRect(xOffset, yOffset, 0, 0);
@@ -284,20 +284,20 @@ DrawLevel CompareWindow::event(const DebuggerEvent& event) {
 }
 
 bool CompareWindow::readBits() {
-    if (debuggerState->dumps.empty())
+    debugRaster = nullptr;
+    if ((size_t) debuggerState->currentDump >= debuggerState->dumps.size())
         return false;
-    DebuggerDump& lastDump = debuggerState->dumps.back();
-    if (!lastDump.context)
+    const DebuggerDump& dump = debuggerState->dumps[debuggerState->currentDump];
+    OpContext* context = dump.context;
+    if (!context)
         return false;
-    if (!lastDump.context->debugDescription.ends_with("resolved"))
+    if (context->callbacks.empty())
         return false;
-    if (lastDump.context->callbacks.empty())
+    if (!context->debugRaster)
         return false;
-    OpContext* context = lastDump.context;
-    delete debugRaster;
-    debugRaster = new DebugRaster(context);
-    if (!debugRaster->playback(BitsFile))
+    if (context->debugRaster->sampleSets.empty())
         return false;
+    debugRaster = context->debugRaster;
     leftFocus = { 0, 0, (float) debugRaster->bitWidth, (float) debugRaster->bitHeight };
     rightFocus = { 0, 0, (float) debugRaster->bitWidth, (float) debugRaster->bitHeight };
     return true;

@@ -17,6 +17,13 @@ struct RayTargets;
 enum class CurveRef;
 enum class FoundPtT;
 
+// Pals attempt to aggregate windings where the edge' ray sort order is unknown, but the collective
+//  effect can be determined by summing the pals' windings. The 'pal many' winding tries to cache
+//  this result, but since pals aren't required to have identical spans, any cache may not work for
+//  an arbitrary ray. The 'op edge pal many' flag disables this winding cache, computing it as 
+//  needed by intersecting the ray with each edge as is done with other edges.
+#define OP_EDGE_PAL_MANY 0
+
 enum class NewEdge {
     none,
 	isLeft,
@@ -165,7 +172,6 @@ struct SectRay {
 	void addDistance(OpEdge* , float xy, float root, bool reversed  
 			OP_DEBUG_PARAMS(OpEdge* debugParent));
 	void addPals(OpEdge* );
-	bool canSetSum(const OpEdge* ) const;
 	bool checkAdd(OpEdge* toAdd);
 	RayOrder checkClose(const OpEdge* ) const;
 	void checkOrder(const OpEdge* );
@@ -182,7 +188,7 @@ struct SectRay {
 //	bool missingContour(OpWinder* , OpSegment* ) const;
 	const Distance* next(const Distance* dist, DistEnd e) const {
 		return dist + (int) e; }
-	bool sectsAllPals(const OpEdge* ) const;  // returns if edge + all of its pals are in distances
+//	bool sectsAllPals(const OpEdge* ) const;  // returns if edge + all of its pals are in distances
 	void sort();
 	bool tryADifferentCenter(OpEdge* );
 	DUMP_DECLARATIONS
@@ -193,6 +199,7 @@ struct SectRay {
 	RayTargets targets;
 	std::vector<Distance> distances;
 	std::vector<Distance> erased;  // distances saved in case axis conflict requires restoring
+	OpRect insideBounds;  // intersection of curve bounds and alias bounds
 	OpVector homeTangent;  // used to determine if unsectable edge is reversed
 	float normal = OpNaN;  // ray used to find windings on home edge (e.g., axis: h, center.y)
 	float homeCept = OpNaN;  // intersection of normal on home edge (e.g., axis: h, center.x)
@@ -362,7 +369,9 @@ private:
 		, upright_impl( { SetToNaN::dummy, SetToNaN::dummy } )
 		, winding(WindingUninitialized::dummy)
 		, sum(WindingUninitialized::dummy)
-		, many(WindingUninitialized::dummy)
+#if OP_EDGE_PAL_MANY
+		, palMany(WindingUninitialized::dummy)
+#endif
         , startDist(SetToNaN::dummy)
         , endDist(SetToNaN::dummy)
 		, startT(OpNaN)
@@ -371,7 +380,7 @@ private:
 		, whichEnd_impl(EdgeMatch::none)
 		, rayFail(EdgeFail::none)
 		, windZero(WindZero::unset)
-		, isUnsortable(Unsortable::none)
+		, unsortable(Unsortable::none)
 		, active_impl(false)
 //		, alternateEnd(false)
 		, inLinkups(false)
@@ -390,6 +399,7 @@ private:
 		, endSeen(false)
 		, unsectableStart(false)
 		, unsectableEnd(false)
+		, unsummable(false)
 	{
 #if OP_DEBUG || OP_DEBUGGER // a few debug values are also nonzero
 		id = -2;
@@ -422,7 +432,7 @@ public:
 
 	CalcFail addIfUR(Axis xis, float t, OpWinding* ) const;
 	void addPal(OpEdge* , int uid, bool reversed);
-	void addPal(Distance* d) {
+	void addPal(const Distance* d) {
 		addPal(d->edge, 0, d->reversed); }
 	CalcFail addSub(OpContour* winderOwner, Axis axis, float t, OpWinding* ) const;
 	OpEdge* advanceToEnd(EdgeMatch );
@@ -447,6 +457,8 @@ public:
 		return match == which() ? endPtT() : startPtT(); }
 	bool hasLinkTo(EdgeMatch match) const { 
 		return EdgeMatch::start == match ? priorEdge : nextEdge; }
+	bool hasPals() const { 
+		return !pals.empty(); }
 	bool isActive() const { 
 		return active_impl; }
 	bool isLine() {
@@ -455,9 +467,11 @@ public:
 		return pals.end() != std::find_if(pals.begin(), pals.end(), 
 				[opp](const auto& test) { return opp == test.edge; }); }
 	bool isSimple() const {
-		return !disabled && !isUnsectable() && Unsortable::none == isUnsortable; }
-	bool isUnsectable() const { 
-		return pals.size(); }
+		return !disabled && isSortable(); }
+	bool isSortable() const {
+		return Unsortable::none == unsortable; }
+	bool isSummable() const {
+		return !unsummable; }
 	void linkToEdge(FoundEdge& , EdgeMatch );
 	MatchReverse matchEnds(const LinePts& linePts) const {
 		return curve.matchEnds(linePts); }
@@ -552,7 +566,9 @@ public:
 	OpPointBounds linkBounds;
 	OpWinding winding;	// contribution: always starts as 1, 0 (or 0, 1)
 	OpWinding sum;  // total incl. normal side of edge for operands (fill count in normal direction)
-	OpWinding many;  // temporary used by unsectables to contain all pal windings combined
+#if OP_EDGE_PAL_MANY
+	OpWinding palMany;  // temporary used by unsectables to contain all pal windings combined
+#endif
 	std::vector<CoinPal> coinPals;  // track coincidences bracketing edge by ID
 	std::vector<OpIntersection*> unSects;  // unsectable sects bracketing edge (to mark as pals)
 	std::vector<EdgePal> pals;	 // edge + pals share sect overlap; or ray can't order edge and pals
@@ -566,7 +582,7 @@ public:
 	EdgeMatch whichEnd_impl;  // if 'start', prior end equals start; if 'end' prior end matches end
 	EdgeFail rayFail;   // how computation (e.g., center) failed (on fail, windings are set to zero)
 	WindZero windZero;  // zero: edge normal points to zero side (the exterior of the loop)
-	Unsortable isUnsortable;  // unsectable is unsortable; others (e.g., very small) are also unsortable
+	Unsortable unsortable;  // unsectable is unsortable; others (e.g., very small) are also unsortable
 	bool active_impl;  // used by ray casting to mark edges that may be to the left of casting edge
 //	bool alternateEnd;  // set if line length is proportionately similar to end to sect end dist
 	bool inLinkups; // set for edges in linkups l vector
@@ -585,6 +601,7 @@ public:
 	bool endSeen;  // tracks end of edge in joiner linked list to add to tree only once
 	bool unsectableStart;  // set if start intersection has an unsectable id
 	bool unsectableEnd;  // set if end intersection has an unsectable id
+	bool unsummable;  // set if ray through adjacent edge is too close
 #if OP_DEBUG || OP_DEBUGGER
 	OpEdge* debugMatch;  // left side of nonzero ray from this edge
 	OpEdge* debugZeroErr;  // debug match ray found edge that does not match -- diagnostic for now
@@ -634,8 +651,7 @@ struct OpEdgeStorage {
 #if OP_DEBUG_SERIALIZE
 	int debugCount() const;
 	OpEdge* debugFind(int id);
-	OpEdge* debugIndex(int index);
-	const OpEdge* debugIndex(int index) const;
+	OpEdge* debugIndex(int index) const;
 #endif
 	DUMP_DECLARATIONS
 #if OP_DEBUG_VALIDATE

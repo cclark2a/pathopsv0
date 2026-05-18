@@ -206,12 +206,21 @@ const OpSegment* findSegment(int ID) {
     return nullptr;
 }
 
-std::string stringFormat(std::string s, int lineWidth) {
+std::string stringFormat(std::string s, int lineWidth, int maxLines) {
     if (!s.size())
 		return "";
     std::string result;
 	const char* start = &s.front();
     const char* end = &s.back();
+    auto overflowed = [&maxLines, start, end, &result]() {
+        if (0 == --maxLines) {
+            result.pop_back();
+            if (start < end)
+                result += " (..." + STR((int) (end - start)) + " more)";
+            return true;
+        }
+        return false;
+    };
     while (lineWidth && start + lineWidth <= end) {
         const char* c = start;
         for (int i = 0; i < lineWidth; ++i) {
@@ -219,6 +228,8 @@ std::string stringFormat(std::string s, int lineWidth) {
                 std::string line = s.substr(start - &s.front(), i + 1);
                 result += line;
                 start += i + 1;
+                if (overflowed())
+                    return result;
                 break;
             }
         }
@@ -230,9 +241,12 @@ std::string stringFormat(std::string s, int lineWidth) {
         std::string line = s.substr(start - &s.front(), c == start ? lineWidth : c - start);
         result += line + "\n";
         start += line.size();
+        if (overflowed())
+            return result;
     }
     if (start <= end)
         result += s.substr(start - &s.front());
+    debugPopMatching(result, '\n');
     return result;
 }
 
@@ -1015,7 +1029,7 @@ std::string MatchReverse::debugDump(DebugLevel l, DebugBase b) const {
     return debugPopMatching(s, ' ');
 }
 
-void OpContext::dumpBaseFile() const {
+void OpContext::dumpString(const std::string& s) const {
     // special descriptions are also filenames, to allow verifying that dump works correctly
     std::string filePath = dmpFileToPath(debugFilename);
     FILE* file = fopen(filePath.c_str(), "w");
@@ -1023,24 +1037,28 @@ void OpContext::dumpBaseFile() const {
         OpDebugOut("could not open " + filePath + " to write\n");
         return;
     }
-    std::string s;
-    s = debugDump(DebugLevel::file, DebugBase::hex);
-    s = stringFormat(s, 133);  // accomodate op debug bitmap (66 bytes x 2)
-    fwrite(&s[0], 1, s.size(), file);
+    std::string fS = stringFormat(s, 133);  // accomodate op debug bitmap (66 bytes x 2)
+    fwrite(&fS[0], 1, fS.size(), file);
     fclose(file);
+}
+
+void OpContext::dumpBaseFile(DumpRaster dumpRaster) const {
+    std::string s = debugDump(DebugLevel::file, DebugBase::hex, dumpRaster);
+    dumpString(s);
 #if OP_DEBUG_VALIDATE && OP_DEBUG_DUMP
 	OpContext* fileContext = fromFile(debugFilename);
-    std::string copy = fileContext->debugDump(DebugLevel::file, DebugBase::hex);
+    std::string copy = fileContext->debugDump(DebugLevel::file, DebugBase::hex, dumpRaster);
     copy = stringFormat(copy, 133);
     std::string orig = dmpFileToStr(debugFilename);
     if (orig != copy) {
         std::string copyPath = dmpFileToPath("DumpCopy.txt");
-        file = fopen(copyPath.c_str(), "w");
+        FILE* file = fopen(copyPath.c_str(), "w");
         fwrite(&copy[0], 1, copy.size(), file);
         fclose(file);
 
         OpDebugOut("!!! " + debugFilename + " != DumpCopy.txt\n");
 #ifndef _WIN32
+        std::string filePath = dmpFileToPath(debugFilename);
         std::string bashStr = "bash -c 'diff " + filePath + " " + copyPath + "'";
         system(bashStr.c_str());
 #else
@@ -1079,32 +1097,36 @@ void OpContext::dumpBaseFile() const {
 #endif
 }
 
-void OpContext::dumpFile(std::string description) {
+void OpContext::dumpFile(std::string description, DumpRaster dumpRaster) {
     if (!debugData.runOneFile || debugData.defeatDumps)
         return;
     // !!! not sure that this is always the right thing to do, but ...
     //     remove all older files so that the debugger does not see a mix of old and new data
     //     Note that DumpCopy.txt is not deleted because the debugger doesn't read it, and in
     //     case it's useful to see the last sucessful dump.
-    if (0 == dumpIndex) {
+    if (0 == debugData.dumpIndex) {
         for (;;) {
-            debugFilename = DumpFile + STR(++dumpIndex) + ".txt";
+            debugFilename = DumpFile + STR(++debugData.dumpIndex) + ".txt";
             std::string filePath = dmpFileToPath(debugFilename);
             if (!std::filesystem::exists(filePath))
                 break;
             std::filesystem::remove(filePath);
         }
-        dumpIndex = 0;
+        debugData.dumpIndex = 0;
     }
-    debugFilename = DumpFile + STR(++dumpIndex) + ".txt";
+    debugFilename = DumpFile + STR(++debugData.dumpIndex) + ".txt";
     OP_ASSERT(description.size() <= 80);  // !!! forced by line wrapping, could be relaxed
     debugDescription = description;
     if (debugContextCallbacks.debugDumpOutFuncPtr)
         debugOutPath = (*debugContextCallbacks.debugDumpOutFuncPtr)((ContextPtr) this);
-    dumpBaseFile();
+    dumpBaseFile(dumpRaster);
 }
 
 std::string OpContext::debugDump(DebugLevel l, DebugBase b) const {
+    return debugDump(l, b, DumpRaster::no);
+}
+
+std::string OpContext::debugDump(DebugLevel l, DebugBase b, DumpRaster dumpRaster) const {
     std::string s;
     static_assert(0 == offsetof(OpContext, callbacks));
     s += "callbacks:" + STR(callbacks.size()) + "\n";
@@ -1332,16 +1354,15 @@ std::string OpContext::debugDump(DebugLevel l, DebugBase b) const {
         s += debugOutPath;
         s += "\n:debugOutPath\n";
     }
-    ASSERT_ORDERED(debugOutPath, dumpIndex);  // omit for now
 #if OP_DEBUG_DUMP
-    ASSERT_ORDERED_OFFSET(dumpIndex, debugDumpErasures, 4);  // omit for now
+    ASSERT_ORDERED(debugOutPath, debugDumpErasures);  // omit for now
     ASSERT_ORDERED(debugDumpErasures, debugDumpInit);  // omit for now
 #endif
 #if OP_TEST_RASTER
 //    ASSERT_ORDERED_OFFSET(debugDumpInit, rasterStorage, 7);  // !!! dump may not be defined
-    // don't dump raster winding storage?
+// only dump raster winding storage at first and last
     ASSERT_ORDERED(rasterStorage, debugRaster);
-    if (debugRaster)
+    if (debugRaster && DumpRaster::yes == dumpRaster)
         s += "debugRaster:" + debugRaster->debugDump(l, b) + "\n";
 #endif
     return s;
@@ -1759,7 +1780,9 @@ std::string OpCurveCurve::debugDump(DebugLevel l, DebugBase b) const {
 }
 
 std::string OpEdge::debugDump(DebugLevel l, DebugBase b) const {
-//    DebugLevel brief = DebugLevel::file != l ? DebugLevel::brief : DebugLevel::file;
+    DebugLevel debugLevelRay = l;
+    if (DebugLevel::ray == debugLevelRay)
+        l = DebugLevel::normal;
     DebugLevel error = DebugLevel::file != l ? DebugLevel::error : DebugLevel::file;
     auto strLabel = [l](std::string label) {
         return debugLabel(l, label);
@@ -1827,7 +1850,7 @@ std::string OpEdge::debugDump(DebugLevel l, DebugBase b) const {
         s += strID(EF::contour, "contour", segment->contour->id);
     ASSERT_ORDERED(segment, ray);
     if (ray.distances.size()) 
-        s += ray.debugDump(l, b) + " ";
+        s += ray.debugDump(debugLevelRay, b) + " ";
     ASSERT_ORDERED(ray, priorEdge);
     ASSERT_ORDERED(priorEdge, nextEdge);
     ASSERT_ORDERED(nextEdge, lastEdge);
@@ -1855,9 +1878,13 @@ std::string OpEdge::debugDump(DebugLevel l, DebugBase b) const {
     s += strWinding(EdgeFilter::winding, "winding", winding);
     ASSERT_ORDERED(winding, sum);
     s += strWinding(EdgeFilter::sum, "sum", sum);
-    ASSERT_ORDERED(sum, many);
-    s += strWinding(EdgeFilter::many, "many", many);
-    ASSERT_ORDERED(many, coinPals);
+#if OP_EDGE_PAL_MANY
+    ASSERT_ORDERED(sum, palMany);
+    s += strWinding(EdgeFilter::palMany, "palMany", palMany);
+    ASSERT_ORDERED(palMany, coinPals);
+#else
+    ASSERT_ORDERED(sum, coinPals);
+#endif
     if (coinPals.size()) {
         s += strLabel("coinPals:") + STR(coinPals.size()) + "{";
         for (auto& cPal : coinPals) {
@@ -1916,10 +1943,10 @@ std::string OpEdge::debugDump(DebugLevel l, DebugBase b) const {
     s += strEnum(EF::rayFail, "rayFail", EdgeFail::none == rayFail, EdgeFailName(rayFail));
     ASSERT_ORDERED(rayFail, windZero);
     s += strEnum(EF::windZero, "windZero", WindZero::unset == windZero, WindZeroName(windZero));
-    ASSERT_ORDERED(windZero, isUnsortable);
-    s += strEnum(EF::isUnsortable, "isUnsortable", Unsortable::none == isUnsortable, 
-			UnsortableName(isUnsortable));
-	EDGE_BOOL(isUnsortable, active_impl);
+    ASSERT_ORDERED(windZero, unsortable);
+    s += strEnum(EF::unsortable, "unsortable", Unsortable::none == unsortable, 
+			UnsortableName(unsortable));
+	EDGE_BOOL(unsortable, active_impl);
     EDGE_BOOL(active_impl, inLinkups);
     EDGE_BOOL(inLinkups, linkHead);
     EDGE_BOOL(linkHead, inOutput);
@@ -1936,8 +1963,9 @@ std::string OpEdge::debugDump(DebugLevel l, DebugBase b) const {
     EDGE_BOOL(startSeen, endSeen);
     EDGE_BOOL(endSeen, unsectableStart);
     EDGE_BOOL(unsectableStart, unsectableEnd);
+    EDGE_BOOL(unsectableEnd, unsummable);
 #if OP_DEBUG
-    ASSERT_ORDERED_OFFSET(unsectableEnd, debugMatch, 3);
+    ASSERT_ORDERED_OFFSET(unsummable, debugMatch, 2);
     if (debugMatch)
         s += "debugMatch:" + (debugMatch ? STR(debugMatch->id) : std::string("-")) + " ";
     ASSERT_ORDERED(debugMatch, debugZeroErr);
@@ -2005,8 +2033,10 @@ std::string OpEdge::debugDumpWinding() const {
         s += "winding" + winding.debugDump(l, defaultBase) + " ";
     if (sum.isSet())
         s += "sum" + sum.debugDump(l, defaultBase) + " ";
-    if (many.isSet())
-        s += "many" + many.debugDump(l, defaultBase);
+#if OP_EDGE_PAL_MANY
+    if (palMany.isSet())
+        s += "palMany" + palMany.debugDump(l, defaultBase);
+#endif
     return s;
 }
 
@@ -2033,21 +2063,23 @@ OpEdge* OpEdgeStorage::debugFind(int ID) {
     return next->debugFind(ID);
 }
 
-OpEdge* OpEdgeStorage::debugIndex(int index) {
-    OpEdgeStorage* block = this;
-    while (index >= block->used) {
-        index -= block->used;
+// this walks 'backwards', from oldest to newest
+OpEdge* OpEdgeStorage::debugIndex(int edgeIndex) const {
+    const OpEdgeStorage* block = this;
+    // build an array from that can be walked from back to front
+    std::vector<const OpEdgeStorage*> blocks;
+    do {
+	    blocks.push_back(block);
         block = block->next;
-        if (!block)
-            return nullptr;
+    } while (block);
+    // walk the array of blocks in the order they were allocated (back to front)
+    for (size_t index = blocks.size(); index-- != 0; ) {
+        block = blocks[index];
+        if (edgeIndex < block->used)
+            return const_cast<OpEdge*>(&block->storage[edgeIndex]);
+        edgeIndex -= block->used;
     }
-    if (block->used <= index)
-        return nullptr;
-    return &block->storage[index];
-}
-
-const OpEdge* OpEdgeStorage::debugIndex(int index) const {
-    return (const_cast<OpEdgeStorage*>(this))->debugIndex(index);
+    return nullptr;
 }
 
 std::string OpEdgeStorage::debugDump(DebugLevel l, DebugBase b) const {
@@ -2634,7 +2666,10 @@ std::string RayTargets::debugDump(DebugLevel l, DebugBase b) const {
 
 std::string SectRay::debugDumpHeader(DebugLevel l, DebugBase b) const {
     std::string s;
-    ASSERT_ORDERED(erased, homeTangent);
+    ASSERT_ORDERED(erased, insideBounds);
+    if (insideBounds.isFinite())
+        s += debugLabel(l, "insideBounds") + insideBounds.debugDump(l, b) + " ";
+    ASSERT_ORDERED(insideBounds, homeTangent);
 	if (homeTangent.isFinite())
 		s += debugLabel(l, "homeTangent") + homeTangent.debugDump(l, b) + " ";
     ASSERT_ORDERED(homeTangent, normal);
@@ -2666,15 +2701,22 @@ std::string SectRay::debugDumpHeader(DebugLevel l, DebugBase b) const {
 }
 
 std::string SectRay::debugDump(DebugLevel l, DebugBase b) const {
+    bool addLF = DebugLevel::ray == l;
+    if (addLF)
+        l = DebugLevel::normal;
     static_assert(0 == offsetof(SectRay, targets));
-    std::string s = "targets:" + targets.debugDump(l, b) + "\n";
+    std::string s = "targets:" + targets.debugDump(l, b) + " ";
     ASSERT_ORDERED(targets, distances);
     s += "distances:" + STR(distances.size()) + "{";
     for (const Distance& dist : distances) {
+        if (addLF)
+            s += "\n";
         s += dist.debugDump(l, b) + ", ";
 	}
     debugPopMatching(s, ' ');
     debugPopMatching(s, ',');
+    if (addLF && !distances.empty())
+        s += "\n ";
     s += "} ";
     ASSERT_ORDERED(distances, erased);
     s += "erased:" + STR(erased.size()) + "{";
@@ -2684,7 +2726,7 @@ std::string SectRay::debugDump(DebugLevel l, DebugBase b) const {
     debugPopMatching(s, ' ');
     debugPopMatching(s, ',');
     s += "} ";
-    ASSERT_ORDERED(erased, homeTangent);
+    ASSERT_ORDERED(erased, insideBounds);
     s += debugDumpHeader(l, b); 
     return s;
 }
@@ -2781,6 +2823,7 @@ OpContext* fromFile(std::string filename) {
     std::string buffer = dmpFileToStr(filename);
     if (buffer.empty())
         return nullptr;
+    buffer += '\0';  // add terminator so debug set calls can check for the end
     const char* str = buffer.c_str();
     OpContext* save = debugGlobalContext;
     OpContext* fileContext = new OpContext();

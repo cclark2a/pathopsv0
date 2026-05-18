@@ -299,7 +299,7 @@ struct OpCurveCurve {
     bool addLineCurveIntersection(OpEdge& edge, OpEdge& opp, CurveRef );
 	EdgeRun* addEdgeRun(OpEdge* , CurveRef , EdgeMatch  OP_LINE_FILE_ARGS());
 	bool addUnsectable(FoundLimit& limit, FoundLimit& limitEnd);
-    OpEdge* allocateEdge(OpSegment* , const OpEdge* , const OpPtT& start, const OpPtT& end,
+    OpEdge* allocEdge(OpSegment* , const OpEdge* , const OpPtT& start, const OpPtT& end,
             NewEdge, EdgeOverlaps  OP_LINE_FILE_DEF(int parentID));
 	bool alreadyInLimits(const OpEdge* edge, const OpEdge* oEdge, 
 			const OpPtT& edgePtT, const OpPtT& oppPtT);

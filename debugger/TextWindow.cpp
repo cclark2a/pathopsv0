@@ -156,7 +156,7 @@ void TextWindow::innerUpdate(int& safetyCheck) {
         return;
     clearWindow();
     OpPoint localLocation(10, 10);
-    // find box size from current font; create temporary, then remove it from draw list
+    // find box size from current font: create temporary, then remove it from draw list
     OpDebugText& text = addText("9999", {0, 0}, black);
     const NativeTextCache& cache = getCache(text.cacheIndex);
     boxWH = cache.size;
@@ -169,7 +169,7 @@ void TextWindow::innerUpdate(int& safetyCheck) {
     // find window height available
     // 
     auto addWrapped = [this](std::string s) {
-        s = stringFormat(s, 100);
+        s = stringFormat(s, 100, 50);
         const NativeTextCache& cache = getCache(addClipped(s, 
                 { 10, (float) (detailHeight - scrollPos) }, black, detailFont).cacheIndex);
         detailHeight += (int) cache.size.dy;
@@ -259,7 +259,8 @@ void TextWindow::innerUpdate(int& safetyCheck) {
         if (!shownIntersection && IDType::intersection == id.type)
             s = id.intersection->debugDump(DebugLevel::normal, defaultBase);
         if (!shownEdge && IDType::edge == id.type)
-            s = id.edge->debugDump(DebugLevel::normal, defaultBase);
+            s = id.edge->debugDump(debuggerState->showRays 
+                    ? DebugLevel::ray : DebugLevel::normal, defaultBase);
         if (IDType::contour == id.type && shownContours.end() == std::find(shownContours.begin(), 
                 shownContours.end(), id.contour)) {
             shownContours.push_back(id.contour);

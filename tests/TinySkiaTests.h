@@ -33,9 +33,12 @@ struct TestTrack {
         return false;
     }
 
-    std::string baseName;  // name shared by all tests in test group
-    std::string testSet;  // test to run, with trailing number removed
+    std::string testMatch;  // if run one: test to run, with trailing number removed
+    std::string testName;  // set by function currently running
+    float maxError = 0;
     int testIndex = 0;   // may be negative to adjust for bug in skia test framework
+    int testNumber = 0;  // if run one, match testMatch + testSuffix
+    int testSuffix = 0;
     int indexOffset = 0;
     int run = 0;
     int skip = 0;
@@ -68,12 +71,18 @@ struct TestOptions {
         return testTrack.skipTests(count);
     }
 
+    TestDone testLast(SkPath& left, SkPath& right, TinyOps op);
+
     TestDone testOne(SkPath& path) {
         return testOne(path, path, TinyOps::simplify);
     }
 
     TestDone testOne(SkPath& left, SkPath& right, TinyOps op);
 
+    TestDone testPart(SkPath& left, SkPath& right, TinyOps , SkPath* result);
+    TestDone testSetup(SkPath& left, SkPath& right, TinyOps , SkPath* result);
+
+    OpDebugData debugData;
     TestTrack& testTrack;
     const TestFunc& testFunc;
     bool testCountCheck = true;  // used to verify that skip count computed by test is right

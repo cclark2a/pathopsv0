@@ -1139,8 +1139,57 @@ void skiaIssue377820800(TestOptions* options) {
     options->testOne(circle, star, TinyOps::difference);
 }
 
+#define FIGMA_FULL_TEST 01
+
+static SkPath figmaPath() {
+    SkPath b;
+    b.moveTo(374.902f, 273.047f);
+    b.quadTo(415.918f, 273.047f, 445.215f, 291.211f);
+#if FIGMA_FULL_TEST
+    b.quadTo(474.512f, 309.375f, 490.039f, 342.041f);
+    b.quadTo(505.566f, 374.707f, 505.566f, 418.359f);
+    b.lineTo(505.566f, 448.535f);
+    b.lineTo(283.789f, 448.535f);
+    b.quadTo(284.668f, 505.078f, 311.914f, 534.668f);
+    b.quadTo(339.16f, 564.258f, 388.672f, 564.258f);
+    b.quadTo(419.141f, 564.258f, 442.578f, 558.691f);
+    b.quadTo(466.016f, 553.125f, 491.211f, 542.285f);
+    b.lineTo(491.211f, 585.059f);
+    b.quadTo(466.895f, 595.898f, 443.018f, 600.879f);
+    b.quadTo(419.141f, 605.859f, 386.621f, 605.859f);
+    b.quadTo(340.332f, 605.859f, 305.908f, 586.963f);
+    b.quadTo(271.484f, 568.066f, 252.441f, 531.445f);
+    b.quadTo(233.398f, 494.824f, 233.398f, 441.797f);
+    b.quadTo(233.398f, 389.941f, 250.83f, 352.002f);
+    b.quadTo(268.262f, 314.062f, 300.049f, 293.555f);
+    b.quadTo(331.836f, 273.047f, 374.902f, 273.047f);
+    b.close();
+    b.moveTo(374.316f, 312.891f);
+    b.quadTo(335.352f, 312.891f, 312.207f, 338.379f);
+    b.quadTo(289.062f, 363.867f, 284.668f, 409.57f);
+    b.lineTo(454.59f, 409.57f);
+    b.quadTo(454.297f, 380.859f, 445.654f, 359.033f);
+    b.quadTo(437.012f, 337.207f, 419.434f, 325.049f);
+    b.quadTo(401.855f, 312.891f, 374.316f, 312.891f);
+#endif
+    b.close();
+    return b;
+}
+
+void figma1(TestOptions* options) {
+    float dx = 0.175845683f; 
+    SkPath b = figmaPath();
+    SkPath path1;
+    path1.addPath(b);
+    path1.offset(0, dx);
+    SkPath path2;
+    options->testSetup(b, path1, TinyOps::difference, &path2);
+    options->testLast(b, path2, TinyOps::unite);
+}
+
 void V0Tests(TestTrack* track) {
     static std::vector<TestFunc> tests = {
+        TEST_FUNC(figma1),
         TEST_FUNC(mikeClifton2),
         TEST_FUNC(mikeClifton1),
         TEST_FUNC(skiaIssue377820800),

@@ -836,7 +836,7 @@ void CcCurves::snipAndGo(const CutRangeT& tRange) {
 	CcCurves snippedEdges;
 	auto addSnipEdge = [this](const OpEdge* edge, const OpPtT& start, const OpPtT& end
             OP_LINE_FILE_ARGS()) {
-        OpEdge* newEdge = cc->allocateEdge(nullptr, edge, start, end, NewEdge::none, 
+        OpEdge* newEdge = cc->allocEdge(nullptr, edge, start, end, NewEdge::none, 
                 EdgeOverlaps::overlaps   OP_LINE_FILE_PARAMS(edge->id));
 		return newEdge;
 	};
@@ -1136,7 +1136,7 @@ bool OpCurveCurve::addUnsectable(FoundLimit& limit, FoundLimit& limitEnd) {
 	return true; 
 }
 
-OpEdge* OpCurveCurve::allocateEdge(OpSegment* segment, const OpEdge* edge, const OpPtT& start,
+OpEdge* OpCurveCurve::allocEdge(OpSegment* segment, const OpEdge* edge, const OpPtT& start,
         const OpPtT& end, NewEdge newEdge, EdgeOverlaps overlaps  
         OP_LINE_FILE_DEF(int parentID)) {
 	void* block = context->allocateEdge(context->ccStorage  OP_DEBUG_PARAMS("ccStorage"));
@@ -1264,7 +1264,7 @@ OpEdge* OpCurveCurve::boundedEdge(OpSegment* segm, const OpPointBounds& sectBoun
 		return nullptr;
 	if (minT.pt == maxT.pt)
 		return nullptr;
-    OpEdge* result = allocateEdge(segm, nullptr, minT, maxT, NewEdge::none, EdgeOverlaps::no
+    OpEdge* result = allocEdge(segm, nullptr, minT, maxT, NewEdge::none, EdgeOverlaps::no
             OP_LINE_FILE_PARAMS(segm->id));
 	result->ccOverlaps = false;
 	return result;
@@ -1798,7 +1798,7 @@ bool OpCurveCurve::reduceDistFlipped() {
         if (intervals.empty())
             return;
         for (Interval interval : intervals) {
-            OpEdge* split = allocateEdge(segment, nullptr, interval.lo, interval.hi, NewEdge::none, 
+            OpEdge* split = allocEdge(segment, nullptr, interval.lo, interval.hi, NewEdge::none, 
                     EdgeOverlaps::overlaps  OP_LINE_FILE_PARAMS(segment->id));
 		    split->ccOverlaps = true;
 		    OP_ASSERT(!split->disabled);
@@ -2245,7 +2245,7 @@ bool OpCurveCurve::splitDownTheMiddle(const OpEdge& edge, CurveRef curveRef, CcC
 	OP_ASSERT(edge.startT < edgeMid.t);
 	OP_ASSERT(edgeMid.t < edge.endT);
 	CcCurves& curves = CurveRef::edge == curveRef ? edgeCurves : oppCurves;
-    OpEdge* splitLeft = allocateEdge(nullptr, &edge, edgeMid, OpPtT(), NewEdge::isLeft,  
+    OpEdge* splitLeft = allocEdge(nullptr, &edge, edgeMid, OpPtT(), NewEdge::isLeft,  
             EdgeOverlaps::overlaps  OP_LINE_FILE_PARAMS(edge.id));
 	if (!splitLeft->disabled) {
 		splitLeft->ccStart = edge.ccStart;
@@ -2254,7 +2254,7 @@ bool OpCurveCurve::splitDownTheMiddle(const OpEdge& edge, CurveRef curveRef, CcC
 		splits.c.push_back(splitLeft);
 		curves.addEdgeRun(splitLeft, EdgeMatch::end, ClampDist::yes  OP_LINE_FILE_PARGS());
 	}
-	OpEdge* splitRight = allocateEdge(nullptr, &edge, edgeMid, OpPtT(), NewEdge::isRight,  
+	OpEdge* splitRight = allocEdge(nullptr, &edge, edgeMid, OpPtT(), NewEdge::isRight,  
              EdgeOverlaps::overlaps  OP_LINE_FILE_PARAMS(edge.id));
 	if (!splitRight->disabled) {
 		splitRight->ccEnd = edge.ccEnd;
@@ -2325,7 +2325,7 @@ bool OpCurveCurve::splitHulls(CurveRef which, CcCurves& splits) {
 			if (OpMath::EqualT(hullLo.sect.t, hullHi.sect.t))
 				continue;
 			// hull points have been aligned, and may not be on edge
-			OpEdge* split = allocateEdge(segment, nullptr, hullLo.sect, hullHi.sect, NewEdge::none,  
+			OpEdge* split = allocEdge(segment, nullptr, hullLo.sect, hullHi.sect, NewEdge::none,  
 					EdgeOverlaps::overlaps  OP_LINE_FILE_PARAMS(edge.id));
 			if (split->disabled)
 				continue;

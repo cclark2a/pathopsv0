@@ -39,6 +39,13 @@ enum class SortSmall {
 	yes
 };
 
+#if OP_DEBUG_SERIALIZE
+enum class DumpRaster {
+	no,
+	yes
+};
+#endif
+
 typedef PathOpsV0Lib::Context* ContextPtr;
 
 struct OpContext {
@@ -252,13 +259,15 @@ struct OpContext {
 	void debugValidateIntersections() const;
 #endif
 #if OP_DEBUG_SERIALIZE
-	void dumpBaseFile() const;
-	void dumpFile(std::string description);
+	void dumpBaseFile(DumpRaster ) const;
+	std::string debugDump(DebugLevel , DebugBase , DumpRaster ) const;
+	void dumpFile(std::string description, DumpRaster dumpRaster = DumpRaster::no);
     const OpEdge* debugFindEdge(int id) const;
     const OpSegment* debugFindSegment(int id) const;
-	const OpLimb& debugNthLimb(int) const;
     bool dumpInitialized() const {
                 return initialized || !windingSet;  }
+	const OpLimb& debugNthLimb(int) const;
+	void dumpString(const std::string& ) const;
 #endif
 #if OP_DEBUG_DUMP
 	void debugCompare(std::string s);
@@ -271,11 +280,6 @@ struct OpContext {
 	void dumpResolve(OpSegment*& );
 #endif
 #include "OpDebugDeclarations.h"
-#if OP_DEBUG_IMAGE
-	void debugLimbClear();
-	void debugLimbColor(int lastLimbID, uint32_t color);
-	int debugLimbIndex(const OpEdge* ) const;
-#endif
 
 	std::vector<PathOpsV0Lib::CurveCallbacks> callbacks;
     std::vector<PathOpsV0Lib::ContextUserData> userData;
@@ -332,7 +336,6 @@ struct OpContext {
 	std::string debugFilename;
 	std::string debugDescription;
 	std::string debugOutPath;
-	int dumpIndex = 0;  // number of dumped file
 #endif
 #if OP_DEBUG_DUMP
 	std::vector<OpEdge*> debugDumpErasures;  // read from flattened data

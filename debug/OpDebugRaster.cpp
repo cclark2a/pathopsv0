@@ -649,7 +649,6 @@ void DebugRaster::addOutput(PathOpsV0Lib::Output o, OpEdge* e) {
 void DebugRaster::in() {
 	if (tooSmall())
 		return;
-	OP_DEBUG_DUMP_CODE(context->dumpFile("init"));
 	sample(SampleType::contourResolved);
 	OP_DEBUG_CODE(validate());
 #if OP_DEBUG || OP_DEBUGGER
@@ -658,15 +657,16 @@ void DebugRaster::in() {
 		sample(SampleType::segmentInput);
 		sample(SampleType::segmentResolved);
 	}
-	for (auto& s : samples) {
+	for (auto& s : sampleSets) {
 		s.sort();
 	}
 	if (!sendToDebugger)
 		return;
 	OP_DEBUG_CODE(validate());
-	for (auto& s : samples) {
+	for (auto& s : sampleSets) {
 		s.rasterize();
 	}
+	OP_DEBUG_SERIALIZE_CODE(context->dumpFile(__func__, DumpRaster::yes));
 	OpNop();
 #endif
 }
@@ -678,31 +678,29 @@ float DebugRaster::out() {
 #if OP_DEBUG || OP_DEBUGGER
 	if (sendToDebugger) {
 		sampleEdges();
-		OpDebugSamples& edges = samples.back();
+		OpDebugSamples& edges = sampleSets.back();
 		edges.sort();
 		edges.rasterize();
 	}
 #endif
 	sampleOutput();
-	OP_ASSERT(samples.size());
-	OpDebugSamples& output = samples.back();
+	OP_ASSERT(sampleSets.size());
+	OpDebugSamples& output = sampleSets.back();
 	output.sort();
 #if OP_DEBUG || OP_DEBUGGER
 	if (sendToDebugger) {
 		output.rasterize();
-#if OP_DEBUG_DUMP
-		record(BitsFile);
-#endif
+		OP_DEBUG_SERIALIZE_CODE(context->dumpFile(__func__, DumpRaster::yes));
 	}
 #endif
 	OP_ASSERT(SampleType::output == output.sampleType);
-	OpDebugSamples& allContours = samples[0];
+	OpDebugSamples& allContours = sampleSets[0];
 	OP_ASSERT(SampleType::contourResolved == allContours.sampleType);
 	result = allContours.compare(output.sampleSet);
 	return result;
 }
 
-#if OP_DEBUG_DUMP || OP_DEBUGGER
+#if 0   // OP_DEBUG_DUMP || OP_DEBUGGER
 bool DebugRaster::playback(std::string filename) {
     std::string buffer = dmpFileToStr(filename);
     if (buffer.empty())
@@ -714,12 +712,12 @@ bool DebugRaster::playback(std::string filename) {
 }
 #endif
 
-#if OP_DEBUG_SERIALIZE || OP_DEBUGGER
+#if 0  // OP_DEBUG_SERIALIZE || OP_DEBUGGER
 void DebugRaster::record(std::string name) {
     std::string filename = dmpFileToPath(name);
     FILE* file = fopen(filename.c_str(), "w");
     if (!file) {
-        OpDebugOut("could not open " + filename + " to write\n");
+        OpDebugOut("could not open " + filename + " to append\n");
         return;
     }
 	std::string s = debugDump(DebugLevel::file, DebugBase::hex);
@@ -733,8 +731,8 @@ void DebugRaster::record(std::string name) {
 // collect debugCurves
 void DebugRaster::sampleEdges() {
 	OpContourIterator iterator(context);
-	samples.emplace_back(this);
-	OpDebugSamples& addSamples = samples.back();
+	sampleSets.emplace_back(this);
+	OpDebugSamples& addSamples = sampleSets.back();
 	addSamples.sampleType = SampleType::edges;
 	for (auto contour : iterator) {
 		addSamples.sample(contour);
@@ -742,8 +740,8 @@ void DebugRaster::sampleEdges() {
 }
 
 void DebugRaster::sampleOutput() {
-	samples.emplace_back(this);
-	OpDebugSamples& addSamples = samples.back();
+	sampleSets.emplace_back(this);
+	OpDebugSamples& addSamples = sampleSets.back();
 	addSamples.sampleType = SampleType::output;
 	for (DebugOutput& output : outputs) {
 //		OpAssert(!output.edge || 60 != output.edge->id);
@@ -759,7 +757,7 @@ void DebugRaster::sample(SampleType sampleType) {
 	OpContourIterator iterator(context);
 	for (auto contour : iterator) {
 		OpDebugSamples* addSamples = nullptr;
-		for (auto& test : samples) {
+		for (auto& test : sampleSets) {
 			OpWinding& w = test.winding;
 			if (test.sampleType == sampleType && (gatherAll
 					|| (contour->windingStorage.size() == w.w.size 
@@ -769,8 +767,8 @@ void DebugRaster::sample(SampleType sampleType) {
 			}
 		}
 		if (!addSamples) {
-			samples.emplace_back(this);
-			addSamples = &samples.back();
+			sampleSets.emplace_back(this);
+			addSamples = &sampleSets.back();
 			addSamples->winding = contour->winding();
 			addSamples->winding.usedByRaster = true;
 			addSamples->sampleType = sampleType;
@@ -792,9 +790,9 @@ bool DebugRaster::tooSmall() const {
 #if OP_DEBUG_SERIALIZE
 std::string DebugRaster::debugDump(DebugLevel l, DebugBase b) const {
 	std::string s;
-	ASSERT_FIRST(samples);
-	DEBUG_DUMP_COMMON_VECTOR(samples);
-	DEBUG_DUMP_VECTOR(samples, outputs);
+	ASSERT_FIRST(sampleSets);
+	DEBUG_DUMP_COMMON_VECTOR(sampleSets);
+	DEBUG_DUMP_VECTOR(sampleSets, outputs);
 	ASSERT_ORDERED(outputs, context);
 	DEBUG_DUMP_REQUIRED_DOUBLE(context, scale);
     DEBUG_DUMP_REQUIRED_DOUBLE(scale, offsetX);
@@ -808,7 +806,7 @@ std::string DebugRaster::debugDump(DebugLevel l, DebugBase b) const {
 }
 #endif
 
-#if OP_DEBUG_SERIALIZE
+#if 0 && OP_DEBUG_SERIALIZE
 void DebugRaster::deleteOld() {
 	std::string filePath = dmpFileToPath(BitsFile);
 	if (!std::filesystem::exists(filePath))
@@ -820,24 +818,24 @@ void DebugRaster::deleteOld() {
 #if OP_DEBUG_DUMP
 void DebugRaster::dumpResolveAll(OpContext* ctx) {
 	OP_ASSERT(context == ctx);
-	for (OpDebugSamples& s : samples)
+	for (OpDebugSamples& s : sampleSets)
 		s.dumpResolveAll(context);
 	for (DebugOutput& o : outputs)
 		o.dumpResolveAll(context);
 }
 
 void DebugRaster::dumpSet(char const*& str) {
-	ASSERT_FIRST(samples);
-	if (OpDebugOptional(str, "samples")) { 
+	ASSERT_FIRST(sampleSets);
+	if (OpDebugOptional(str, "sampleSets")) { 
 		size_t count = OpDebugReadSizeT(str); 
-		samples.resize(count); 
-		for (auto& member : samples) {
+		sampleSets.resize(count); 
+		for (auto& member : sampleSets) {
 			member.raster = this;
 			member.dumpSet(str); 
 		}
 	}
-	// DEBUG_SET_VECTOR(samples, outputs);
-	ASSERT_ORDERED(samples, outputs);
+	// DEBUG_SET_VECTOR(sampleSets, outputs);
+	ASSERT_ORDERED(sampleSets, outputs);
     if (OpDebugOptional(str, "outputs")) { 
         size_t count = OpDebugReadSizeT(str);
 		outputs.resize(count); 
@@ -862,7 +860,7 @@ void DebugRaster::dumpSet(char const*& str) {
 void DebugRaster::validate() {
 	if (disableValidate)
 		return;
-	for (const auto& sample : samples) {
+	for (const auto& sample : sampleSets) {
 		for (const auto& set : sample.sampleSet) {
 			for (const auto& s : set) {
 				if (s.contour)

@@ -226,7 +226,7 @@ void SectRay::addPals(OpEdge* home) {
 	auto matchCept = [home](Distance* test) {
 		home->addPal(test);
 		if (const Distance* homeDist = test->edge->ray.find(home)) {
-			test->edge->addPal(homeDist->edge, 0, homeDist->reversed);
+			test->edge->addPal(homeDist);
 //			OP_DEBUG_CODE(Distance* testDist = test->edge->ray.find(test->edge));
 // !!! this asserts if there are three or more pals
 // consider writing more complex test to detect if edge between pals is not a pal
@@ -310,6 +310,8 @@ void SectRay::addPals(OpEdge* home) {
 			edgeRev.reversed = true;
 			homeRev.reversed = true;
 		}
+		home->unsummable = true;
+		edge->unsummable = true;
 		home->addPal(&edgeRev);
 		edge->addPal(&homeRev);
 	};
@@ -317,11 +319,6 @@ void SectRay::addPals(OpEdge* home) {
 		addIfFlipped(DistEnd::front);
 	if (!nextIsPal)
 		addIfFlipped(DistEnd::back);
-}
-
-// check ray edges for entry prior to edge
-bool SectRay::canSetSum(const OpEdge* edge) const {
-	return distances.size() && distances[0].edge != edge;
 }
 
 RayOrder SectRay::checkClose(const OpEdge* home) const {
@@ -350,7 +347,7 @@ void SectRay::checkOrder(const OpEdge* home) {
 		OpEdge* prior = dist->edge;
 		OpEdge* last = (dist + 1)->edge;
 		// pal should be set in time for this : testQuads26519435
-		if (prior->isUnsectable() || last->isUnsectable() || last->isPal(prior))
+		if (prior->hasPals() || last->hasPals())
 			continue;
 		if (last->ray.distances.size() > 1 && last->ray.axis == axis) {
 			Distance* lastDist = last->ray.find(last);
@@ -392,7 +389,7 @@ FindCept SectRay::findCept(OpEdge* edge, OpEdge* test) {
 	if (test == edge)
 		return FindCept::ok;
 	// !!! loop11661 fails if too many retries is allowed -- find test that requires this
-	if (Unsortable::none != test->isUnsortable /* && Unsortable::tooManyTries != test->isUnsortable */)
+	if (!test->isSortable() /* && Unsortable::tooManyTries != test->unsortable */ )
 		return FindCept::unsortable;
 	if (test->disabled)
 		return FindCept::ok;
@@ -430,7 +427,7 @@ FindCept SectRay::findCept(OpEdge* edge, OpEdge* test) {
 			}
 		}
 	}
-	bool uSectPair = test->isUnsectable() && edge->isUnsectable() && test->isPal(edge);
+	bool uSectPair = test->isPal(edge);
 //	if (uSectPair)
 //		return FindCept::unsectable;
 	OpRoots roots = test->curve.axisRayHit(axis, normal);  // get the normal at the intersect point	
@@ -507,7 +504,7 @@ void SectRay::markDependents(OpEdge* edge) {
 //		return;
 	float testCept = test->cept;
 	OP_ASSERT(testCept <= homeCept);  // assert if needs to be std::min(test.cept, homeCept);
-	if (!OpMath::Equal(testCept, homeCept, margin) && !testEdge->isUnsectable()  // not close
+	if (!OpMath::Equal(testCept, homeCept, margin) && !testEdge->hasPals()  // not close
 			&& testRay->axis == edge->ray.axis && testSelf) {
 		Distance* testHome = testRay->find(edge);
 		if (!testHome || testSelf < testHome)
@@ -519,7 +516,7 @@ void SectRay::markDependents(OpEdge* edge) {
 		SectRay* priorRay = &priorEdge->ray;
 		Distance* priorSelf = priorRay->find(priorEdge);
 //		OP_ASSERT(priorSelf);
-		if (!OpMath::Equal(prior.cept, testCept, margin) && !priorEdge->isUnsectable()
+		if (!OpMath::Equal(prior.cept, testCept, margin) && !priorEdge->hasPals()
 				&& priorRay->axis == testRay->axis && priorSelf) {
 			bool outOfOrder = false;  // if not too close, sectable, same-axis: it's ordered
 			Distance* priorTest = priorRay->find(testEdge);
@@ -551,6 +548,7 @@ void SectRay::markDependents(OpEdge* edge) {
 }
 
 // returns true iff all pals of edge are in ray's distances
+#if 0
 bool SectRay::sectsAllPals(const OpEdge* edge) const {
 	unsigned found = 0;
 	OP_ASSERT(edge->pals.size());
@@ -563,6 +561,7 @@ bool SectRay::sectsAllPals(const OpEdge* edge) const {
 	OP_ASSERT(found <= edge->pals.size());
 	return found == edge->pals.size();
 }
+#endif
 
 void SectRay::sort() {
 	if (sorted)
@@ -573,25 +572,32 @@ void SectRay::sort() {
 }
 
 bool SectRay::tryADifferentCenter(OpEdge* edge) {
-	mid /= 2;
-	midEnd = midEnd < .5 ? 1 - mid : mid;
-	float middle = OpMath::Interp(edge->bounds().ltChoice(axis), 
-			edge->bounds().rbChoice(axis), midEnd);
-	float homeMidT = edge->curve.center(axis, middle);  // note: 0 to 1 on edge curve
-	bool tooMany = mid <= interceptLimit;
-	if (OpMath::IsNaN(homeMidT) || tooMany) {  // give it at most eight tries
-		if (!edge->isUnsectable())
-			edge->markUnsortable(tooMany ? Unsortable::tooManyTries : Unsortable::noMidT);
-		return false;	// give up
-	}
-	// if find ray intercept can't find, restart with new center, normal, distance, etc.
-	// !!! result is not pinned to bounds
-	homeCept = edge->curve.ptAtT(homeMidT).choice(!axis);
-	OP_ASSERT(!OpMath::IsNaN(homeCept));
-	normal = edge->curve.ptAtT(homeMidT).choice(axis);
-	homeT = homeMidT;
-	OP_ASSERT(!OpMath::IsNaN(normal));
-	return true;
+	for (;;) {
+		mid /= 2;
+		midEnd = midEnd < .5 ? 1 - mid : mid;
+		float middle = OpMath::Interp(edge->bounds().ltChoice(axis), 
+				edge->bounds().rbChoice(axis), midEnd);
+		float homeMidT = edge->curve.center(axis, middle);  // note: 0 to 1 on edge curve
+		bool tooMany = mid <= interceptLimit;
+		if (OpMath::IsNaN(homeMidT) || tooMany) {  // give it at most eight tries
+			if (!edge->hasPals())
+				edge->markUnsortable(tooMany ? Unsortable::tooManyTries : Unsortable::noMidT);
+			else
+				edge->unsummable = true;
+			return false;	// give up
+		}
+		// if find ray intercept can't find, restart with new center, normal, distance, etc.
+		// !!! result is not pinned to bounds
+		OpPoint midPt = edge->curve.ptAtT(homeMidT);
+		if (!insideBounds.contains(midPt))
+			continue;
+		homeCept = midPt.choice(!axis);
+		OP_ASSERT(!OpMath::IsNaN(homeCept));
+		normal = midPt.choice(axis);
+		homeT = homeMidT;
+		OP_ASSERT(!OpMath::IsNaN(normal));
+		return true;
+	} 
 }
 
 struct SectPtT {
@@ -834,6 +840,7 @@ FoundIntercept OpWinder::FindACept(OpEdge* edge) {
 	// if find intercept fails, retry some number of times
 	// if all retries fail, distinguish between failure cases
 	// if it failed because closest edge was too close, mark pair as unsectable
+	ray.insideBounds = edge->curve.aliasBounds().intersect(edge->curve.callerBounds());
 	do {
 		ray.distances.clear();
 		ray.addDistance(edge, ray.homeCept, ray.homeT, false  OP_DEBUG_PARAMS(edge));
@@ -996,12 +1003,12 @@ ResolveWinding OpWinder::SetWindingByDistance(OpEdge* edge) {
 	// find edge; then walk backwards to first known sum 
 	// if previous edge is dependent, it cannot use this distance list -- other contours required
 	//  recursively evaluate the sum of the dependent edge before proceeding    
-	OP_ASSERT(!edge->debugSumSet || Unsortable::none != edge->isUnsortable);
+	OP_ASSERT(!edge->debugSumSet || !edge->isSortable());
 	OP_DEBUG_CODE(edge->debugSumSet = true);
 	SectRay& ray = edge->ray;
 	OP_ASSERT(ray.distances.size());
 	if (edge == ray.distances[0].edge) {
-		if (edge->isUnsectable())  // !!! move this to where unsectable is set?
+		if (!edge->isSummable())  // !!! move this to where unsummable is set?
 			edge->setUnsortable(Unsortable::homeUnsectable);
 		else {
 			OpWinding prev(edge, WindingSum::dummy);
@@ -1013,7 +1020,7 @@ ResolveWinding OpWinder::SetWindingByDistance(OpEdge* edge) {
 		}
 		return ResolveWinding::resolved;
 	}
-	if (!edge->isUnsectable() && EdgeFail::none == edge->rayFail
+	if (edge->isSummable() && EdgeFail::none == edge->rayFail
 			&& RayOrder::tooClose == ray.checkClose(edge))
 		return ResolveWinding::retry;
 	// don't set the sum winding if this has pals or if any prior edge has this as a pal
@@ -1022,13 +1029,13 @@ ResolveWinding OpWinder::SetWindingByDistance(OpEdge* edge) {
 	// !!! any prior pal is called several times with the same edge, below. Optimization:
 	// !!!    cache the answer in distance edge ?
 	auto anyPriorPal = [ray](OpEdge* edge, int sumIndex) {
-		if (edge->isUnsectable())
+		if (!edge->isSummable())
 			return true;
 		for (;;) {
 			int next = sumIndex + 1;
 			if (next >= (int) ray.distances.size())
 				break;
-			if (!ray.distances[next].edge->isUnsectable())
+			if (ray.distances[next].edge->isSummable())
 				break;
 			sumIndex = next;
 		}
@@ -1047,7 +1054,7 @@ ResolveWinding OpWinder::SetWindingByDistance(OpEdge* edge) {
 			if (lastIsEdge) {
 				if (OpMath::Equal(lastCept, dist.cept, margin))
 					return true;
-			} else if (!previous->isUnsectable())
+			} else if (previous->isSummable())
 				break;
 			lastCept = dist.cept;
 		} while (--sumIndex >= 0);
@@ -1062,7 +1069,7 @@ ResolveWinding OpWinder::SetWindingByDistance(OpEdge* edge) {
 	while (ray.distances[--sumIndex].edge != edge) 
 		OP_ASSERT(sumIndex > 0);
 	float homeT = ray.distances[sumIndex].edgeInsideT;  // used by unsectable, later
-	ray.checkOrder(edge);
+	ray.checkOrder(edge);  // !!! start here; trace through edges with pals and without sums to see if that works
 	while (--sumIndex >= 0) {
 		Distance& dist = ray.distances[sumIndex];
 		if ((dist.dependent || !anyPriorPal(dist.edge, sumIndex)) && dist.edge->sum.isSet() 
@@ -1089,37 +1096,26 @@ ResolveWinding OpWinder::SetWindingByDistance(OpEdge* edge) {
 		OP_ASSERT(sumIndex + 1 < (int) ray.distances.size());
 		Distance& dist = ray.distances[++sumIndex];
 		prior = dist.edge;
-		if (edge->isUnsectable() && (edge == prior || edge->isPal(prior)))
+		if (!edge->isSummable() && (edge == prior || edge->isPal(prior)))
 			break;
 		NormalDirection normDir = prior->normalDirection(ray.axis, dist.edgeInsideT);
 		if (NormalDirection::underflow == normDir) {
 			prior->setUnsortable(Unsortable::underflow);
 			continue;
 		}
-		if (NormalDirection::downLeft == normDir && (dist.dependent || !anyPriorPal(prior, sumIndex))
-				&& RayOrder::unordered != ray.distances[sumIndex].rayOrder) {
+		bool allowSetSum = prior->isSummable() && ((dist.dependent || !anyPriorPal(prior, sumIndex))
+				&& RayOrder::unordered != ray.distances[sumIndex].rayOrder);
+		if (allowSetSum && NormalDirection::downLeft == normDir)
 			prior->setSum(sumWinding  OP_LINE_FILE_PARGS());
-		}
 		if (CalcFail::fail == prior->addSub(winderOwner, ray.axis, dist.edgeInsideT, &sumWinding)) // if d/l sub; if u/r add
 			OP_DEBUG_FAIL(*prior, ResolveWinding::fail);
-		if (NormalDirection::upRight == normDir && (dist.dependent || !anyPriorPal(prior, sumIndex))
-				&& RayOrder::unordered != ray.distances[sumIndex].rayOrder) {
+		if (allowSetSum && NormalDirection::upRight == normDir)
 			prior->setSum(sumWinding  OP_LINE_FILE_PARGS());
-		}
 	} while (edge != prior);
-	if (!edge->isUnsectable()) {
+	if (edge->isSummable()) {
 		if (!edge->sum.isSet())
 			edge->setSum(sumWinding  OP_LINE_FILE_PARGS());
 		return ResolveWinding::resolved;
-	}
-	// if edge is unsectable, set its sum winding as if all of its pals' windings were a single edge
-	OP_ASSERT(!edge->many.isSet());
-	// winding must be replaced by all unsectable windings -- however, other unsectables will want 
-	//   to see the original winding. This is why 'many' is used. After all sums are computed
-	//   replace winding with many.
-	edge->many.setWind(edge->winding);
-	for (const auto& pal : edge->pals) {
-		edge->winding.move(pal.edge->winding, pal.reversed);
 	}
 	if (!edge->winding.visible()) {
 		edge->setDisabled(OP_LINE_FILE_NPARGS());
@@ -1128,10 +1124,9 @@ ResolveWinding OpWinder::SetWindingByDistance(OpEdge* edge) {
 	}
 	if (CalcFail::fail == edge->addIfUR(ray.axis, homeT, &sumWinding))
 		edge->setUnsortable(Unsortable::addCalcFail2);
-	else
+	else if (edge->isSummable())
 		edge->setSum(sumWinding  OP_LINE_FILE_PARGS());
-	std::swap(edge->many, edge->winding);  // restore winding, put total of pals in many
-	return ResolveWinding::resolved;	   // (will copy many to winding after all many are found)
+	return ResolveWinding::resolved;	   
 }
 
 // think about how to write this so it sets the windings for each contour
@@ -1191,7 +1186,7 @@ FoundWindings OpWinder::SetWindings(OpContext& context) {
 						const char* aCh = Axis::vertical == a ? "v" : Axis::horizontal == a ? "h" 
 								: "-";
 						std::string s = STR(e->id) + " axis:" + STR(aCh) + " ";
-						if (Unsortable::none != e->isUnsortable)
+						if (Unsortable::none != e->unsortable)
 							s += "u ";
 						return s;
 					};
@@ -1225,13 +1220,16 @@ FoundWindings OpWinder::SetWindings(OpContext& context) {
 			for (OpEdge* addedEdge : addedEdges) {
 				addedEdge->ray.distances.clear();
 			}
+			// !!! start here;
+			// this does too much work!
+			// at very least, it should only consider contours edges intersect
 			for (auto contour : context.contours) {
 				for (auto& segment : contour->segments) {
 					for (auto& edge : segment.edges) {
-						SectRay& ray = edge.ray;
 						if (edge.disabled)
 							continue;
-						if (edge.isUnsectable())
+						SectRay& ray = edge.ray;
+						if (edge.hasPals())
 							edge.markPals();
 						else
 							ray.addPals(&edge);
@@ -1319,7 +1317,7 @@ FoundWindings OpWinder::SetWindings(OpContext& context) {
 						continue;
 					if (axis != edge.ray.axis)
 						continue;
-					if (Unsortable::none != edge.isUnsortable)
+					if (!edge.isSortable())
 						continue;
 					if (edge.ray.distances.empty())
 						continue;
@@ -1337,8 +1335,8 @@ FoundWindings OpWinder::SetWindings(OpContext& context) {
 		for (auto edge : sectsBy) {
 			if (edge->sum.isSet())
 				continue;
-//			if (edge->isUnsectable())
-//				continue;
+			if (!edge->isSummable())
+				continue;
 			OP_DEBUG_CODE(std::vector<OpEdge*> debugVisited);
 			if (FoundWindings::fail == SetPriors(edge  OP_DEBUG_PARAMS(debugVisited)))
 				OP_DEBUG_FAIL(*edge, FoundWindings::fail);
@@ -1351,11 +1349,11 @@ FoundWindings OpWinder::SetWindings(OpContext& context) {
 					continue;
 				if (edge.centerless)
 					continue;
-				if (edge.isUnsectable() && edge.many.isSet())
-					std::swap(edge.winding, edge.many);
 				if (edge.sum.isSet())
 					continue;
-				if (Unsortable::none != edge.isUnsortable)
+				if (!edge.isSummable())
+					continue;
+				if (!edge.isSortable())
 					continue;
 				if (edge.rayFail == EdgeFail::horizontal)
 					continue;

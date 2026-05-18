@@ -96,10 +96,11 @@ struct OpDebugRaster;
 
 struct OpDebugData {
 	OpDebugData() {}
-	OpDebugData(std::string tn, OpDebugExpect expected, int cc1, int cc2, int ccDepth, 
+	OpDebugData(std::string tn, OpDebugExpect expected, float maxErr, int cc1, int cc2, int ccDepth, 
 			bool ccAll, bool noBreaks, bool noDumps, bool runOne, bool showErr) 
 		: testname(tn)
 		, expect(expected)
+		, maxError(maxErr)
         , curveCurve1(cc1)
         , curveCurve2(cc2)
         , curveCurveDepth(ccDepth)
@@ -112,11 +113,13 @@ struct OpDebugData {
 
 	std::string testname;
 	OpDebugExpect expect = OpDebugExpect::success;
+	float error = 0;
+	float maxError = 0;
 	int curveCurve1 = 0;
 	int curveCurve2 = 0;
 	int curveCurveDepth = -1;
+	int dumpIndex = 0;  // number of dumped file
 	int limitContours = 0;
-	float error = 0;
 	bool dumpAllCcs = true;
 	bool defeatBreak = false;
 	bool defeatDumps = false;
@@ -474,6 +477,7 @@ int32_t OpDebugHexToInt(const char*& str);
 std::string OpDebugLabel(const char*& str);
 bool OpDebugOptional(const char*& str, const char* match);
 float OpDebugReadNamedFloat(const char*& str, const char* label);
+float OpDebugReadRequiredFloat(const char*& str, const char* label);
 size_t OpDebugReadSizeT(const char*& str);
 void OpDebugRequired(const char*& str, const char* match);
 
