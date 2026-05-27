@@ -9,7 +9,7 @@
 
 namespace PathOpsV0Lib {
 
-    struct OpDPoint {
+struct OpDPoint {
     OpDPoint(double _x, double _y) :
         x(_x),
         y(_y) {
@@ -25,6 +25,10 @@ namespace PathOpsV0Lib {
         y(OpNaN) {
     }
 
+    double choice(Axis axis) {
+        return Axis::vertical == axis ? x : y;
+    }
+
     double choice(XyChoice xyChoice) {
         return XyChoice::inX == xyChoice ? x : y;
     }
@@ -38,17 +42,45 @@ namespace PathOpsV0Lib {
     double y;
 };
 
+// used in curves
+struct SPointWeight {
+    SPointWeight() {
+    }
+
+    SPointWeight(Curve c) {
+        OP_ASSERT(sizeof(SPointWeight) <= c.size - CurveUserDataOffset());
+        const char* data = (const char*) CurveUserData(c.data);
+        std::memcpy(&pt, data, sizeof pt);
+        data += sizeof pt;
+        std::memcpy(&weight, data, sizeof weight);
+    }
+
+    SPointWeight(OpPoint p, float w)
+        : pt(p)
+        , weight(w) {
+    }
+
+    void copyTo(Curve c) {
+        OP_ASSERT(sizeof(SPointWeight) <= c.size - CurveUserDataOffset());
+        char* data = (char*) CurveUserData(c.data);
+        std::memcpy(data, &pt, sizeof pt);
+        data += sizeof pt;
+        std::memcpy(data, &weight, sizeof weight);
+    }
+
+    OpPoint pt;
+    float weight;
+};
+
 // used with computed double points
 struct DPointWeight {
     DPointWeight() {
     }
 
     DPointWeight(Curve c) {
-        OP_ASSERT(sizeof(DPointWeight) <= c.size - CurveUserDataOffset());
-        const char* data = (const char*) CurveUserData(c.data);
-        std::memcpy(&pt, data, sizeof pt);
-        data += sizeof pt;
-        std::memcpy(&weight, data, sizeof weight);
+        SPointWeight sPtW(c);
+        pt = sPtW.pt;
+        weight = sPtW.weight; 
     }
 
     DPointWeight(OpDPoint p, float w)
@@ -57,19 +89,18 @@ struct DPointWeight {
     }
 
     void copyTo(Curve c) {
-        OP_ASSERT(sizeof(DPointWeight) <= c.size - CurveUserDataOffset());
-        char* data = (char*) CurveUserData(c.data);
-        std::memcpy(data, &pt, sizeof pt);
-        data += sizeof pt;
-        std::memcpy(data, &weight, sizeof weight);
-    }
-
-    OpPoint sPt() const {
-        return { (float) pt.x, (float) pt.y };
+        SPointWeight sPtW({ (float) pt.x, (float) pt.y }, weight);
+        sPtW.copyTo(c);
     }
 
     OpDPoint pt;
     float weight;
+};
+
+struct DQuadCoefficients {
+	double a;
+	double b;
+	double c;
 };
 
 inline double DConicDenom(float weight, float t) {
@@ -131,24 +162,24 @@ inline DPointWeight DConicControl(OpPoint start, DPointWeight control, OpPoint e
     return result;
 }
 
-inline OpQuadCoefficients DerivativeCoefficients(
-        OpPoint start, DPointWeight control, OpPoint end, XyChoice offset) {
-    float P20 = end.choice(offset) - start.choice(offset);
-    float P10 = control.pt.choice(offset) - start.choice(offset);
-    float wP10 = control.weight * P10;
-    float a = control.weight * P20 - P20;
-    float b = P20 - 2 * wP10;
-    float c = wP10;
+inline DQuadCoefficients DerivativeCoefficients(
+        OpPoint start, SPointWeight control, OpPoint end, XyChoice offset) {
+    double P20 = end.choice(offset) - start.choice(offset);
+    double P10 = control.pt.choice(offset) - start.choice(offset);
+    double wP10 = control.weight * P10;
+    double a = control.weight * P20 - P20;
+    double b = P20 - 2 * wP10;
+    double c = wP10;
     return { a, b, c };
 }
 
-inline float DConicTangent(OpPoint start, DPointWeight control, OpPoint end, XyChoice offset, 
+inline float DConicTangent(OpPoint start, SPointWeight control, OpPoint end, XyChoice offset, 
         float t) {
-    OpQuadCoefficients coeff = DerivativeCoefficients(start, control, end, offset);
-    return t * (t * coeff.a + coeff.b) + coeff.c;
+    DQuadCoefficients coeff = DerivativeCoefficients(start, control, end, offset);
+    return (float) (t * (t * coeff.a + coeff.b) + coeff.c);
 }
 
-inline OpVector DConicTangent(OpPoint start, DPointWeight control, OpPoint end, float t) {
+inline OpVector DConicTangent(OpPoint start, SPointWeight control, OpPoint end, float t) {
     OpVector threshold = OpMath::Threshold(start, end);
     if ((OpMath::NearlyZeroT(t) && start.isNearly(OpPoint(control.pt.x, control.pt.y), threshold))
             || (OpMath::NearlyOneT(t) && end.isNearly(OpPoint(control.pt.x, control.pt.y), threshold)))
@@ -157,11 +188,11 @@ inline OpVector DConicTangent(OpPoint start, DPointWeight control, OpPoint end, 
             DConicTangent(start, control, end, XyChoice::inY, t) };
 }
 
-inline std::vector<float> AddExtrema(OpPoint start, OpPoint end, DPointWeight control,
+inline std::vector<float> AddExtrema(OpPoint start, OpPoint end, SPointWeight control,
 		bool monotonicInX, bool monotonicInY) {
     std::vector<float> tValues;
     auto addExtrema = [start, control, end, &tValues](XyChoice offset) {
-        OpQuadCoefficients dc = DerivativeCoefficients(start, control, end, offset);
+        DQuadCoefficients dc = DerivativeCoefficients(start, control, end, offset);
         OpRoots roots = OpMath::QuadRootsInteriorT(dc.a, dc.b, dc.c);
         OP_ASSERT(0 == roots.count() || 1 == roots.count() || RootFail::rootIsNaN == roots.fail);   // !!! I wanna see the extreme case...
         if (0 == roots.count())
@@ -175,11 +206,16 @@ inline std::vector<float> AddExtrema(OpPoint start, OpPoint end, DPointWeight co
     return tValues;
 }
 
+struct DConicSwizzled {
+    OpPoint curveData[2];
+    SPointWeight ctrlWeight;
+};
+
 #if OP_TEST
 struct DebugDConic {
     CurveType curveType;
     size_t curveSize;
-    OpPoint curveData[4];
+    DConicSwizzled curveData;
     float extrema[2];
 };
 #endif
@@ -190,15 +226,15 @@ inline size_t AddDConics(Contour* contour, AddCurve curve) {
     OpPoint start = curve.points[0];
     OpPoint end = curve.points[2];
     float weight = curve.points[3].x;  // !!! a bit of a hack
-    DPointWeight control(curve.points[1], weight);
-    OpPoint swizzled[4] { start, end, OpPoint(control.pt.x, control.pt.y), { weight, 0 } };
-    Curve conic { curve.context, (CurveData*) swizzled, curve.size, curve.type };
+    SPointWeight control(curve.points[1], weight);
+    DConicSwizzled swizzled { { start, end }, { { control.pt.x, control.pt.y }, weight } };
+    Curve conic { curve.context, (CurveData*) &swizzled, sizeof swizzled, curve.type };
 #if OP_TEST
     // save original curve and extrema t values as debugging data for visualization
     auto setDebugDConic = [contour, swizzled, &conic](std::vector<float>* tValues) {
         OP_ASSERT(sizeof(swizzled) == sizeof(DebugDConic::curveData));
         DebugDConic debugDConic { conic.type, sizeof(swizzled) };
-        memcpy(debugDConic.curveData, swizzled, sizeof(swizzled));
+        memcpy(&debugDConic.curveData, &swizzled, sizeof(swizzled));
         size_t extremaCount = tValues ? tValues->size() : 0;
         for (size_t index = 0; index < ARRAY_COUNT(DebugDConic::extrema); ++index) {
             debugDConic.extrema[index] = index < extremaCount ? (*tValues)[index] : OpNaN;
@@ -216,7 +252,7 @@ inline size_t AddDConics(Contour* contour, AddCurve curve) {
 #endif
         if (start == end)
             return 0;
-        Add(contour, { curve.context, swizzled, curve.size, curve.type } );
+        Add(contour, conic);
         return 1;
     }
     // control point is not inside bounds formed by end points; split DConic into parts
@@ -232,45 +268,47 @@ inline size_t AddDConics(Contour* contour, AddCurve curve) {
     std::vector<OpPtT> ptTs(tValues.size());
     ptTs.front() = { start, 0 };
     ptTs.back() = { end, 1 };
+    DPointWeight dControl { control.pt, control.weight };
     for (unsigned index = 1; index < tValues.size() - 1; ++index) {
-        ptTs[index] = { DConicPointAtT(start, control, end, tValues[index]), tValues[index] }; 
+        ptTs[index] = { DConicPointAtT(start, dControl, end, tValues[index]), tValues[index] }; 
     } 
     size_t curvesAdded = tValues.size() - 1;
     for (unsigned index = 0; index < curvesAdded; ++index) {
         if (ptTs[index].pt == ptTs[index + 1].pt)
             continue;
+        DPointWeight dPtW = DConicControl(start, dControl, end, ptTs[index], ptTs[index + 1]);
         struct DConicData {
             OpPoint endPts[2];
-            DPointWeight control;
-        } curveData { { ptTs[index].pt, ptTs[index + 1].pt },
-                DConicControl(start, control, end, ptTs[index], ptTs[index + 1]) };
-            Add(contour, { curve.context, curveData.endPts, curve.size, curve.type } );
+            SPointWeight control;
+        } curveData { { ptTs[index].pt, ptTs[index + 1].pt } };
+        curveData.control = { { (float) dPtW.pt.x, (float) dPtW.pt.y }, dPtW.weight };
+        Add(contour, { curve.context, curveData.endPts, sizeof curveData, curve.type } );
     }
     return curvesAdded;
 }
 
 // callback functions
-inline bool conicIsFinite(Curve c) {
-    DPointWeight control(c);
-    return control.sPt().isFinite();
+inline bool dConicIsFinite(Curve c) {
+    SPointWeight control(c);
+    return control.pt.isFinite();
 }
 
-inline int conicHullPtCount() {
+inline int dConicHullPtCount() {
     return 1;
 }
 
-inline bool conicIsLine(Curve c, float threshold) {
-    DPointWeight control(c);
+inline bool dConicIsLine(Curve c, float threshold) {
+    SPointWeight control(c);
     LinePts linePts { c.data->start, c.data->end };
-    return linePts.ptOnLine(control.sPt(), threshold);
+    return linePts.ptOnLine(control.pt, threshold);
 }
 
-inline OpRoots conicAxisT(Curve curve, Axis axis, float intercept  
+inline OpRoots dConicAxisT(Curve curve, Axis axis, float intercept  
 		OP_DEBUG_PARAMS(const OpRoots& )) {
     DPointWeight control(curve);
-    float a = curve.data->end.choice(axis);
-    float b = control.sPt().choice(axis) * control.weight - intercept * control.weight + intercept;
-    float c = curve.data->start.choice(axis);
+    double a = curve.data->end.choice(axis);
+    double b = control.pt.choice(axis) * control.weight - intercept * control.weight + intercept;
+    double c = curve.data->start.choice(axis);
     a += c - 2 * b;    // A = a - 2*b + c
     b -= c;            // B = -(b - c)
     OpRoots result = OpMath::QuadRootsDouble(a, 2 * b, c - intercept);  // ? double req'd: testDConics3759897
@@ -279,29 +317,30 @@ inline OpRoots conicAxisT(Curve curve, Axis axis, float intercept
     
 }
 
-inline OpRoots conicRotatedT(Curve curve, Axis axis, float intercept
+inline OpRoots dConicRotatedT(Curve curve, Axis axis, float intercept
 		OP_DEBUG_PARAMS(const OpRoots& debugAdded)) {
 	OpPoint start = curve.data->start;
 	OpPoint end = curve.data->end;
-	DPointWeight control(curve);
+    SPointWeight control(curve);
     bool monotonicInX = OpMath::Between(start.x, control.pt.x, end.x);
     bool monotonicInY = OpMath::Between(start.y, control.pt.y, end.y);
 	std::vector<float> tValues = AddExtrema(start, end, control, monotonicInX, monotonicInY);
 	if (tValues.empty())
-		return conicAxisT(curve, axis, intercept  OP_DEBUG_PARAMS(debugAdded));
+		return dConicAxisT(curve, axis, intercept  OP_DEBUG_PARAMS(debugAdded));
     std::sort(tValues.begin(), tValues.end());
     std::vector<OpPtT> ptTs(tValues.size() + 2);
     ptTs.front() = { start, 0 };
     ptTs.back() = { end, 1 };
+	DPointWeight dControl(curve);
     for (unsigned index = 0; index < tValues.size(); ++index) {
-        ptTs[index + 1] = { DConicPointAtT(start, control, end, tValues[index]), tValues[index] }; 
+        ptTs[index + 1] = { DConicPointAtT(start, dControl, end, tValues[index]), tValues[index] }; 
     } 
 	OpRoots result;
 	unsigned lastIndex = (unsigned) (ptTs.size() - 1);
     for (unsigned index = 0; index < lastIndex; ++index) {
         struct DConicData {
             OpPoint endPts[2];
-            DPointWeight control;
+            SPointWeight control;
         } conicData { { ptTs[index].pt, ptTs[index + 1].pt }, {} };
 		float startT = ptTs[index].t;
 		float endT = ptTs[index + 1].t;
@@ -316,39 +355,40 @@ inline OpRoots conicRotatedT(Curve curve, Axis axis, float intercept
 		if (conicData.endPts[0].choice(axis) * conicData.endPts[1].choice(axis) > 0)
 			continue;
         OP_ASSERT(conicData.endPts[0] != conicData.endPts[1]);
-        conicData.control = DConicControl(start, control, end, ptTs[index], ptTs[index + 1]);
+        DPointWeight dPtW = DConicControl(start, dControl, end, ptTs[index], ptTs[index + 1]);
+        conicData.control = { { (float) dPtW.pt.x, (float) dPtW.pt.y }, dPtW.weight };
 		Curve part { curve.context, (CurveData*) &conicData, curve.size, curve.type };
-		OpRoots partRoot = conicAxisT(part, axis, intercept  OP_DEBUG_PARAMS(debugAdded));
+		OpRoots partRoot = dConicAxisT(part, axis, intercept  OP_DEBUG_PARAMS(debugAdded));
 		for (float root : partRoot.roots)
 			result.add(startT + root * (endT - startT));
 	}
 	return result;
 }
 
-inline OpPoint conicPtAtT(Curve c, float t) {
+inline OpPoint dConicPtAtT(Curve c, float t) {
     DPointWeight control(c);
     return DConicPointAtT(c.data->start, control, c.data->end, t);
 }
 
-inline OpPair conicXYAtT(Curve c, OpPair t, XyChoice xyChoice) {
+inline OpPair dConicXYAtT(Curve c, OpPair t, XyChoice xyChoice) {
     DPointWeight control(c);
     return DConicXYAtT(c.data->start, control, c.data->end, t, xyChoice);
 }
 
-inline bool conicsEqual(Curve one, Curve two) {
-    DPointWeight ctrl1(one);
-    DPointWeight ctrl2(two);
+inline bool dConicsEqual(Curve one, Curve two) {
+    SPointWeight ctrl1(one);
+    SPointWeight ctrl2(two);
     return ctrl1.pt.x == ctrl2.pt.x && ctrl1.pt.y == ctrl2.pt.y && ctrl1.weight == ctrl2.weight;
 }
 
-inline void conicPin(Curve c, OpPoint newStart, OpPoint newEnd) {
-    DPointWeight control(c);
+inline void dConicPin(Curve c, OpPoint newStart, OpPoint newEnd) {
+    SPointWeight control(c);
     control.pt.pin(newStart, newEnd);
     control.copyTo(c);
  }
 
-inline OpVector conicTangent(Curve c, float t) {
-    DPointWeight control(c);
+inline OpVector dConicTangent(Curve c, float t) {
+    SPointWeight control(c);
     return DConicTangent(c.data->start, control, c.data->end, t);
 }
 
@@ -359,35 +399,31 @@ inline OpVector conicNormal(Curve c, float t) {
 }
 #endif
 
-inline void conicRotate(Curve c, OpPoint origin, OpVector scale, Curve result) {
-    DPointWeight control(c);
-    OpVector v = control.sPt() - origin;
-#if 1
-    DPointWeight rotated({ scale.cross(v), scale.dot(v) }, control.weight);
-#else
-    DPointWeight rotated({ v.dy * s.dx - v.dx * s.dy, v.dy * s.dy + v.dx * s.dx }, control.weight);
-#endif
+inline void dConicRotate(Curve c, OpPoint origin, OpVector scale, Curve result) {
+    SPointWeight control(c);
+    OpVector v = control.pt - origin;
+    SPointWeight rotated({ scale.cross(v), scale.dot(v) }, control.weight);
     rotated.copyTo(result);
 }
 
-inline void conicSetBounds(Curve c, OpRect& bounds) {
-    DPointWeight control(c);
-    bounds.add(control.sPt());
+inline void dConicSetBounds(Curve c, OpRect& bounds) {
+    SPointWeight control(c);
+    bounds.add(control.pt);
 }
 
-inline void conicSubDivide(Curve curve, float t1, float t2, OpVector threshold, Curve* result) {
+inline void dConicSubDivide(Curve curve, float t1, float t2, OpVector threshold, Curve* result) {
 	OpPtT ptT1 { result->data->start, t1 };
 	OpPtT ptT2 { result->data->end, t2 };
     DPointWeight control(curve);
     DPointWeight subPtW = DConicControl(curve.data->start, control, curve.data->end, ptT1, ptT2);
     subPtW.copyTo(*result);
-    if (conicIsLine(*result, threshold.length()))
+    if (dConicIsLine(*result, threshold.length()))
         result->type = degenerateLine;
 }
 
-inline OpPoint conicHull(Curve c, int index) {
+inline OpPoint dConicHull(Curve c, int index) {
     if (1 == index)
-        return DPointWeight(c).sPt();
+        return SPointWeight(c).pt;
     OP_ASSERT(0); // should never be called
     return OpPoint();
 }
@@ -401,50 +437,49 @@ inline void debugDConicSubDivide(Curve curve, float t1, float t2, Curve* result)
     subPtW.copyTo(*result);
 }
 
-inline std::string conicDebugDumpExtra(Curve c, DebugLevel l, DebugBase b) {
+inline std::string dConicDebugDumpExtra(Curve c, DebugLevel l, DebugBase b) {
     DPointWeight control(c);
     return debugValue(l, b, " weight", control.weight);
 }
 
-#define DUMP_CONIC_TAGGED_FUNCTIONS \
-    OP_TAGGED_FUNCTION(conicDebugDumpExtra), \
+#define DUMP_DCONIC_TAGGED_FUNCTIONS \
+    OP_TAGGED_FUNCTION(dConicDebugDumpExtra), \
     OP_TAGGED_FUNCTION(debugDConicSubDivide), \
 
 #endif
 
 #if OP_DEBUG_SERIALIZE
-inline std::string conicDebugDumpName() { 
-    return "conic"; 
+inline std::string dConicDebugDumpName() { 
+    return "dconic"; 
 }
 
-#define CONIC_TAGGED_FUNCTIONS \
-    OP_TAGGED_FUNCTION(conicAxisT), \
-    OP_TAGGED_FUNCTION(conicRotatedT), \
-    OP_TAGGED_FUNCTION(conicHull), \
-    OP_TAGGED_FUNCTION(conicIsFinite), \
-    OP_TAGGED_FUNCTION(conicIsLine), \
-    OP_TAGGED_FUNCTION(conicSetBounds), \
-    OP_TAGGED_FUNCTION(conicPin), \
-    OP_TAGGED_FUNCTION(conicTangent), \
-    OP_TAGGED_FUNCTION(conicsEqual), \
-    OP_TAGGED_FUNCTION(conicPtAtT), \
-    OP_TAGGED_FUNCTION(conicHullPtCount), \
-	OP_TAGGED_FUNCTION(conicRotate), \
-    OP_TAGGED_FUNCTION(conicSubDivide), \
-    OP_TAGGED_FUNCTION(conicXYAtT), \
-    OP_TAGGED_FUNCTION(conicDebugDumpName), \
+#define DCONIC_TAGGED_FUNCTIONS \
+    OP_TAGGED_FUNCTION(dConicAxisT), \
+    OP_TAGGED_FUNCTION(dConicRotatedT), \
+    OP_TAGGED_FUNCTION(dConicHull), \
+    OP_TAGGED_FUNCTION(dConicIsFinite), \
+    OP_TAGGED_FUNCTION(dConicIsLine), \
+    OP_TAGGED_FUNCTION(dConicSetBounds), \
+    OP_TAGGED_FUNCTION(dConicPin), \
+    OP_TAGGED_FUNCTION(dConicTangent), \
+    OP_TAGGED_FUNCTION(dConicsEqual), \
+    OP_TAGGED_FUNCTION(dConicPtAtT), \
+    OP_TAGGED_FUNCTION(dConicHullPtCount), \
+	OP_TAGGED_FUNCTION(dConicRotate), \
+    OP_TAGGED_FUNCTION(dConicSubDivide), \
+    OP_TAGGED_FUNCTION(dConicXYAtT), \
+    OP_TAGGED_FUNCTION(dConicDebugDumpName), \
     
 #endif
 
-inline void conicCallbacks(Context* context, int nativeCurveType) {
-    SetCurveCallbacks(context, nativeCurveType, { conicAxisT,
-			conicRotatedT, conicHull, conicIsFinite, conicIsLine, conicSetBounds, conicPin,
-			conicTangent, conicsEqual, conicPtAtT, nullptr, conicHullPtCount, conicRotate, 
-			conicSubDivide, conicXYAtT });
+inline void dConicCallbacks(Context* context, int nativeCurveType) {
+    SetCurveCallbacks(context, nativeCurveType, { dConicAxisT,
+			dConicRotatedT, dConicHull, dConicIsFinite, dConicIsLine, dConicSetBounds, dConicPin,
+			dConicTangent, dConicsEqual, dConicPtAtT, nullptr, dConicHullPtCount, dConicRotate, 
+			dConicSubDivide, dConicXYAtT });
 #if OP_TEST
-
-	SetDebugCurveCallbacks(context, nativeCurveType, { nullptr
-            OP_DEBUG_DUMP_PARAMS(conicDebugDumpName, conicDebugDumpExtra, debugDConicSubDivide)
+	SetDebugCurveCallbacks(context, nativeCurveType, { debugDConicScale
+            OP_DEBUG_DUMP_PARAMS(dConicDebugDumpName, dConicDebugDumpExtra, debugDConicSubDivide)
 //            OP_DEBUG_RASTER_PARAMS(debugRasterAdd)
             });
 #endif

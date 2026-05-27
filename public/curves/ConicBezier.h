@@ -179,7 +179,7 @@ inline size_t AddConics(Contour* contour, AddCurve curve) {
 #endif
         if (start == end)
             return 0;
-        Add(contour, { curve.context, swizzled, curve.size, curve.type } );
+        Add(contour, conic );
         return 1;
     }
     // control point is not inside bounds formed by end points; split Conic into parts

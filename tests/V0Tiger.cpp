@@ -126,7 +126,7 @@ path.close();
     options->testOne(path);
 }
 
-static void tiger8a_x(TestOptions* options, uint64_t testlines) {
+static TestDone tiger8a_x(TestOptions* options, uint64_t testlines) {
     SkPath path;
 uint64_t i = 0;
 if (testlines & (1LL << i++)) path.moveTo(SkBits2Float(0x43f639c5), SkBits2Float(0x4361375a));  // 492.451f, 225.216f
@@ -166,19 +166,15 @@ if (testlines & (1LL << i++)) path.lineTo(SkBits2Float(0x43f63638), SkBits2Float
 if (testlines & (1LL << i++)) path.lineTo(SkBits2Float(0x43f6b333), SkBits2Float(0x4360e666));  // 493.4f, 224.9f
 if (testlines & (1LL << i++)) path.lineTo(SkBits2Float(0x43f639c5), SkBits2Float(0x4361375a));  // 492.451f, 225.216f
 if (testlines & (1LL << i++)) path.close();
-    options->testOne(path);
+    return options->testOne(path);
 }
 
-// #include "include/utils/SkRandom.h"
-
 static void tiger8a_h_1(TestOptions* options) {
-    if (options->skipTests(1))
-        return;
     uint64_t testlines = 0x0000000000002008;  // best so far: 0x0000001d14c14bb1;
     tiger8a_x(options, testlines);
 }
 
-static void tiger8b_x(TestOptions* options, uint64_t testlines) {
+static TestDone tiger8b_x(TestOptions* options, uint64_t testlines) {
     SkPath path;
 uint64_t i = 0;
 if (testlines & (1LL << i++)) path.moveTo(SkBits2Float(0x43f72ca1), SkBits2Float(0x43609572));  // 494.349f, 224.584f
@@ -219,15 +215,7 @@ if (testlines & (1LL << i++)) path.lineTo(SkBits2Float(0x43f8e5e7), SkBits2Float
 if (testlines & (1LL << i++)) path.quadTo(SkBits2Float(0x43f84300), SkBits2Float(0x435b88fd), SkBits2Float(0x43f7b75b), SkBits2Float(0x435c5e8e));  // 496.523f, 219.535f, 495.432f, 220.369f
 if (testlines & (1LL << i++)) path.quadTo(SkBits2Float(0x43f6b984), SkBits2Float(0x435de2c4), SkBits2Float(0x43f72ca1), SkBits2Float(0x43609572));  // 493.449f, 221.886f, 494.349f, 224.584f
 if (testlines & (1LL << i++)) path.close();
-    options->testOne(path);
-}
-
-static void testTiger(TestOptions* options, int oA, int oB, int oC) {
-    uint64_t testlines = ((uint64_t) oB << 32) | (unsigned int) oA;
-    if (oC)
-        tiger8b_x(options, testlines);
-    else
-        tiger8a_x(options, testlines);
+    return options->testOne(path);
 }
 
 static void tiger_threaded(TestOptions* options) {
@@ -235,7 +223,7 @@ static void tiger_threaded(TestOptions* options) {
         SkRandom r;
         int testCount = options->extended() ? 10000 : 100;
         for (int samples = 2; samples < 37; ++samples) {
-            for (int tests = 0; tests < testCount; ++tests) {
+            for (int tests = 1; tests <= testCount; ++tests) {
                 uint64_t testlines = 0;
                 for (int i = 0; i < samples; ++i) {
                     int bit;
@@ -246,10 +234,9 @@ static void tiger_threaded(TestOptions* options) {
                 }
                 if (options->skipTests(1))
                     continue;
-                testTiger(options, 
-                        (int) (unsigned) (testlines & 0xFFFFFFFF),
-                        (int) (unsigned) (testlines >> 32),
-                        ab);
+                if (TestDone::yes == (ab ? tiger8b_x(options, testlines) 
+                        : tiger8a_x(options, testlines)))
+                    return;
             }
         }
     }

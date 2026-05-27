@@ -3,6 +3,44 @@
 // optimized for speed, reduced memory, and random access
 #include "TinySkiaTests.h"
 
+static void simplifyQuadsX(TestOptions* options) {
+    int a = 0;
+    int b = 2;
+    int c = 5;
+    int d = 7;
+    float ax = (float) (a & 0x03);
+    float ay = (float) (a >> 2);
+    float bx = (float) (b & 0x03);
+    float by = (float) (b >> 2);
+    float cx = (float) (c & 0x03);
+    float cy = (float) (c >> 2);
+    float dx = (float) (d & 0x03);
+    float dy = (float) (d >> 2);
+    int e = 0;
+    int f = 0;
+    int g = 3;
+    int h = 13;
+    float ex = (float) (e & 0x03);
+    float ey = (float) (e >> 2);
+    float fx = (float) (f & 0x03);
+    float fy = (float) (f >> 2);
+    float gx = (float) (g & 0x03);
+    float gy = (float) (g >> 2);
+    float hx = (float) (h & 0x03);
+    float hy = (float) (h >> 2);
+    SkPath path;
+    path.moveTo(ax, ay);
+    path.quadTo(bx, by, cx, cy);
+    path.lineTo(dx, dy);
+    path.close();
+    path.moveTo(ex, ey);
+    path.lineTo(fx, fy);
+    path.quadTo(gx, gy, hx, hy);
+    path.close();
+    path.setFillType(SkPathFillType::kWinding);
+    options->testOne(path);
+}
+
 static void simplifyQuads(TestOptions* options) {
     auto test = [options](int a, int b, int c, int d) {
         float ax = (float) (a & 0x03);
@@ -66,10 +104,12 @@ static void simplifyQuads(TestOptions* options) {
             }
         }
     }
+    OpNop();
 }
 
 void V0SimplifyQuads(TestTrack* track) {
     static std::vector<TestFunc> tests = {
+        TEST_FUNC(simplifyQuadsX),
         TEST_FUNC_NUMBERED(simplifyQuads),
     };
     track->runTests(tests);

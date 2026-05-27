@@ -21,7 +21,7 @@ static void IntersectPath(const SkPath& onePath, const SkPath& twoPath, SkPath* 
     BinaryWindType windType = oneIsWinding && twoIsWinding ? BinaryWindType::windBoth
             : oneIsWinding ? BinaryWindType::windLeft : twoIsWinding ? BinaryWindType::windRight
             : BinaryWindType::evenOdd;
-	SetSkiaOpContextCallbacks(context, kIntersect_SkPathOp, windType);
+	SetSkiaOpContextCallbacks(context, TinyOps::intersect, windType);
     int oneData[] = { 1, 0 };
     Contour* one = SetSkiaOpContourCallbacks(context, oneData, sizeof(oneData), BinaryOperand::left);
     AddSkiaPath(context, one, onePath);

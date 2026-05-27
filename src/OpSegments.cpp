@@ -95,6 +95,11 @@ FoundIntersections OpSegments::addLineCurveIntersection(OpSegment* opp, OpSegmen
 	OpCurveCurve cc(seg, opp, matchingSects, ForCurveLineSect::dummy);
 	if (cc.overflowFail)
 			return FoundIntersections::fail;
+#if 0 && OP_DEBUG_DUMP
+	++dumpCurveCurve.nthCall;
+	seg->contour->context->debugCurveCurve = &cc;
+	cc.debugDumpOn = 18 == seg->id && 2 == opp->id;
+#endif
 	OpRoots oppRoots = seg->c.lineIntersection(opp->c);
 	OP_DEBUG_CODE(MatchReverse matchRev = opp->matchEnds(seg));
 	if (2 == oppRoots.count() && opp->c.isLine()) {

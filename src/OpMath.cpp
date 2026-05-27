@@ -255,7 +255,7 @@ OpRoots OpMath::CubicRootsReal(OpCubicFloatType A, OpCubicFloatType B,
 	bool zeroIsRoot = MatchEnds::start == common || MatchEnds::both == common;
 	bool oneIsRoot = MatchEnds::end == common || MatchEnds::both == common;
 	if (0 == A)
-		return QuadRootsDouble((float) B, (float) C, (float) D);
+		return QuadRootsDouble((double) B, (double) C, (double) D);
 	// in thread_loops542, segment line 4 and segment cubic 2 intersect at one point: (0, 5)
 	// line 4 points: {2.5, 2}, {0, 5}  
 	// cubic 2 points: {0, 5}, {2.130306, 5}, {2.747878, 5}, {2.747878, 3.925804}
@@ -265,12 +265,12 @@ OpRoots OpMath::CubicRootsReal(OpCubicFloatType A, OpCubicFloatType B,
 	// QuadRootsDouble returns that same root as 1.4, and everything is OK
 	// changed all three calls to double versions as a precaution
 	if (zeroIsRoot || 0 == D) {  // 0 is one root
-		OpRoots roots = QuadRootsDouble((float) A, (float) B, (float) C);
+		OpRoots roots = QuadRootsDouble((double) A, (double) B, (double) C);
 		roots.addEnd(0);
 		return roots;
 	}
 	if (oneIsRoot || 0 == A + B + C + D) {  // 1 is one root
-		OpRoots roots = QuadRootsDouble((float) A, (float) (A + B), (float) -D);
+		OpRoots roots = QuadRootsDouble((double) A, (double) (A + B), (double) -D);
 		roots.addEnd(1);
 		return roots;
 	}

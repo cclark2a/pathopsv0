@@ -1,22 +1,19 @@
 // (c) 2023, Cary Clark cclark2@gmail.com
 #include "TinySkia.h"
 #include "SkiaPaths.h"
-#if OP_TEST_RASTER
-#include "OpDebugRaster.h"
-#endif
 
-static const SkPathOp inverseOpMapping[5][2][2] {
-    {{kDifference_SkPathOp, kIntersect_SkPathOp}, {kUnion_SkPathOp, kReverseDifference_SkPathOp }},
-    {{kIntersect_SkPathOp, kDifference_SkPathOp}, {kReverseDifference_SkPathOp, kUnion_SkPathOp }},
-    {{kUnion_SkPathOp, kReverseDifference_SkPathOp}, {kDifference_SkPathOp, kIntersect_SkPathOp }},
-    {{kXOR_SkPathOp, kXOR_SkPathOp }, {kXOR_SkPathOp, kXOR_SkPathOp}},
-    {{kReverseDifference_SkPathOp, kUnion_SkPathOp}, {kIntersect_SkPathOp, kDifference_SkPathOp }},
+static const TinyOps inverseOpMapping[5][2][2] {
+    {{TinyOps::difference, TinyOps::intersect}, {TinyOps::unite, TinyOps::reverseDifference }},
+    {{TinyOps::intersect, TinyOps::difference}, {TinyOps::reverseDifference, TinyOps::unite }},
+    {{TinyOps::unite, TinyOps::reverseDifference}, {TinyOps::difference, TinyOps::intersect }},
+    {{TinyOps::exclusiveOr, TinyOps::exclusiveOr }, {TinyOps::exclusiveOr, TinyOps::exclusiveOr}},
+    {{TinyOps::reverseDifference, TinyOps::unite}, {TinyOps::intersect, TinyOps::difference }},
 };
 
 /* Given a PathOps operator, and if the operand fills are inverted, return the equivalent operator
    treating the operands as non-inverted.
  */
-SkPathOp MapInvertedSkPathOp(SkPathOp op, bool leftOperandIsInverted, bool rightOperandIsInverted) {
+TinyOps MapInvertedSkPathOp(TinyOps op, bool leftOperandIsInverted, bool rightOperandIsInverted) {
     return inverseOpMapping[(int) op][leftOperandIsInverted][rightOperandIsInverted];
 }
 
@@ -37,7 +34,8 @@ bool SkPathOpInvertOutput(SkPathOp op, bool leftOperandIsInverted, bool rightOpe
 
 #include "curves/Line.h"
 #include "curves/QuadBezier.h"
-#include "curves/ConicBezier.h"
+#include "curves/ConicBezier.h"  
+#include "curves/DConicBezier.h"  // experiment which uses doubles to see if error is reduced
 #include "curves/CubicBezier.h"
 #include "curves/BinaryWinding.h"
 #include "curves/UnaryWinding.h"
@@ -84,9 +82,14 @@ WindKeep skiaOutput(Output o) {
 }
 
 void SetSkiaCurveCallbacks(Context* context) {
+    ContextUserData doubleConics = UserData(context, (UserDataType) SkiaUserData::useDoubleConics);
+    bool useDoubleConics = *(bool*) doubleConics.data;
     lineCallbacks(context, SkPath::kLine_Verb);
     quadCallbacks(context, SkPath::kQuad_Verb);
-    conicCallbacks(context, SkPath::kConic_Verb);
+    if (useDoubleConics)
+        dConicCallbacks(context, SkPath::kConic_Verb);
+    else
+        conicCallbacks(context, SkPath::kConic_Verb);
     cubicCallbacks(context, SkPath::kCubic_Verb);
 }
 
@@ -115,14 +118,14 @@ Contour* SetSkiaSimplifyCallbacks(Context* context, WindingData data, size_t siz
     return contour;
 }
 
-void SetSkiaOpContextCallbacks(Context* context, SkPathOp op, BinaryWindType windType) {
+void SetSkiaOpContextCallbacks(Context* context, TinyOps op, BinaryWindType windType) {
     WindingKeep operatorFunc = nullptr;
     switch (op) {
-        case kDifference_SkPathOp: operatorFunc = binaryDifferenceFunc; break;
-        case kIntersect_SkPathOp: operatorFunc = binaryIntersectFunc; break;
-        case kUnion_SkPathOp: operatorFunc = binaryUnionFunc; break;
-        case kXOR_SkPathOp: operatorFunc = binaryExclusiveOrFunc; break;
-        case kReverseDifference_SkPathOp: operatorFunc = binaryReverseDifferenceFunc; break;
+        case TinyOps::difference: operatorFunc = binaryDifferenceFunc; break;
+        case TinyOps::intersect: operatorFunc = binaryIntersectFunc; break;
+        case TinyOps::unite: operatorFunc = binaryUnionFunc; break;
+        case TinyOps::exclusiveOr: operatorFunc = binaryExclusiveOrFunc; break;
+        case TinyOps::reverseDifference: operatorFunc = binaryReverseDifferenceFunc; break;
         default: OP_ASSERT(0);
     }
     WindingAdd addFunc = nullptr;
@@ -142,7 +145,6 @@ void SetSkiaOpContextCallbacks(Context* context, SkPathOp op, BinaryWindType win
         default: OP_ASSERT(0);
     }
     SetWindingCallbacks(context, { addFunc, operatorFunc, subtractFunc });
-//    OP_DEBUG_CODE(SetSkiaOpContextCallbacksDebug(context, op));
 }
 
 Contour* SetSkiaOpContourCallbacks(Context* context, PathOpsV0Lib::WindingData windingData, 
@@ -152,12 +154,13 @@ Contour* SetSkiaOpContourCallbacks(Context* context, PathOpsV0Lib::WindingData w
     return contour;
 }
 
-void AddSkiaPath(Context* context, Contour* contour, const SkPath& path
-        /* OP_DEBUG_PARAMS(AddDebugContour* addDebugPtr) */) {
+void AddSkiaPath(Context* context, Contour* contour, const SkPath& path) {
 	if (!path.isFinite()) {  // raw iter treats non-finite path as empty
 		SetError(context, ContextError::finite);
 		return;
 	}
+    ContextUserData doubleConics = UserData(context, (UserDataType) SkiaUserData::useDoubleConics);
+    bool useDoubleConics = *(bool*) doubleConics.data;
     SkPath::RawIter iter(path);
     OpPoint closeLine[2] = {{0, 0}, {0, 0}};  // initialize so first move doesn't add close line
     for (;;) {
@@ -182,8 +185,12 @@ void AddSkiaPath(Context* context, Contour* contour, const SkPath& path
             break;
         case SkPath::kConic_Verb:
             pts[3].fX = iter.conicWeight(); // !!! hacky
-            AddConics(contour, { context, (OpPoint*) pts, sizeof(SkPoint) * 3 + sizeof(float), 
-                    SkPath::kConic_Verb } );
+            if (useDoubleConics)
+                AddDConics(contour, { context, (OpPoint*) pts, sizeof(SkPoint) * 3 + sizeof(float), 
+                        SkPath::kConic_Verb } );
+            else
+                AddConics(contour, { context, (OpPoint*) pts, sizeof(SkPoint) * 3 + sizeof(float), 
+                        SkPath::kConic_Verb } );
             closeLine[0] = { pts[2].fX, pts[2].fY };
             break;
         case SkPath::kCubic_Verb:

@@ -966,16 +966,13 @@ bool OpSegment::mergeIntersections() {
 		}
 		// if pt != opp pt, choose side that has existing merge id
 		for (; index < endIndex; ++index) {
-			OpIntersection* test = sects.i[index];
-			OpIntersection* opp = test->opp;
+			OpIntersection* opp = sects.i[index]->opp;
+			if (!opp->mergeID)
+				continue;
 			if (opp->unsectID)
 				continue;
 			if (!opp->segment->merged)
 				continue;
-			if (!opp->mergeID) {
-				opp->ptT.pt = mergePtT.pt;
-				continue;
-			}
 			if (mergeId && opp->mergeID != mergeId)
 				mergeMultiple(mergePtT.pt, mergeId, opp->ptT.pt, opp->mergeID);
 			else {
@@ -983,9 +980,9 @@ bool OpSegment::mergeIntersections() {
 				mergeId = opp->mergeID;
 			}
 		}
-		index = startIndex;
-		if (needsMerging && index + 1 < endIndex) {
-			if (!mergeId)
+		if (needsMerging) {
+			index = startIndex;
+			if (!mergeId && index + 1 < endIndex)
 				mergeId = contour->nextID();
 			// if any in range are already merged, use that for all points
 			for (; index < endIndex; ++index) {

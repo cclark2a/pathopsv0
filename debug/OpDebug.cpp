@@ -1287,6 +1287,7 @@ OpTree::~OpTree() {
 
 #include "DebugOps.h"
 #include "curves/QuadBezier.h"
+#include "curves/DConicBezier.h"
 #include "curves/CubicBezier.h"
 
 namespace PathOpsV0Lib {
@@ -1308,7 +1309,12 @@ static void debugCommonScale(PathOpsV0Lib::Curve curve, int extra, double sX, do
 		scaler(ctrls.pts[0]);
 		scaler(ctrls.pts[1]);
 		ctrls.copyTo(curve);
-	}
+	} else if (3 == extra) {
+        DPointWeight ptW(curve);
+		ptW.pt.x = ptW.pt.x * sX + dX;
+		ptW.pt.y = ptW.pt.y * sY + dY;
+        ptW.copyTo(curve);
+    }
 }
 
 void debugLineScale(PathOpsV0Lib::Curve curve, double sX, double sY, double dX, double dY) {
@@ -1321,6 +1327,10 @@ void debugQuadScale(PathOpsV0Lib::Curve curve, double sX, double sY, double dX, 
 
 void debugConicScale(PathOpsV0Lib::Curve curve, double sX, double sY, double dX, double dY) {
 	debugCommonScale(curve, 1, sX, sY, dX, dY);
+}
+
+void debugDConicScale(PathOpsV0Lib::Curve curve, double sX, double sY, double dX, double dY) {
+	debugCommonScale(curve, 3, sX, sY, dX, dY);
 }
 
 void debugCubicScale(PathOpsV0Lib::Curve curve, double sX, double sY, double dX, double dY) {

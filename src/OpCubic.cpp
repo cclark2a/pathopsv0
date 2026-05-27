@@ -39,7 +39,7 @@ float OpMath::CubicRoot(OpCubicFloatType A, OpCubicFloatType B, OpCubicFloatType
 	float result = 0;
 	OpRoots quadRoots;
 	if (0 == A) {
-		quadRoots = QuadRootsDouble((float) B, (float) C, (float) D);
+		quadRoots = QuadRootsDouble((double) B, (double) C, (double) D);
 		quadRoots = quadRoots.keepValidTs();
 		OP_ASSERT(1 >= quadRoots.count());
 		if (quadRoots.count())

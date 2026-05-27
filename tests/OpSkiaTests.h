@@ -7,9 +7,9 @@
 #endif
 
 #define SKIP_TO_V0 0  // set to 1 to ignore file, test first and run first test in v0
-#define SKIP_TO_FILE "v0" // e.g., "simplify"  one file
+#define SKIP_TO_FILE "quad" // e.g., "simplify"  one file
 #if !OP_DEBUG_ALT
-#define TEST_FIRST "figma1" // "tiger8a_x33570817""  // e.g., "testLoops40320" if file, one test
+#define TEST_FIRST "simplifyQuadsX" // "simplifyQuads3005586""  // e.g., "testLoops40320" if file, one test
                         // !!! "loop8478" fails sometimes (san/valgrind found no error)
                         // cubic9092  cubic454498  cubic327361 troublesome unsectables
 #else
@@ -18,13 +18,27 @@
 #define TEST_EXTENDED 1
 #define TEST_ANALYZE 0
 
+/*
+single
+conic{{492.451324, 225.216217}, {497.456268, 217.308929}, {497.509460, 217.304092}} weight:0.998576224 isLineSet}
+0:{492.423584, 225.115952}, 1:{493.399994, 224.899994}
+conic{{0.103891000, 0.00543297734}, {-6.5360074, 6.59994888}, {-6.52924299, 6.65293074}} weight:0.998576224 rotated:yes}
+count:1 0.00786512438
+double
+dconic{{492.451324, 225.216217}, {497.456268, 217.308929}, {497.509460, 217.304092}} weight:0.998576224 isLineSet}
+0:{492.423584, 225.115952}, 1:{493.399994, 224.899994}
+dconic{{0.103891000, 0.00543297734}, {-6.5360074, 6.59994888}, {-6.52924299, 6.65293074}} weight:0.998576224 rotated:yes}
+count:1 0.111898132
+*/
+
 // switches that decide which tests to run and how to run them
 // these may be moved to command line parameters at some point
-#define TESTS_TO_SKIP 0  // 893200  // tests to skip
+#define TESTS_TO_SKIP 0  // 21525433  // tests to skip
 #define TESTS_TO_RUN 0  // set to zero to run to end (no need to set if 'test first' is set)
 #define OP_SHOW_TEST_NAME 0  // if 0, show a dot every 100 tests
 #define OP_SHOW_ERRORS_ONLY 0  // if 1, skip showing dots, test files started/finished
 #define OP_TEST_V0 1  // set to zero to time Skia running tests
+#define USE_DOUBLE_CONICS 0  // set to one to use conics with double calculations intead of float
 #define TEST_DEFEAT_BREAK 0  // set to one to disallow debug breakpoints
 #define TEST_DEFEAT_DUMPS 0  // set to one to disallow rewriting dumps
 
@@ -40,6 +54,18 @@
 #define TEST_PATH_OP_SKIP_REST
 #define TEST_PATH_OP_SKIP_FILES  /* e.g., "battle", "circleOp" */
 
+/*
+simplifyQuads3095297 raster errors:33.7219162
+simplifyQuads3095298 raster errors:33.7220955
+.simplifyQuads3096047 raster errors:17.0364876
+simplifyQuads923258 raster errors:33.7218704
+simplifyQuads923259 raster errors:33.7218704
+simplifyQuads924008 raster errors:17.0362930
+simplifyQuads4002359 raster errors:33.7218742
+simplifyQuads4002360 raster errors:33.7218742
+simplifyQuads4003109 raster errors:17.0362968
+"simplifyQuads4769873" 33.7218704
+*/
 /*
 trunk:4923 bestGapLimb:[4927 e:823e..870 closeD:0] bestLimb:[4927 e:823e..870 closeD:0] bestDistance:0 bestPerimeter:0.00341796875 maxLimbs:1000 totalUsed:6 limbPass:unsectPair debugAddEach231
 [4923 e:826s..869e closeD:0.007055833] parent:- children:[4924 e:870s..823e closeD:0.00461451616] [4925 e:823s..870 closeD:0.00461451616] treePass:linked

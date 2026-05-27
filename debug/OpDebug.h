@@ -511,12 +511,14 @@ namespace PathOpsV0Lib {
     void debugLineScale(PathOpsV0Lib::Curve curve, double sX, double SY, double dX, double dY);
     void debugQuadScale(PathOpsV0Lib::Curve curve, double sX, double SY, double dX, double dY);
     void debugConicScale(PathOpsV0Lib::Curve curve, double sX, double SY, double dX, double dY);
+    void debugDConicScale(PathOpsV0Lib::Curve curve, double sX, double SY, double dX, double dY);
     void debugCubicScale(PathOpsV0Lib::Curve curve, double sX, double SY, double dX, double dY);
 
 #define DEBUG_SCALE_TAGGED_FUNCTIONS \
     OP_TAGGED_FUNCTION(debugLineScale), \
     OP_TAGGED_FUNCTION(debugQuadScale), \
     OP_TAGGED_FUNCTION(debugConicScale), \
+    OP_TAGGED_FUNCTION(debugDConicScale), \
     OP_TAGGED_FUNCTION(debugCubicScale), \
 
 }

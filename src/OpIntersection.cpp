@@ -35,35 +35,39 @@ bool OpIntersection::setMerge(int masterID, OpPoint masterPt, MergeType mergeTyp
 		if (opp->unsectID)
 			return false;
 		if (opp->mergeID == masterID && opp->ptT.pt == masterPt)
-			return true;
+			return false;
 	}
+	OpSegment* oppSegment = opp->segment;
+	bool runAgain = true;
 	if (opp->mergeID && opp->mergeID != masterID)
-		opp->segment->mergeMultiple(masterPt, masterID, opp->ptT.pt, opp->mergeID);
+		oppSegment->mergeMultiple(masterPt, masterID, opp->ptT.pt, opp->mergeID);
 	else {
-//		OP_ASSERT(MergeType::endPoint != mergeType || !opp->mergeID);
 		opp->mergeID = masterID;
+		runAgain = opp->ptT.pt != masterPt;
 		opp->ptT.pt = masterPt;
 	}
-    if (MergeType::midPoint == mergeType && !opp->segment->disabled)
-	    opp->segment->setUnmerged();
+    if (!runAgain || !oppSegment->merged || MergeType::midPoint != mergeType || oppSegment->disabled)
+		return false;
+	oppSegment->setUnmerged();
 	return true;
 }
 
 OpRect OpIntersection::setMergeBounds(OpVector threshold) {
-	OpRect result { ptT.pt, callerPt };
+	OpRect mergeBounds { ptT.pt, callerPt };
 	if (!unsectID) {
-		result.add(opp->ptT.pt);
-		result.add(opp->callerPt);
+		mergeBounds.add(opp->ptT.pt);
+		mergeBounds.add(opp->callerPt);
 	}
-	OpVector wh = result.widthHeight();
-	if (wh.dx < threshold.dx) {
-		result.left = (result.left + result.right - threshold.dx) / 2;
-		result.right = result.left + threshold.dx;
+	if (mergeBounds.width() < threshold.dx) {
+		mergeBounds.left -= threshold.dx / 2;
+		mergeBounds.right = mergeBounds.left + threshold.dx;
 	}
-	if (wh.dy < threshold.dy) {
-		result.top = (result.top + result.bottom - threshold.dy) / 2;
-		result.bottom = result.top + threshold.dy;
+	if (mergeBounds.height() < threshold.dy) {
+		mergeBounds.top -= threshold.dy / 2;
+		mergeBounds.bottom = mergeBounds.top + threshold.dy;
 	}
+	float maxWH = std::max(mergeBounds.width(), mergeBounds.height());
+	OpRect result = OpRect(ptT.pt, ptT.pt).outset({ maxWH / 2, maxWH / 2 });
 	return result;
 }
 
@@ -258,7 +262,7 @@ void OpIntersections::makeEdges(OpSegment* segment) {
 #if 1   // old code breaks skpagentxsites_com55 / though loops61i works
 		// old code did not check if coincident pair are from same coincidence (same coin id)
 		// new code: if edge is between a pair of coincident edges, mark it unsortable
-			if (first->betweenCoins && sectPtr->betweenCoins 
+			if (newEdge.isLine() && first->betweenCoins && sectPtr->betweenCoins 
 					&& first->opp->segment != sectPtr->opp->segment) {
 				std::vector<CoinPal> firstCoins;
 				// !!! optimization: could do cheaper nearly end test on sect ptr first ...

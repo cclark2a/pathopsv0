@@ -1017,7 +1017,7 @@ struct OpMath {
 		return QuadRootsReal(A, B, C).keepValidTs();
 	}
 
-	static OpRoots QuadRootsDouble(float A, float B, float C) {
+	static OpRoots QuadRootsDouble(double A, double B, double C) {
 		if (0 == A) {
 			if (0 == B) {
 				if (C == 0)
@@ -1038,7 +1038,7 @@ struct OpMath {
 
 	// single precision quad root is not enough for some use cases.
 	// example: finding extrema of cubic (3, 0, -2/3, 1) (see loop9)
-	static OpRoots QuadRootsInteriorT(float A, float B, float C) {
+	static OpRoots QuadRootsInteriorT(double A, double B, double C) {
 		return QuadRootsDouble(A, B, C).keepInteriorTs();
 	}
 

@@ -43,39 +43,8 @@ void OpLimb::addEach(OpContour& contour, OpTree& tree) {
 		for (OpEdge* test : edges) {
 			if (test->inLinkups)
 				continue;
-			// !!! test here is too soon : check after finding that unsectable extends tree
-		#if 0
-			bool preferSibling = test->isUnsectable() && tree.preferSibling(this, test);
-			if (preferSibling) //  && LimbPass::unsectPair > tree.limbPass)
-				continue;
-		#endif
-			/* bool foundOne = !! */ tryAdd(tree, test, EdgeMatch::start, LimbPass::unlinked); 
-			/*foundOne |= !! */ tryAdd(tree, test, EdgeMatch::end, LimbPass::unlinked);
-            /*
-            if (!foundOne) {
-                for (EdgePal& foundPal : test->pals) {
-                    if (edge != foundPal.edge)
-                        continue;
-                    EdgeMatch testMatch = foundPal.reversed ? !lastMatch : lastMatch;
-                    OpPtT testPtT = test->ptT(testMatch);
-                    if (lastPtT.pt == testPtT.pt)
-                        continue;
-                    if (tree.containsFiller(this, lastPtT.pt, testPtT.pt))
-                        break;
-                    OpEdge* filler = tree.addFiller(edge->segment, lastPtT, testPtT, true);
-                    tryAdd(tree, filler, EdgeMatch::start, LimbPass::unlinked);
-                }
-            }  
-                else {
-                for (EdgePal& foundPal : test->pals) {
-                    EdgeMatch foundMatch = foundPal.reversed ? !lastMatch : lastMatch;
-                    OpPtT foundPtT = foundPal.edge->ptT(foundMatch);
-                    if (tree.containsFiller(this, lastPtT.pt, foundPtT.pt))
-                        break;
-                    OpEdge* filler = tree.addFiller(edge->segment, lastPtT, foundPtT, true);
-                    tryAdd(tree, filler, EdgeMatch::start, LimbPass::unlinked);
-                }
-		    } */
+			tryAdd(tree, test, EdgeMatch::start, LimbPass::unlinked); 
+			tryAdd(tree, test, EdgeMatch::end, LimbPass::unlinked);
         }
 	}
 	if (LimbPass::unlinked == pass)
@@ -194,7 +163,7 @@ void OpLimb::set(OpTree& tree, OpEdge* test, OpLimb* p, EdgeMatch m, LimbPass l,
 		lastMatch = EdgeMatch::start;
 	}
 	lastPts = lastLimbEdge->collectMatch(lastMatch, &lastT);
-	looped = tree.firstMatch(lastPts[0]);
+	looped = tree.firstMatch(lastPts);
 	closeDistance = tree.firstDistance(lastPts[0]);
 	if (childBounds) {
 		limbBounds = *childBounds;
@@ -261,8 +230,8 @@ OpLimb* OpLimb::tryAdd(OpTree& tree, OpEdge* test, EdgeMatch m, LimbPass limbPas
 	OP_ASSERT(!test->hasLinkTo(m) || !test->isSortable() || test->disabled 
 			|| test->hasPals() || test->smallTRange);
 	// !!! future optimization : keep all possible end points with edge, or pass limb instead of
-	std::vector<OpPoint> testPts = test->collectMatch(m);
-	if (!ptsMatch(EdgeMatch::end, testPts))
+	std::vector<OpPoint> testStarts = test->collectMatch(m);
+	if (!ptsMatch(EdgeMatch::end, testStarts))
 		return nullptr;
 	if (edge == test)
 		return nullptr;
@@ -273,7 +242,8 @@ OpLimb* OpLimb::tryAdd(OpTree& tree, OpEdge* test, EdgeMatch m, LimbPass limbPas
 		return nullptr;
 	if (LimbPass::unsectPair != limbPass && tree.contains(this, test))
 		return nullptr;
-	bool loopedToFirstPoint = tree.firstMatch(testPts[0]);
+	std::vector<OpPoint> testEnds = test->collectMatch(!m);
+	bool loopedToFirstPoint = tree.firstMatch(testEnds);
 	if (!loopedToFirstPoint && (EdgeMatch::start == m ? test->startSeen : test->endSeen))
 		return nullptr;
 	// compare test wind zero against their parent's last edge wind zero
@@ -286,6 +256,8 @@ OpLimb* OpLimb::tryAdd(OpTree& tree, OpEdge* test, EdgeMatch m, LimbPass limbPas
 			&& (LimbPass::linked == limbPass || LimbPass::miswound == limbPass)
 #if OP_EDGE_PAL_MANY
 			&& !lastLimbEdge->palMany.isSet() 
+#else
+			&& lastLimbEdge->pals.empty()
 #endif
 			&& Unsortable::filler != lastLimbEdge->unsortable) {
 		WindZero zeroSide = test->windZero;
@@ -321,8 +293,10 @@ OpLimb* OpLimb::tryAdd(OpTree& tree, OpEdge* test, EdgeMatch m, LimbPass limbPas
 	OpLimb* newParent = this;
 	if (tree.containsParent(this, test, m))
 		return nullptr;
+#if 0  // breaks quad test (unknown #) next time, record test it fixes...
 	if (LimbPass::disabledCenterless == limbPass) 
 		test->setWhich(m);
+#endif
 	OpLimb* branch = tree.makeLimb();
 	branch->set(tree, test, newParent, m, limbPass, limbContour, limbIndex, otherEnd, &childBounds);
 	return branch;
@@ -583,11 +557,13 @@ float OpTree::firstDistance(OpPoint pt) const {
 	return sqrtf(minDistanceSq);
 }
 
-bool OpTree::firstMatch(OpPoint pt) const {
+bool OpTree::firstMatch(const std::vector<OpPoint>& pts) const {
 	OP_ASSERT(trunk);
 	for (OpPoint firstPt : trunk->firstPts) {
-		if (firstPt == pt)
-			return true;
+		for (OpPoint pt : pts) {
+			if (firstPt == pt)
+				return true;
+		}
 	}
 	return false;
 }

@@ -9,6 +9,7 @@
 #include "curves/Line.h"
 #include "curves/QuadBezier.h"
 #include "curves/ConicBezier.h"
+#include "curves/DConicBezier.h"
 #include "curves/CubicBezier.h"
 #include "curves/UnaryWinding.h"
 #include "curves/BinaryWinding.h"
@@ -29,6 +30,7 @@ std::vector<DebugTags> debugTags {
     LINE_TAGGED_FUNCTIONS
     QUAD_TAGGED_FUNCTIONS
     CONIC_TAGGED_FUNCTIONS
+    DCONIC_TAGGED_FUNCTIONS
     CUBIC_TAGGED_FUNCTIONS
     UNARY_WINDING_TAGGED_FUNCTIONS
     BINARY_WINDING_TAGGED_FUNCTIONS
@@ -45,6 +47,7 @@ std::vector<DebugTags> debugTags {
 #if OP_DEBUG_DUMP
     DUMP_QUAD_TAGGED_FUNCTIONS
     DUMP_CONIC_TAGGED_FUNCTIONS
+    DUMP_DCONIC_TAGGED_FUNCTIONS
     DUMP_CUBIC_TAGGED_FUNCTIONS
     DUMP_UNARY_WINDING_TAGGED_FUNCTIONS
     DUMP_BINARY_WINDING_TAGGED_FUNCTIONS

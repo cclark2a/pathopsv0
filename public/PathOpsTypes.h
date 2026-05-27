@@ -18,7 +18,7 @@ enum class UserDataType {
     none,   // unused
     outData,  // additional data used when managing which curves comprise the output
     outPath,  // pointer to caller data accumulating output path
-//  optional  // user-defined types follow
+    optional  // user-defined types start here
 };
 
 // optional user data associated with this instance of the engine

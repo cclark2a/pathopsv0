@@ -6,6 +6,13 @@
 
 class SkPath;
 
+enum class TestDone {
+    no,
+    yes,
+    skip,
+    run
+};
+
 struct TestFunc {
     void (*func)(struct TestOptions*);
     std::string name;
@@ -16,39 +23,25 @@ struct TestFunc {
 struct TestTrack {
     void buggySkiaNumbering(int testCount) {
         indexOffset = testCount;  
-        testIndex = -testCount;
-        if (skip)
-            skip += testCount;
     }
-
 
     bool runTests(const std::vector<TestFunc>& tests);
+    TestDone skipInner(int count);
+    bool skipTests(int count);
 
-    bool skipTests(int count) {
-        if (skip >= count) {
-            skip -= count;
-            testIndex += count;
-            return true;
-        }
-        return false;
-    }
-
+    const TestFunc* testFunc = nullptr;
     std::string testMatch;  // if run one: test to run, with trailing number removed
     std::string testName;  // set by function currently running
     float maxError = 0;
-    int testIndex = 0;   // may be negative to adjust for bug in skia test framework
-    int testNumber = 0;  // if run one, match testMatch + testSuffix
-    int testSuffix = 0;
-    int indexOffset = 0;
-    int run = 0;
-    int skip = 0;
+    int runIndex = 0;   // current number to append to test func name if numbered
+    int testSuffix = 0;  // number at end of named test to run
+    int indexOffset = 0;  // only used for legacy tests to start with negative index
+    int run = 0;  // number of tests that have run
+    int skip = 0;  // number of tests to skip before running first test
     int toRun = 0;  // zero runs all
-    bool extended = true;
-};
-
-enum class TestDone {
-    no,
-    yes
+    bool extended = false;
+    bool hasDigits = false;
+    bool runNamedTest = false;
 };
 
 struct TestOptions {
@@ -58,7 +51,7 @@ struct TestOptions {
     }
 
     void buggySkiaNumbering(int testCount) {
-        return testTrack.buggySkiaNumbering(testCount);
+        testTrack.buggySkiaNumbering(testCount);
     }
 
     void checkTestCount(int testCount);
