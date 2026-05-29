@@ -44,10 +44,10 @@ count:1 0.111898132
 
 // loop191404 missing -0.078, 1.5323 t=0.281543255 oppT=0.290549636; 
 //                    -0.3563 2.0153 t=0.139774203 oppT=0.113169670
-#define CURVE_CURVE_1 4  // id of segment 1 to break in divide and conquer
+#define CURVE_CURVE_1 2  // id of segment 1 to break in divide and conquer
 #define CURVE_CURVE_2 8  // id of segment 2 to break in divide and conquer
-#define CURVE_CURVE_DEPTH -1  // minimum recursion depth for curve curve break (-1 to disable)
-#define CURVE_CURVE_DUMP 0  // 1: dump all ccs; 0: only dump matching curve (for very large tests)
+#define CURVE_CURVE_DEPTH 4  // minimum recursion depth for curve curve break (-1 to disable)
+#define CURVE_CURVE_DUMP 1  // 1: dump all ccs; 0: only dump matching curve (for very large tests)
 
 #define TEST_PATH_SKIP_TESTS { "grshapearc", "grshapearcs1" }  /* , "release_13", "pentrek10" */
 // when these tests are encountered, it and the remaining tests in the file are skipped

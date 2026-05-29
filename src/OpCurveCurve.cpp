@@ -2059,62 +2059,62 @@ bool OpCurveCurve::setHullSects(OpEdge& edge, OpEdge& oppEdge, CurveRef curveRef
 			sectPtT.t = OpMath::Interp(edge.startT, edge.endT, sectPtT.t);
 			OP_ASSERT(edge.startT <= sectPtT.t && sectPtT.t <= edge.endT);
 			// if pt is close to existing hull sect, and both are not end, record intersection
-			if (edge.hulls.add(sectPtT, context->threshold, EdgeDist(SetToNaN::dummy), sectType, 
-                    &oppEdge)) {
+			if (!edge.hulls.add(sectPtT, context->threshold, EdgeDist(SetToNaN::dummy), sectType, 
+                    &oppEdge))
+				continue;
 #if 1
 	// always use original segment to find points
-				OpSegment* oSeg = oppEdge.segment;
-				OpPtT oppPtT { oSeg->c.ptTAtT(oSeg->c.findValidT(0, 1, sectPtT.pt)) };
+			OpSegment* oSeg = oppEdge.segment;
+			OpPtT oppPtT { oSeg->c.ptTAtT(oSeg->c.findValidT(0, 1, sectPtT.pt)) };
 #else
-				OpPtT oppPtT { oppEdge.curve.ptTAtT(oppEdge.curve.findValidT(0, 1, sectPtT.pt))};
-				oppPtT.t = OpMath::Interp(oppEdge.startT, oppEdge.endT, oppPtT.t);
+			OpPtT oppPtT { oppEdge.curve.ptTAtT(oppEdge.curve.findValidT(0, 1, sectPtT.pt))};
+			oppPtT.t = OpMath::Interp(oppEdge.startT, oppEdge.endT, oppPtT.t);
 #endif
-				if (!oppPtT.pt.isFinite())
-					return false;
-				// if computed points are not close, use linear intersection to try again
-				OpVector diff = sectPtT.pt - oppPtT.pt;
-				OpVector eTan = edge.curve.tangent(sectPtT.t);
-				OpVector oTan = oppEdge.curve.tangent(oppPtT.t);
-				LinePts eLinePts { sectPtT.pt, sectPtT.pt + eTan };
-				LinePts oLinePts { oppPtT.pt, oppPtT.pt + oTan };
-				auto tryIt = [this](const LinePts& eLinePts, const LinePts& oLinePts,
-						OpCurve& eCurve) {
-                    PathOpsV0Lib::CurveType lineType = eCurve.lineType();
-					PathOpsV0Lib::Curve eLineCurve { (ContextPtr) context, 
-                            (PathOpsV0Lib::CurveData*) &eLinePts, sizeof eLinePts, lineType };
-					OpCurve eLine(eLineCurve, Rotated::no);
-					OpCurve eRotLine = eLine.toVertical(oLinePts, MatchEnds::none);
-					OpRoots eLineT = eRotLine.axisRawHit(Axis::vertical, 0, MatchEnds::none);
-					if (eLineT.empty())
-						return OpPtT(SetToNaN::dummy);
-					if (eLineT.count() > 1)
-						return OpPtT(SetToNaN::dummy);
-					// don't call pt at t ; need answer to be unpinned
-				//	OpPoint eLinePt = eLine.ptAtT(eLineT.get(0));
-					float eT = eLineT.get(0);
-                    if (!OpMath::IsFinite(eT))
-						return OpPtT(SetToNaN::dummy);
-					OpPoint eLinePt = (1 - eT) * eLinePts.pts[0] + eT * eLinePts.pts[1];
-					float validT = eCurve.findValidT(0, 1, eLinePt);
-					if (!OpMath::IsNaN(validT))
-						return OpPtT(eLinePt, validT);
+			if (!oppPtT.pt.isFinite())
+				return false;
+			// if computed points are not close, use linear intersection to try again
+			OpVector diff = sectPtT.pt - oppPtT.pt;
+			OpVector eTan = edge.curve.tangent(sectPtT.t);
+			OpVector oTan = oppEdge.curve.tangent(oppPtT.t);
+			LinePts eLinePts { sectPtT.pt, sectPtT.pt + eTan };
+			LinePts oLinePts { oppPtT.pt, oppPtT.pt + oTan };
+			auto tryIt = [this](const LinePts& eLinePts, const LinePts& oLinePts,
+					OpCurve& eCurve) {
+				PathOpsV0Lib::CurveType lineType = eCurve.lineType();
+				PathOpsV0Lib::Curve eLineCurve { (ContextPtr) context, 
+						(PathOpsV0Lib::CurveData*) &eLinePts, sizeof eLinePts, lineType };
+				OpCurve eLine(eLineCurve, Rotated::no);
+				OpCurve eRotLine = eLine.toVertical(oLinePts, MatchEnds::none);
+				OpRoots eLineT = eRotLine.axisRawHit(Axis::vertical, 0, MatchEnds::none);
+				if (eLineT.empty())
 					return OpPtT(SetToNaN::dummy);
-				};
-				OpPtT eTry = tryIt(eLinePts, oLinePts, edge.curve);
-				OpPtT oTry = tryIt(oLinePts, eLinePts, oppEdge.curve);
-				if (eTry.isFinite() && oTry.isFinite()) {
-					float tryLength = (eTry.pt - oTry.pt).length();
-					if (tryLength < diff.length()) {
-						sectPtT = OpPtT(eTry.pt, OpMath::Interp(edge.startT, edge.endT, eTry.t));
-						oppPtT = OpPtT(oTry.pt, OpMath::Interp(oppEdge.startT, oppEdge.endT, oTry.t));
-					}
+				if (eLineT.count() > 1)
+					return OpPtT(SetToNaN::dummy);
+				// don't call pt at t ; need answer to be unpinned
+			//	OpPoint eLinePt = eLine.ptAtT(eLineT.get(0));
+				float eT = eLineT.get(0);
+				if (!OpMath::IsFinite(eT))
+					return OpPtT(SetToNaN::dummy);
+				OpPoint eLinePt = (1 - eT) * eLinePts.pts[0] + eT * eLinePts.pts[1];
+				float validT = eCurve.findValidT(0, 1, eLinePt);
+				if (!OpMath::IsNaN(validT))
+					return OpPtT(eLinePt, validT);
+				return OpPtT(SetToNaN::dummy);
+			};
+			OpPtT eTry = tryIt(eLinePts, oLinePts, edge.curve);
+			OpPtT oTry = tryIt(oLinePts, eLinePts, oppEdge.curve);
+			if (eTry.isFinite() && oTry.isFinite()) {
+				float tryLength = (eTry.pt - oTry.pt).length();
+				if (tryLength < diff.length()) {
+					sectPtT = OpPtT(eTry.pt, OpMath::Interp(edge.startT, edge.endT, eTry.t));
+					oppPtT = OpPtT(oTry.pt, OpMath::Interp(oppEdge.startT, oppEdge.endT, oTry.t));
 				}
-				if (CurveRef::edge == curveRef)
-					recordSect(&edge, &oppEdge, sectPtT, oppPtT  OP_LINE_FILE_PARGS());
-				else
-					recordSect(&oppEdge, &edge, oppPtT, sectPtT  OP_LINE_FILE_PARGS());
-				return true;
 			}
+			if (CurveRef::edge == curveRef)
+				recordSect(&edge, &oppEdge, sectPtT, oppPtT  OP_LINE_FILE_PARGS());
+			else
+				recordSect(&oppEdge, &edge, oppPtT, sectPtT  OP_LINE_FILE_PARGS());
+			return true;
 		}
 	}
     return false;

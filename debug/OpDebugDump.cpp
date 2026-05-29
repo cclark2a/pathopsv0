@@ -1,6 +1,5 @@
 // (c) 2023, Cary Clark cclark2@gmail.com
 #include "OpDebug.h"
-
 #if OP_DEBUG_DUMP || OP_DEBUGGER
 #include <ctype.h>
 #ifdef _WIN32
@@ -292,13 +291,9 @@ std::string debugDumpIntersections() {
     return debugPopMatching(s, '\n');
 }
 
-#endif
-
 void dmpFile() {
     debugGlobalContext->dumpBaseFile(DumpRaster::no);
 }
-
-#if OP_DEBUG_GLOBALS
 
 void dmpRays() {
     size_t edgeCount = 0;
@@ -2224,6 +2219,32 @@ void dmpHulls(const OpEdge& edge) {
         s += hs.debugDump(defaultLevel, defaultBase) + "\n";
     OpDebugFormat(s);
 }
+
+#if OP_DEBUG_GLOBALS
+
+void dmpHulls() {
+    OpCurveCurve* curveCurve = debugGlobalContext->debugCurveCurve;
+    if (!curveCurve)
+        return;
+    std::string names[] = { "edge curves", "opp curves" };
+    int count = 0;
+    std::string s;
+    for (const auto& edges : { curveCurve->edgeCurves, curveCurve->oppCurves } ) {
+        if (edges.c.empty())
+            continue;
+        s += "-- " + names[count] + ":" + STR(edges.c.size()) + " --\n";
+        for (OpEdge* edge : edges.c) {
+            s += "edge:" + STR(edge->id) + " hulls:" + STR(edge->hulls.h.size()) + "\n";
+            for (const auto& hs : edge->hulls.h) {
+                s += hs.debugDump(defaultLevel, defaultBase) + "\n";
+            }
+        }
+        ++count;
+    }
+    OpDebugFormat(s);
+}
+
+#endif
 
 std::string debugDmpLink(const OpEdge& edge, DebugLevel l, DebugBase b) {
     std::string s;
