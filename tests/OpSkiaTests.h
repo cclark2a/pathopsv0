@@ -7,13 +7,13 @@
 #endif
 
 #define SKIP_TO_V0 0  // set to 1 to ignore file, test first and run first test in v0
-#define SKIP_TO_FILE "quad" // e.g., "simplify"  one file
+#define SKIP_TO_FILE "loop" // e.g., "simplify"  one file
 #if !OP_DEBUG_ALT
-#define TEST_FIRST "simplifyQuadsX" // "simplifyQuads3005586""  // e.g., "testLoops40320" if file, one test
+#define TEST_FIRST "opLoopsX" // "simplifyQuads3005586""  // e.g., "testLoops40320" if file, one test
                         // !!! "loop8478" fails sometimes (san/valgrind found no error)
                         // cubic9092  cubic454498  cubic327361 troublesome unsectables
 #else
-#define TEST_FIRST "testCubics3251"  // for debugging two different tests simultaneously (test first & test alt)
+#define TEST_FIRST ""  // for debugging two different tests simultaneously (test first & test alt)
 #endif
 #define TEST_EXTENDED 1
 #define TEST_ANALYZE 0
@@ -44,9 +44,9 @@ count:1 0.111898132
 
 // loop191404 missing -0.078, 1.5323 t=0.281543255 oppT=0.290549636; 
 //                    -0.3563 2.0153 t=0.139774203 oppT=0.113169670
-#define CURVE_CURVE_1 2  // id of segment 1 to break in divide and conquer
-#define CURVE_CURVE_2 8  // id of segment 2 to break in divide and conquer
-#define CURVE_CURVE_DEPTH 4  // minimum recursion depth for curve curve break (-1 to disable)
+#define CURVE_CURVE_1 4  // id of segment 1 to break in divide and conquer
+#define CURVE_CURVE_2 7  // id of segment 2 to break in divide and conquer
+#define CURVE_CURVE_DEPTH 3  // minimum recursion depth for curve curve break (-1 to disable)
 #define CURVE_CURVE_DUMP 1  // 1: dump all ccs; 0: only dump matching curve (for very large tests)
 
 #define TEST_PATH_SKIP_TESTS { "grshapearc", "grshapearcs1" }  /* , "release_13", "pentrek10" */
@@ -54,18 +54,6 @@ count:1 0.111898132
 #define TEST_PATH_OP_SKIP_REST
 #define TEST_PATH_OP_SKIP_FILES  /* e.g., "battle", "circleOp" */
 
-/*
-simplifyQuads3095297 raster errors:33.7219162
-simplifyQuads3095298 raster errors:33.7220955
-.simplifyQuads3096047 raster errors:17.0364876
-simplifyQuads923258 raster errors:33.7218704
-simplifyQuads923259 raster errors:33.7218704
-simplifyQuads924008 raster errors:17.0362930
-simplifyQuads4002359 raster errors:33.7218742
-simplifyQuads4002360 raster errors:33.7218742
-simplifyQuads4003109 raster errors:17.0362968
-"simplifyQuads4769873" 33.7218704
-*/
 /*
 trunk:4923 bestGapLimb:[4927 e:823e..870 closeD:0] bestLimb:[4927 e:823e..870 closeD:0] bestDistance:0 bestPerimeter:0.00341796875 maxLimbs:1000 totalUsed:6 limbPass:unsectPair debugAddEach231
 [4923 e:826s..869e closeD:0.007055833] parent:- children:[4924 e:870s..823e closeD:0.00461451616] [4925 e:823s..870 closeD:0.00461451616] treePass:linked
@@ -76,50 +64,51 @@ trunk:4923 bestGapLimb:[4927 e:823e..870 closeD:0] bestLimb:[4927 e:823e..870 cl
 [4928 e:870e..823s closeD:0] parent:[4925 e:823s..870 closeD:0.00461451616] treePass:unlinked
 */
 
-/* testsRun:30046751 testsSkipped:0  avg pixelError:0.00014806533 maxError:0.279829621 largestError:testQuads2325711
-testQuads2325711 error:0.279829621
-testQuads2356719 error:0.279755592
-testQuads2294703 error:0.279751450
-testQuads19236931 error:0.110243842
-testQuads19227149 error:0.110236213
-testQuads19225789 error:0.110217303
-testQuads19233541 error:0.110202000
-testQuads19228269 error:0.110197239
-testQuads19234901 error:0.110191032
-testQuads19241293 error:0.110190123
-testQuads19244683 error:0.110181749
-testQuads19236021 error:0.110167548
-testQuads19242653 error:0.110165879
-testQuads18504901 error:0.110139072
-testQuads18506261 error:0.110139072
-testQuads18507381 error:0.110139072
-testQuads18508291 error:0.110139072
-testQuads19229179 error:0.110139072
-testQuads19243773 error:0.110137872
-testQuads5383069 error:0.110108651
+/* 
+testsRun:30046753 testsSkipped:0  avg pixelError:0.00014783004 maxError:0.110236213 largestError:simplifyQuads19830731
+simplifyQuads19830731 error:0.110236213
+simplifyQuads19845405 error:0.110225432
+simplifyQuads19828691 error:0.110217303
+simplifyQuads19832411 error:0.110197239
+simplifyQuads19851949 error:0.110190123
+simplifyQuads19840320 error:0.110185139
+simplifyQuads19857034 error:0.110181749
+simplifyQuads19842360 error:0.110175960
+simplifyQuads19853989 error:0.110165879
+simplifyQuads19844040 error:0.110161059
+simplifyQuads18747266 error:0.110139072
+simplifyQuads18749306 error:0.110139072
+simplifyQuads18750986 error:0.110139072
+simplifyQuads18752351 error:0.110139072
+simplifyQuads19833776 error:0.110139072
+simplifyQuads19855669 error:0.110137872
+simplifyQuads6576451 error:0.110108651
+simplifyQuads6574771 error:0.110087804
+simplifyQuads6572731 error:0.110023737
+simplifyQuads6428299 error:0.105965883
  */
 
-/* testsRun:3889619 testsSkipped:0  avg pixelError:0.000391925016 maxError:0.083270669 largestError:testCubics2952164
-testCubics2952164 error:0.083270669
-testCubics2952168 error:0.083270669
-testCubics2952172 error:0.083270669
-testCubics2952176 error:0.083270669
-testCubics1213284 error:0.0832263231
-testCubics1213288 error:0.0832263231
-testCubics1213292 error:0.0832263231
-testCubics1213296 error:0.0832263231
-testCubics2952163 error:0.0832172632
-testCubics2952167 error:0.0832172632
-testCubics2952171 error:0.0832172632
-testCubics2952175 error:0.0832172632
-testCubics1213283 error:0.0832005739
-testCubics1213287 error:0.0832005739
-testCubics1213291 error:0.0832005739
-testCubics1213295 error:0.0832005739
-testCubics3844445 error:0.0829936266
-testCubics3844446 error:0.0829936266
-testCubics3844447 error:0.0829936266
-testCubics3844448 error:0.0829936266
+/* testsRun:3889621 testsSkipped:0  avg pixelError:0.000391115085 maxError:0.0833185911 largestError:opCubics3011319
+opCubics3011319 error:0.0833185911
+opCubics3011324 error:0.0833185911
+opCubics3011329 error:0.0833185911
+opCubics3011334 error:0.0833185911
+opCubics1226654 error:0.0832742453
+opCubics1226659 error:0.0832742453
+opCubics1226664 error:0.0832742453
+opCubics1226669 error:0.0832742453
+opCubics3011318 error:0.0832651854
+opCubics3011323 error:0.0832651854
+opCubics3011328 error:0.0832651854
+opCubics3011333 error:0.0832651854
+opCubics1226653 error:0.0832484961
+opCubics1226658 error:0.0832484961
+opCubics1226663 error:0.0832484961
+opCubics1226668 error:0.0832484961
+opCubics4195488 error:0.082993865
+opCubics4195490 error:0.082993865
+opCubics4195492 error:0.082993865
+opCubics4195494 error:0.082993865
  */
 
 /* testsRun:30046751 testsSkipped:0  avg pixelError:0.000118281409

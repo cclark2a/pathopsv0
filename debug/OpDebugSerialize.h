@@ -350,7 +350,7 @@ struct EdgeFilterName {
 #define DEBUG_DUMP_COMMON_VECTOR(thisVector) \
     do { \
     if (thisVector.size()) { \
-        s += #thisVector ":" + STR(thisVector.size()) + " "; \
+        s += #thisVector ":" + STR(thisVector.size()) + "\n"; \
         for (const auto& member : thisVector) { \
             s += member.debugDump(l, b) + "\n"; \
         } \

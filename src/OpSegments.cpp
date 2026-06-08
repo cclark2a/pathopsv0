@@ -461,14 +461,7 @@ bool OpSegments::findIntersection(OpSegment* seg, OpSegment* opp) {
 	}
 	SectFound ccResult = cc.divideAndConquer();
 #if OP_DEBUG_DUMP
-	if (!cc.debugBreak(CcBreak::dumpFile))
-		cc.context->dumpFile("curve:" + STR(seg->id) + " curve:" + STR(opp->id));
-#endif
-#if OP_DEBUG && !OP_DEBUGGER && !OP_DEBUG_FAST_TEST
-	if (!cc.debugBreak(CcBreak::atEnd)) {
-		OP_DEBUG_DUMP_CODE(cc.limits.dump());
-		OP_ASSERT(0);
-	}
+	OP_ASSERT(cc.debugBreak(CcBreak::atEnd));
 #endif
 	// search runs for small opp distances; turn found into limits
 	SectFound limitsResult = cc.runsToLimits();

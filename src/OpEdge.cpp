@@ -370,7 +370,7 @@ OpEdge* OpEdge::advanceToEnd(EdgeMatch match) {
 WindingCondition OpEdge::apply() {
 	if (centerless)
 		setDisabled(OP_LINE_FILE_NPARGS());
-	if (disabled || !isSortable() || !isSummable())
+	if (disabled || !isSortable() || !sum.isSet())
 		return 0;
     OpContext* ctxt = context();
 	PathOpsV0Lib::WindKeep keep = winding.keep(sum);

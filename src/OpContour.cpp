@@ -759,14 +759,13 @@ int OpContour::nextID() const {
 
 void OpContour::setSeen(int tree_id) {
 	treeID = tree_id;
-	for (OpEdge* test : linkups.l) {
-		test->startSeen = false;
+	for (auto& testArray : {linkups.l, smallEdges, unsortables, unsectByArea } ) {
+		for (OpEdge* test : testArray) {
+			test->startSeen = false;
+		}
 	}
 	for (OpEdge* test : endLinks.l) {
 		test->lastEdge->endSeen = false;
-	}
-	for (OpEdge* test : smallEdges) {
-		test->startSeen = false;
 	}
 }
 

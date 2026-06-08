@@ -1008,7 +1008,7 @@ ResolveWinding OpWinder::SetWindingByDistance(OpEdge* edge) {
 	SectRay& ray = edge->ray;
 	OP_ASSERT(ray.distances.size());
 	if (edge == ray.distances[0].edge) {
-		if (!edge->isSummable())  // !!! move this to where unsummable is set?
+		if (!edge->isSummable() || edge->hasPals())  // !!! move this to where unsummable is set?
 			edge->setUnsortable(Unsortable::homeUnsectable);
 		else {
 			OpWinding prev(edge, WindingSum::dummy);
@@ -1092,11 +1092,12 @@ ResolveWinding OpWinder::SetWindingByDistance(OpEdge* edge) {
 			OP_DEBUG_FAIL(*sumEdge, ResolveWinding::fail);
 	}
 	OpEdge* prior;
+	bool edgeUnsummable = edge->unsummable;
 	do {
 		OP_ASSERT(sumIndex + 1 < (int) ray.distances.size());
 		Distance& dist = ray.distances[++sumIndex];
 		prior = dist.edge;
-		if (!edge->isSummable() && (edge == prior || edge->isPal(prior)))
+		if (edgeUnsummable && (edge == prior || edge->isPal(prior)))
 			break;
 		NormalDirection normDir = prior->normalDirection(ray.axis, dist.edgeInsideT);
 		if (NormalDirection::underflow == normDir) {
@@ -1105,6 +1106,8 @@ ResolveWinding OpWinder::SetWindingByDistance(OpEdge* edge) {
 		}
 		bool allowSetSum = prior->isSummable() && ((dist.dependent || !anyPriorPal(prior, sumIndex))
 				&& RayOrder::unordered != ray.distances[sumIndex].rayOrder);
+		if (!allowSetSum && prior == edge)
+			edgeUnsummable = true;
 		if (allowSetSum && NormalDirection::downLeft == normDir)
 			prior->setSum(sumWinding  OP_LINE_FILE_PARGS());
 		if (CalcFail::fail == prior->addSub(winderOwner, ray.axis, dist.edgeInsideT, &sumWinding)) // if d/l sub; if u/r add
@@ -1112,7 +1115,7 @@ ResolveWinding OpWinder::SetWindingByDistance(OpEdge* edge) {
 		if (allowSetSum && NormalDirection::upRight == normDir)
 			prior->setSum(sumWinding  OP_LINE_FILE_PARGS());
 	} while (edge != prior);
-	if (edge->isSummable()) {
+	if (!edgeUnsummable) {
 		if (!edge->sum.isSet())
 			edge->setSum(sumWinding  OP_LINE_FILE_PARGS());
 		return ResolveWinding::resolved;
@@ -1124,7 +1127,7 @@ ResolveWinding OpWinder::SetWindingByDistance(OpEdge* edge) {
 	}
 	if (CalcFail::fail == edge->addIfUR(ray.axis, homeT, &sumWinding))
 		edge->setUnsortable(Unsortable::addCalcFail2);
-	else if (edge->isSummable())
+	else if (!edgeUnsummable)
 		edge->setSum(sumWinding  OP_LINE_FILE_PARGS());
 	return ResolveWinding::resolved;	   
 }
@@ -1357,6 +1360,10 @@ FoundWindings OpWinder::SetWindings(OpContext& context) {
 					continue;
 				if (edge.rayFail == EdgeFail::horizontal)
 					continue;
+				if (edge.hasPals()) {
+					edge.unsummable = true;
+					continue;
+				}
 				OP_DEBUG_FAIL(edge, FoundWindings::fail);
 			}
 		}

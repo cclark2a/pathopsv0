@@ -3,6 +3,29 @@
 // optimized for speed, reduced memory, and random access
 #include "TinySkiaTests.h"
 
+static void opCubicsX(TestOptions* options) {
+    float a = 0;
+    float b = 4;
+    float c = 0;
+    float d = 3;
+    SkPathFillType e = SkPathFillType::kWinding;
+    SkPathFillType f = SkPathFillType::kWinding;
+    SkPath pathA, pathB;
+    pathA.setFillType(e);
+    float oA = 0;
+    float oB = 4;
+    float oC = 0;
+    float oD = 2;
+    pathA.moveTo(oA, oB);
+    pathA.cubicTo(oC, oD, b, a, d, c);
+    pathA.close();
+    pathB.setFillType(f);
+    pathB.moveTo(a, b);
+    pathB.cubicTo(c, d, oB, oA, oD, oC);
+    pathB.close();
+    options->testOne(pathA, pathB, TinyOps::intersect);
+}
+
 // Skia tests omitted reverse difference; put those tests at the end to preserve numbering
 static void opCubics(TestOptions* options) {
     auto test = [options](float oA, float oB, float oC, float oD, bool testRevDiff) {
@@ -67,6 +90,7 @@ static void opCubics(TestOptions* options) {
 
 void V0OpCubics(TestTrack* track) {
     static std::vector<TestFunc> tests = {
+        TEST_FUNC(opCubicsX),
         TEST_FUNC_NUMBERED(opCubics),
     };
     track->runTests(tests);

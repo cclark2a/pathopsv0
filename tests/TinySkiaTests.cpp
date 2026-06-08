@@ -38,7 +38,7 @@ std::vector<TinySuite> tinySuites = {
     { V0OpCircles, "circle" },
     { V0OpCubics, "cubic" },
     { V0OpFail, "opFail" },
-    { V0OpLoops, "loop" },
+    { V0OpLoops, "loop", .5f },
     { V0OpRects, "opRect" },
     { V0Simplify, "simplify" },
     { V0SimplifyDegenerates, "degenerate" },

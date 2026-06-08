@@ -717,31 +717,26 @@ void OpCurveCurve::debugSaveState() {
 #endif
 
 // return false for caller to assert
-bool OpCurveCurve::debugBreak(CcBreak atDepth) {
+
 #if OP_DEBUG_DUMP
-	if (context->debugData.defeatBreak)
-		return true;
-	if (context->debugData.curveCurveDepth < 0)
+bool OpCurveCurve::debugBreak(CcBreak atDepth) {
+    OpDebugData& debugData = context->debugData;
+    bool curvesMatch = (debugData.curveCurve1 == seg->id && debugData.curveCurve2 == opp->id)
+            || (debugData.curveCurve1 == opp->id && debugData.curveCurve2 == seg->id);
+    if (CcBreak::atEnd == atDepth && (debugData.dumpAllCcs || curvesMatch))
+        context->dumpFile("curve:" + STR(seg->id) + " curve:" + STR(opp->id));
+    if (!curvesMatch)
         return true;
-    if (CcBreak::atDepth == atDepth && !context->debugData.curveCurveDepth)
-        return true;
-    if (context->debugData.curveCurve1 != seg->id && context->debugData.curveCurve2 != seg->id)
-        return CcBreak::dumpFile != atDepth && !context->debugData.dumpAllCcs;
-    if (context->debugData.curveCurve1 != opp->id && context->debugData.curveCurve2 != opp->id)
-        return CcBreak::dumpFile != atDepth && !context->debugData.dumpAllCcs;
-    if (CcBreak::atDepth == atDepth && depth < context->debugData.curveCurveDepth)
+    if (debugData.defeatBreak)
 		return true;
-    std::string s = "OpCurveCurve ";
-    if (CcBreak::atDepth == atDepth)
-        s += "atDepth:" + STR(depth);
-    if (CcBreak::atEnd == atDepth)
-        s += "atEnd:" + STR(depth);
-    context->dumpFile(s);
-	return false;
-#else
-    return true;
-#endif
+    if (debugData.curveCurveDepth < 0)
+        return true;
+    if (CcBreak::atDepth == atDepth 
+            && (0 == debugData.curveCurveDepth || depth < debugData.curveCurveDepth))
+        return true;
+    return false;
 }
+#endif
 
 const OpEdge* OpEdge::debugAdvanceToEnd(EdgeMatch match) const {
 	const OpEdge* result = this;

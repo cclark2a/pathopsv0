@@ -44,7 +44,8 @@ OP_X(OpContour) \
 OP_X(OpEdge) \
 OP_X(OpIntersection) \
 OP_X(OpPtT) \
-OP_X(OpSegment)
+OP_X(OpSegment) \
+OP_X(SnipPtTs)
 
 #define STRUCT_ID \
 OP_X(CoinPair) \
@@ -55,7 +56,8 @@ OP_X(OpEdge)
 OP_X(EdgeRun) \
 OP_X(FoundLimits) \
 OP_X(HullSect) \
-OP_X(OpPtT)
+OP_X(OpPtT) \
+OP_X(SnipPtTs)
 
 #define OP_STRUCTS \
 OP_X(CcCurves) \

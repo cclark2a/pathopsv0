@@ -25,7 +25,8 @@ OP_X(OpSegment)
 OP_X(EdgeRun) \
 OP_X(FoundLimits) \
 OP_X(HullSect) \
-OP_X(OpPtT)
+OP_X(OpPtT) \
+OP_X(SnipPtTs)
 
 #undef OP_X
 #define OP_X(Thing) \
@@ -852,30 +853,31 @@ std::string FoundEdge::debugDumpID() const {
 std::string FoundLimit::debugDump(DebugLevel l, DebugBase b) const {
     std::string s;
     if (parentEdge)
-        s += " parentEdge:" + STR(parentEdge->id);
+        s += "parentEdge:" + STR(parentEdge->id) + " ";
     if (parentOpp)
-        s += " parentOpp:" + STR(parentOpp->id);
-    s += "segPtT:" + segPtT.debugDump(l, b);
-    s += " oppPtT:" + oppPtT.debugDump(l, b);
+        s += "parentOpp:" + STR(parentOpp->id) + " ";
+    s += "segPtT:" + segPtT.debugDump(l, b) + " ";
+    s += "oppPtT:" + oppPtT.debugDump(l, b) + " ";
     if (LimitFrom::yes == fromFoundT)
-        s += " fromFoundT";
+        s += "fromFoundT ";
     if (Unordered::yes == oppOutOfOrder)
-        s += " oppOutOfOrder";
+        s += "oppOutOfOrder ";
     if (LimitUsed::yes == used)
-        s += " used";
+        s += "used ";
     if (LimitMatch::yes == match)
-        s += " match";
+        s += "match ";
     if (LimitSwapped::yes == swapped)
-        s += " swapped";
+        s += "swapped ";
     if (LimitBettered::yes == bettered)
-        s += " bettered";
+        s += "bettered ";
     if (LimitLine::yes == edgeLine)
-        s += " edgeLine";
+        s += "edgeLine ";
     if (LimitLine::yes == oppLine)
-        s += " oppLine";
+        s += "oppLine ";
 #if OP_DEBUG_MAKER
-    s += " debugMaker:" + debugMaker.debugDump();
+    s += "debugMaker:" + debugMaker.debugDump() + " ";
 #endif
+    s.pop_back();
     return s;
 }
 
@@ -894,7 +896,8 @@ std::string FoundLimits::debugDump(DebugLevel l, DebugBase b) const {
         }
     } else {
         DEBUG_DUMP_FIRST_VECTOR(i);
-        DEBUG_DUMP_VECTOR(i, snips);
+        DEBUG_DUMP_VECTOR(i, lastSnips);
+        DEBUG_DUMP_VECTOR(lastSnips, snips);
         ASSERT_ORDERED(snips, cc);
         DEBUG_DUMP_OPTIONAL_POS_VALUE(cc, unique);
         DEBUG_DUMP_BOOL(unique, smSegT);

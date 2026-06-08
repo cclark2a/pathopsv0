@@ -341,8 +341,7 @@ void OpSegment::manyCoincidences() {
 					segHasPairs = true;
 					continue;
 				}
-				check->unsectID = 0;
-				check->unsectEnd = MatchEnds::none;
+				check->zeroUnsectPair();
 				seg->sects.unsorted = true;
 			}
 			seg->hasUnsectable = segHasUnsectable;
@@ -790,7 +789,8 @@ void OpSegment::makePals() {
 			for (OpEdge& oEdge : oSeg->edges) {
 				if (oEdge.disabled)
 					continue;
-#if 0  // !!! causes nearly axis-aligned unsectables to fail (loop134368)
+#if 1  // !!! causes nearly axis-aligned unsectables to fail (loop134368)
+	   //     but, not doing so causes joiner trees to explode
 				if (!edge.bounds().intersects(oEdge.bounds()))
 					continue;
 #endif
@@ -1053,9 +1053,11 @@ void OpSegment::mergeMultiple(OpPoint masterPt, int masterID, OpPoint mergePt, i
 }
 
 PrefFound OpSegment::moveSects(OpPtT match, OpPoint destination) {
+	OP_ASSERT(!sects.unsorted);
+	OP_ASSERT(!sects.i.empty());
 	SectCleanup cleanup = sects.moveSects(match, destination,
-			destination == c.firstPt() ? MatchEnds::start : destination == c.lastPt() 
-			? MatchEnds::end : MatchEnds::none);
+			destination == sects.i.front()->ptT.pt ? MatchEnds::start : 
+			destination == sects.i.back()->ptT.pt ? MatchEnds::end : MatchEnds::none);
 	switch (cleanup) {
 		case SectCleanup::none:
 			return PrefFound::ok;

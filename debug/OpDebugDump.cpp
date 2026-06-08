@@ -2697,7 +2697,8 @@ void FoundLimit::dumpResolveAll(OpContext* c) {
 
 void FoundLimits::dumpSet(const char*& str) {
 	DEBUG_SET_FIRST_VECTOR(i);
-	DEBUG_SET_VECTOR(i, snips);
+	DEBUG_SET_VECTOR(i, lastSnips);
+	DEBUG_SET_VECTOR(lastSnips, snips);
     ASSERT_ORDERED(snips, cc);
     DEBUG_SET_OPTIONAL_VALUE(cc, unique);
 	DEBUG_SET_BOOL(unique, smSegT);
@@ -2904,22 +2905,6 @@ std::string DumpCurveCurve::debugDump(DebugLevel l, DebugBase b) const {
         DEBUG_DUMP_REQUIRED_VALUE(runs, nthCall);
         ASSERT_LAST_OFFSET(nthCall, 4);
         return s;
-    }
-    if (DebugLevel::file == l)
-        s += "nthCall:" + STR(nthCall) + " ";
-    if (DebugLevel::file == l) {
-        if (runIndex.size()) {
-            s += "runIndex[" + STR(runIndex.size()) + "\n";
-            for (const DebugRunSize& size : runIndex)
-                s += "{edgeRuns:" + STR(size.edgeRuns) + " oppRuns:" + STR(size.oppRuns) + "} ";
-            debugPopMatching(s, ' ');
-            s += "] ";
-        }
-        if (runs.size()) {
-            s += "runs:" + STR(runs.size()) + "\n";
-            for (const auto& run : runs)
-                s += run.debugDump(l, b) + "\n";
-        }
     }
     return s;
 }

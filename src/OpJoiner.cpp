@@ -297,6 +297,8 @@ OpLimb* OpLimb::tryAdd(OpTree& tree, OpEdge* test, EdgeMatch m, LimbPass limbPas
 	if (LimbPass::disabledCenterless == limbPass) 
 		test->setWhich(m);
 #endif
+	if (LimbPass::unlinked == limbPass)
+		test->startSeen = true;
 	OpLimb* branch = tree.makeLimb();
 	branch->set(tree, test, newParent, m, limbPass, limbContour, limbIndex, otherEnd, &childBounds);
 	return branch;

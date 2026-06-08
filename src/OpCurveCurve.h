@@ -124,7 +124,8 @@ struct CcCurves {
     bool checkMid(float midT, float startDist, float endDist);
     bool checkMidEdge(OpEdge* );
 	bool checkMidRun(size_t index);  // mid pt distance to next run smaller
-	void checkSigns();
+	void checkOneSign(const EdgeRun* start, const EdgeRun* end, CurveRef );
+	void checkSigns(CurveRef );
 	void clear();
     void complementRun(OpEdge* opp);
     std::vector<Interval> continuous(const OpPtT& lower, const OpPtT& upper) const;  // true if edges link lower to upper
@@ -250,6 +251,7 @@ struct FoundLimits {
 	DUMP_DECLARATIONS
 
 	std::vector<FoundLimit> i;
+	std::vector<SnipPtTs> lastSnips;
 	std::vector<SnipPtTs> snips;
 	OpCurveCurve* cc;
 	int unique = -1;  // cached count; set negative if invalid
@@ -328,13 +330,11 @@ struct OpCurveCurve {
 	bool splitDownTheMiddle(const OpEdge& edge, CurveRef , CcCurves& splits);
 	bool splitHulls(CurveRef , CcCurves& splits);  // hull finds split point
 	size_t uniqueLimits();
-#if OP_DEBUG
-	bool debugBreak(CcBreak );
-#endif
 #if OP_DEBUG_DUMP
 	OpCurveCurve(OpContext* c) 
 		: limits(this) { 
 		context = c; }
+	bool debugBreak(CcBreak );
 	void drawClosest(const OpPoint& originalPt) const;
 	void dumpClosest(const OpPoint& pt) const;
 #endif

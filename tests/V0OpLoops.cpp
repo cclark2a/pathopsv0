@@ -3,6 +3,35 @@
 // optimized for speed, reduced memory, and random access
 #include "TinySkiaTests.h"
 
+void opLoopsX(TestOptions* options) {
+    float a = 0;
+    float b = 1;
+    float c = 3;
+    float d = 5;
+    float oA = 2;
+    float oB = 4;
+    float oC = 0;
+    float oD = 1;
+    // define 4 points that form two lines that often cross; one line is (a, b) (c, d)
+    OpVector v {a - c, b - d};
+    OpPoint midA { a * oA + c * (6 - oA) / 6,
+                    b * oA + d * (6 - oA) / 6 };
+    OpPoint midB { a * oB + c * (6 - oB) / 6,
+                    b * oB + d * (6 - oB) / 6 };
+    OpPoint endC { midA.x + v.dy * oC / 3,
+                    midA.y + v.dx * oC / 3 };
+    OpPoint endD { midB.x - v.dy * oD / 3,
+                    midB.y + v.dx * oD / 3 };
+    SkPath pathA, pathB;
+    pathA.moveTo(a, b);
+    pathA.cubicTo(c, d, endC.x, endC.y, endD.x, endD.y);
+    pathA.close();
+    pathB.moveTo(c, d);
+    pathB.cubicTo(endC.x, endC.y, endD.x, endD.y, a, b);
+    pathB.close();
+    options->testOne(pathA, pathB, TinyOps::intersect);
+}
+
 static void loops(TestOptions* options) {
     auto test = [options](float oA, float oB, float oC, float oD) {
         for (float a = 0 ; a < 6; ++a) {
@@ -56,6 +85,7 @@ static void loops(TestOptions* options) {
 
 void V0OpLoops(TestTrack* track) {
     static std::vector<TestFunc> tests = {
+        TEST_FUNC(opLoopsX),
         TEST_FUNC_NUMBERED(loops),
     };
     track->runTests(tests);
