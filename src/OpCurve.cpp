@@ -395,24 +395,8 @@ OpRoots OpCurve::rawIntersect(const LinePts& linePt, MatchEnds common) const {
 			common |= MatchEnds::end;
 		return axisRawHit(Axis::horizontal, linePt.pts[0].y, common);
 	}
-#if OP_DEBUG_DUMP
-	OpContext* context = (OpContext*) c.context;
-	OpCurveCurve* cc = context->debugCurveCurve;
-	if (cc && cc->debugDumpOn) { 
-		dump();
-		OpDebugOut("\n");
-		linePt.dump();
-		OpDebugOut("\n");
-	}
-#endif
 	// do not turn result into a line, since rotated is only used to find intersecting t value
 	OpCurve isRotated = toVerticalBase(linePt, common);
-#if OP_DEBUG_DUMP
-	if (cc && cc->debugDumpOn) {
-		isRotated.dump();
-		OpDebugOut("\n\n");
-	}
-#endif
 	if (!isRotated.isFinite()) {
 		writableContext().setError(PathOpsV0Lib::ContextError::toVertical  OP_DEBUG_PARAMS(0));
 		return OpRoots();

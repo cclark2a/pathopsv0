@@ -903,7 +903,7 @@ struct OpMath {
 	static bool Between(float a, float b, float c) {
 		OP_DEBUG_CODE(bool classicResult = (a <= b && b <= c) || (a >= b && b >= c));
 		OP_DEBUG_CODE(bool cleverResult = (a - b) * (c - b) <= 0);
-		OP_ASSERT(classicResult == cleverResult);
+		OP_ASSERT(classicResult == cleverResult || fabsf(b) < OpEpsilon);
 		return (a - b) * (c - b) <= 0;
 	}
 

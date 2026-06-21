@@ -1034,15 +1034,18 @@ std::string MatchReverse::debugDump(DebugLevel l, DebugBase b) const {
 
 void OpContext::dumpString(const std::string& s) const {
     // special descriptions are also filenames, to allow verifying that dump works correctly
-    std::string filePath = dmpFileToPath(debugFilename);
-    FILE* file = fopen(filePath.c_str(), "w");
+    std::string tmpFilePath = dmpFileToPath("tmp_" + debugFilename);
+    FILE* file = fopen(tmpFilePath.c_str(), "w");
     if (!file) {
-        OpDebugOut("could not open " + filePath + " to write\n");
+        OpDebugOut("could not open " + tmpFilePath + " to write\n");
         return;
     }
     std::string fS = stringFormat(s, 133);  // accomodate op debug bitmap (66 bytes x 2)
     fwrite(&fS[0], 1, fS.size(), file);
     fclose(file);
+    std::string filePath = dmpFileToPath(debugFilename);
+    if (rename(tmpFilePath.c_str(), filePath.c_str()))  // so debugger doesn't read partial file
+        OpDebugOut("could not rename " + tmpFilePath + " to " + filePath + "\n");
 }
 
 void OpContext::dumpBaseFile(DumpRaster dumpRaster) const {

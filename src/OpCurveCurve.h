@@ -245,6 +245,7 @@ struct FoundLimits {
 	void setOpp(const OpEdge* );
 	void setUnique();
 	size_t size() const { return i.size(); }
+	OpPtT snipTrack(CurveRef curveRef, const OpPtT& sPtT, float st);
 	void sort() {
 		std::sort(i.begin(), i.end(), [](const FoundLimit& a, const FoundLimit& b) {
 			return a.segPtT.t < b.segPtT.t; }); }
@@ -301,6 +302,7 @@ struct OpCurveCurve {
     bool addLineCurveIntersection(OpEdge& edge, OpEdge& opp, CurveRef );
 	EdgeRun* addEdgeRun(OpEdge* , CurveRef , EdgeMatch  OP_LINE_FILE_ARGS());
 	bool addUnsectable(FoundLimit& limit, FoundLimit& limitEnd);
+	void alignAndRecord(OpEdge& eEdge, OpEdge& oEdge, OpPtT& ePtT, OpPtT& oPtT, CurveRef );
     OpEdge* allocEdge(OpSegment* , const OpEdge* , const OpPtT& start, const OpPtT& end,
             NewEdge, EdgeOverlaps  OP_LINE_FILE_DEF(int parentID));
 	bool alreadyInLimits(const OpEdge* edge, const OpEdge* oEdge, 
@@ -309,7 +311,7 @@ struct OpCurveCurve {
 	OpEdge* boundedEdge(OpSegment* s, const OpPointBounds&, OpPtT* singleton  OP_LINE_FILE_ARGS());
 	bool checkForGaps();
 	bool checkSect();
-	bool checkSplit(float lo, float hi, CurveRef , OpPtT& checkPtT) const;
+	bool checkSplit(float lo, float hi, CurveRef , OpPtT& checkPtT);
 	void checkUnsplitables();
 	SectFound divideAndConquer();
 	bool endsOverlap() const;
@@ -384,9 +386,6 @@ struct OpCurveCurve {
 	bool splitMid  OP_DEBUG_INIT_BOOL();
 	bool splitHullFail  OP_DEBUG_INIT_BOOL();  // set true if mid t is nearly equal to an end 
 	bool overflowFail = false;  // set if intermediate (such as length) is inf or nan
-#if OP_DEBUG_DUMP
-	bool debugDumpOn = false;
-#endif
 };
 
 #if OP_DEBUG_DUMP

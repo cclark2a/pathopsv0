@@ -7,9 +7,10 @@
 #endif
 
 #define SKIP_TO_V0 0  // set to 1 to ignore file, test first and run first test in v0
-#define SKIP_TO_FILE "loop" // e.g., "simplify"  one file
+#define SKIP_TO_FILE "quad" // e.g., "simplify"  one file
+#define TEST_SUITE_FIRST ""  // e.g., "simplifyFail" skip suites prior to this one
 #if !OP_DEBUG_ALT
-#define TEST_FIRST "opLoopsX" // "simplifyQuads3005586""  // e.g., "testLoops40320" if file, one test
+#define TEST_FIRST "simplifyQuadsX"   // e.g., "simplifyQuads13071788" simplifyQuadsX" if file, one test
                         // !!! "loop8478" fails sometimes (san/valgrind found no error)
                         // cubic9092  cubic454498  cubic327361 troublesome unsectables
 #else
@@ -44,15 +45,16 @@ count:1 0.111898132
 
 // loop191404 missing -0.078, 1.5323 t=0.281543255 oppT=0.290549636; 
 //                    -0.3563 2.0153 t=0.139774203 oppT=0.113169670
-#define CURVE_CURVE_1 4  // id of segment 1 to break in divide and conquer
+#define CURVE_CURVE_1 3  // id of segment 1 to break in divide and conquer
 #define CURVE_CURVE_2 7  // id of segment 2 to break in divide and conquer
-#define CURVE_CURVE_DEPTH 3  // minimum recursion depth for curve curve break (-1 to disable)
+#define CURVE_CURVE_DEPTH 2  // minimum recursion depth for curve curve break (-1 to disable)
 #define CURVE_CURVE_DUMP 1  // 1: dump all ccs; 0: only dump matching curve (for very large tests)
 
 #define TEST_PATH_SKIP_TESTS { "grshapearc", "grshapearcs1" }  /* , "release_13", "pentrek10" */
 // when these tests are encountered, it and the remaining tests in the file are skipped
 #define TEST_PATH_OP_SKIP_REST
 #define TEST_PATH_OP_SKIP_FILES  /* e.g., "battle", "circleOp" */
+#define TEST_ENABLE_V0 1  // set zero to verify all tests are visited exactly once (disables engine)
 
 /*
 trunk:4923 bestGapLimb:[4927 e:823e..870 closeD:0] bestLimb:[4927 e:823e..870 closeD:0] bestDistance:0 bestPerimeter:0.00341796875 maxLimbs:1000 totalUsed:6 limbPass:unsectPair debugAddEach231
@@ -184,27 +186,27 @@ testTriangles1224563 error:0.000691263471
 testTriangles1224834 error:0.000691263471
 */
 
-/* testsRun:194480 testsSkipped:0  avg pixelError:0.000483194715 maxError:0.107989788 largestError:testLoops70924
-testLoops70924 error:0.107989788
-testLoops81487 error:0.0702061653
-testLoops32467 error:0.068382144
-testLoops77434 error:0.0434149504
-testLoops78856 error:0.0431461334
-testLoops15846 error:0.040163517
-testLoops14901 error:0.0342123508
-testLoops136565 error:0.0301455259
-testLoops31171 error:0.0274611712
-testLoops3822 error:0.0213317871
-testLoops163624 error:0.0203206874
-testLoops51567 error:0.0200154781
-testLoops6867 error:0.0192921162
-testLoops62307 error:0.0181521215
-testLoops566 error:0.0178154316
-testLoops64129 error:0.0177198648
-testLoops1970 error:0.0164101124
-testLoops542 error:0.0156211592
-testLoops136417 error:0.0150725245
-testLoops1090 error:0.0144543648
+/* testsRun:194482 testsSkipped:0  avg pixelError:0.000478703732 maxError:0.0374162197 largestError:loops83975
+loops83975 error:0.0374162197
+loops8095 error:0.0213327408
+loops2411 error:0.0210089013
+loops2455 error:0.0185297187
+loops4387 error:0.0164101124
+loops1528 error:0.0156211592
+loops1576 error:0.0149263041
+loops2625 error:0.0144543648
+loops1788 error:0.0142819881
+loops2839 error:0.0127899647
+loops1484 error:0.012759476
+loops35172 error:0.0108671188
+loops1532 error:0.0108643882
+loops3288 error:0.0103959935
+loops4215 error:0.0100661041
+loops66722 error:0.0099271182
+loops601 error:0.00982907694
+loops18965 error:0.00976490974
+loops21614 error:0.00975561142
+loops22497 error:0.00973463058
 */
 
 /* testsRun:594037 testsSkipped:0  avg pixelError:4.0110237e-05 maxError:0.0368652344 largestError:chalkboard10530
@@ -302,4 +304,91 @@ simplifyRect1102265 error:4.76837158e-07
 simplifyRect1102266 error:4.76837158e-07
 */
 
+/*
+testsRun:700005 testsSkipped:0  avg pixelError:0.00092107855 maxError:0.200589180 largestError:tiger_threaded352557
+tiger_threaded352557 error:0.200589180
+tiger_threaded353385 error:0.200589180
+tiger_threaded353521 error:0.200589180
+tiger_threaded354123 error:0.200589180
+tiger_threaded354639 error:0.200589180
+tiger_threaded356203 error:0.200589180
+tiger_threaded356343 error:0.200589180
+tiger_threaded359537 error:0.200589180
+tiger_threaded361681 error:0.200589180
+tiger_threaded362101 error:0.200589180
+tiger_threaded362511 error:0.200589180
+tiger_threaded362969 error:0.200589180
+tiger_threaded363375 error:0.200589180
+tiger_threaded363489 error:0.200589180
+tiger_threaded363897 error:0.200589180
+tiger_threaded364667 error:0.200589180
+tiger_threaded365303 error:0.200589180
+tiger_threaded366361 error:0.200589180
+tiger_threaded366979 error:0.200589180
+tiger_threaded367283 error:0.200589180
+*/
+
+/*
+testsRun:8 testsSkipped:0  avg pixelError:0.00539990328 maxError:0.0141296387 largestError:issue3651_2
+issue3651_2 error:0.0141296387
+issue3651_5 error:0.00993347168
+issue3651_4 error:0.00897216797
+issue3651_3 error:0.00796508789
+issue3651_7 error:0.00218200684
+issue3651_6 error:1.68547358e-05
+ */
+
+ /*
+ circle totalTests:1270080
+testsRun:1270080 testsSkipped:0  avg pixelError:0.000241914735 maxError:0.00638360716 largestError:circles328065
+circles328065 error:0.00638360716
+circles328068 error:0.00638360716
+circles328069 error:0.00638360716
+circles328072 error:0.00638360716
+circles328073 error:0.00638360716
+circles328076 error:0.00638360716
+circles328077 error:0.00638360716
+circles328080 error:0.00638360716
+circles328081 error:0.00638360716
+circles328084 error:0.00638360716
+circles328085 error:0.00638360716
+circles328088 error:0.00638360716
+circles328089 error:0.00638360716
+circles328092 error:0.00638360716
+circles328093 error:0.00638360716
+circles328096 error:0.00638360716
+circles332097 error:0.00638360716
+circles332100 error:0.00638360716
+circles332101 error:0.00638360716
+circles332104 error:0.00638360716
+*/
+
+/*
+battle totalTests:381
+chalkboard totalTests:594037
+fuzz763 totalTests:30
+inverse totalTests:320
+issue3651 totalTests:8
+op totalTests:365
+circle totalTests:1270080
+....................................................................................................
+...................................................................................................1M.
+.....................................................
+cubic totalTests:3889621
+..............................................
+...................................................................................................2M.
+....................................................................................................
+...................................................................................................3M.
+....................................................................................................
+...................................................................................................4M.
+....................................................................................................
+...................................................................................................5M.
+................................
+opFail totalTests:85
+
+Execute debugger commands using "-exec <command>", for example "-exec info registers" will list registers in use (when GDB is the debugger)
+fatal error in fuzz763_50
+
+test_drive
+*/
 #endif

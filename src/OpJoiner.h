@@ -155,6 +155,7 @@ struct OpTree {
 	bool containsFiller(OpLimb* , OpPoint , OpPoint ) const;
 	bool containsFiller(int ccUnsectableID) const;
 	bool containsParent(OpLimb* , OpEdge* , EdgeMatch ) const;
+	bool deepContains(const OpLimb* , OpEdge* , EdgeMatch , LimbPass ) const;
 	float firstDistance(OpPoint ) const;
 	bool firstMatch(const std::vector<OpPoint>& ) const;
 	bool gap(float distance) const;

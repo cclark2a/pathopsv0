@@ -276,7 +276,7 @@ struct OpHulls {
 	bool add(const OpPtT& ptT, OpVector threshold, const EdgeDist& dist, SectType st, 
 			const OpEdge* o = nullptr);
 	void clear() { h.clear(); }
-	bool nudgeDeleted(const OpEdge& edge, const OpCurveCurve& cc, CurveRef which);
+	bool nudgeDeleted(const OpEdge& edge, OpCurveCurve& cc, CurveRef which);
 	void sort(bool useSmall);
 	DUMP_DECLARATIONS
 	OP_DEBUG_CODE(bool debugSectCandidates(int index, const OpEdge& edge) const);

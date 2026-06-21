@@ -21,6 +21,13 @@ static void circles(TestOptions* options) {
                                 pathB.setFillType(f);
                                 pathB.addCircle(a, b, c, d);
                                 if (testRevDiff) {
+                                    if (0 == a && 6 == b && 1 == c && SkPathDirection::kCW == d 
+                                            && SkPathFillType::kWinding == e
+                                            && SkPathFillType::kWinding == f
+                                            && 1 == oA && 4 == oB && 3 == oC 
+                                            && SkPathDirection::kCCW == oD) {
+                                        OpNop();  // threaded: "circles1418505"
+                                    }
                                     if (TestDone::yes == options->testOne(pathA, pathB, TinyOps::reverseDifference))
                                         return TestDone::yes;
                                 } else {
@@ -39,7 +46,7 @@ static void circles(TestOptions* options) {
         return TestDone::no;
     };
     const int oneOpCount = (6 * 7 / 2) * 6 * 2 * 2 * 2;
-    const int skiaOpsCount = oneOpCount * 5;
+    const int skiaOpsCount = oneOpCount * 4;
     options->buggySkiaNumbering(skiaOpsCount);  // skia test framework bug skips first set of tests
                                              // ... so number those tests negative for compatibility
     for (bool testRevDiff : { false, true }) {
@@ -48,7 +55,7 @@ static void circles(TestOptions* options) {
             for (int b = a + 1; b < 7; ++b) {
                 for (int c = 0 ; c < 6; ++c) {
                         for (auto d : { SkPathDirection::kCW, SkPathDirection::kCCW }) {
-                            if (!options->skipTests(skiaOpsCount) && TestDone::yes == test(a, b, c, d, testRevDiff))
+                            if (!options->skipTests(testCount) && TestDone::yes == test(a, b, c, d, testRevDiff))
                                 return;
                         options->checkTestCount(testCount);
                     }

@@ -249,6 +249,7 @@ extern void dmpFilters();  // returns current filter settings
 extern void dmpToHex(float );
 extern void dmpToHex(uint32_t );
 extern void dmpLevel(int level);  // set to brief, normal, detailed
+extern void dmpParents(int ID);
 extern void dmpPlayback(FILE* );
 extern void dmpPts(int ID);
 extern void dmpPts(const OpEdge* );

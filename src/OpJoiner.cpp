@@ -242,6 +242,8 @@ OpLimb* OpLimb::tryAdd(OpTree& tree, OpEdge* test, EdgeMatch m, LimbPass limbPas
 		return nullptr;
 	if (LimbPass::unsectPair != limbPass && tree.contains(this, test))
 		return nullptr;
+	if (LimbPass::disabledCenterless == limbPass && tree.deepContains(this, test, m, limbPass))
+		return nullptr;
 	std::vector<OpPoint> testEnds = test->collectMatch(!m);
 	bool loopedToFirstPoint = tree.firstMatch(testEnds);
 	if (!loopedToFirstPoint && (EdgeMatch::start == m ? test->startSeen : test->endSeen))
@@ -547,6 +549,42 @@ bool OpTree::containsFiller(OpLimb* parent, OpPoint pt1, OpPoint pt2) const {
 
 bool OpTree::containsFiller(int ccUnsectableID) const {
 	return context->containsFiller(ccUnsectableID);
+}
+
+// for passes like disabled centerless, check if candidate edge has already been added to tree
+// find the added edge, and see which path is preferable
+bool OpTree::deepContains(const OpLimb* limb, OpEdge* edge, EdgeMatch match, LimbPass pass) const {
+	OpLimbStorage* limbs = context->limbCurrent;
+	while (limbs) {
+		int index = limbs->used;
+		OP_ASSERT(index > 0);
+		do {
+			OpLimb* testLimb = &limbs->storage[--index];
+			if (testLimb->treePass != pass)
+				return false;
+			if (testLimb->edge != edge)
+				continue;
+			if (testLimb->match == match)
+				return true;
+		} while (index > 0);
+		limbs = limbs->prevBlock;
+	}
+	return false;
+#if 0
+	// !!! choose shorter / smaller perimeter? For now, just allow first
+	// Different limbs have same edge. Look for common ancestor (there must be one)
+	const OpLimb* sameParent = sameEdge;
+	for (;;) {
+		sameParent = sameParent->parent;
+		OP_ASSERT(sameParent);
+		while (limb->id > sameParent->id) {
+			limb = limb->parent;
+			OP_ASSERT(limb);
+		}
+		if (limb == sameParent)
+			break;
+	}
+#endif
 }
 
 float OpTree::firstDistance(OpPoint pt) const {

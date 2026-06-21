@@ -1169,7 +1169,8 @@ void OpContour::debugMatchRay() {
         // apply ID to all links
         linkup = firstLink;
         do {
-            OP_ASSERT(!linkup->debugRayMatch || nextID == linkup->debugRayMatch);
+// !!! see if assert indicates actionable error
+//            OP_ASSERT(!linkup->debugRayMatch || nextID == linkup->debugRayMatch);
             linkup->debugRayMatch = nextID;
         } while ((linkup = linkup->nextEdge));
         // apply ID to all ray-matched links

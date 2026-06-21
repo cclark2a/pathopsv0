@@ -4,10 +4,10 @@
 #include "TinySkiaTests.h"
 
 static void simplifyQuadsX(TestOptions* options) {
-    int a = 0;
-    int b = 2;
-    int c = 5;
-    int d = 7;
+    int a = 2;
+    int b = 3;
+    int c = 13;
+    int d = 13;
     float ax = (float) (a & 0x03);
     float ay = (float) (a >> 2);
     float bx = (float) (b & 0x03);
@@ -16,10 +16,10 @@ static void simplifyQuadsX(TestOptions* options) {
     float cy = (float) (c >> 2);
     float dx = (float) (d & 0x03);
     float dy = (float) (d >> 2);
-    int e = 0;
-    int f = 0;
-    int g = 3;
-    int h = 13;
+    int e = 6;
+    int f = 8;
+    int g = 11;
+    int h = 12;
     float ex = (float) (e & 0x03);
     float ey = (float) (e >> 2);
     float fx = (float) (f & 0x03);
@@ -37,7 +37,7 @@ static void simplifyQuadsX(TestOptions* options) {
     path.lineTo(fx, fy);
     path.quadTo(gx, gy, hx, hy);
     path.close();
-    path.setFillType(SkPathFillType::kWinding);
+    path.setFillType(SkPathFillType::kEvenOdd);
     options->testOne(path);
 }
 

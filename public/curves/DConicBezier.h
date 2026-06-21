@@ -303,7 +303,7 @@ inline bool dConicIsLine(Curve c, float threshold) {
     return linePts.ptOnLine(control.pt, threshold);
 }
 
-inline OpRoots dConicAxisT(Curve curve, Axis axis, float intercept  
+inline OpRoots dConicRotatedT(Curve curve, Axis axis, float intercept  
 		OP_DEBUG_PARAMS(const OpRoots& )) {
     DPointWeight control(curve);
     double a = curve.data->end.choice(axis);
@@ -312,57 +312,14 @@ inline OpRoots dConicAxisT(Curve curve, Axis axis, float intercept
     a += c - 2 * b;    // A = a - 2*b + c
     b -= c;            // B = -(b - c)
     OpRoots result = OpMath::QuadRootsDouble(a, 2 * b, c - intercept);  // ? double req'd: testDConics3759897
-    result = result.keepValidT();
     return result;
-    
 }
 
-inline OpRoots dConicRotatedT(Curve curve, Axis axis, float intercept
+inline OpRoots dConicAxisT(Curve curve, Axis axis, float intercept  
 		OP_DEBUG_PARAMS(const OpRoots& debugAdded)) {
-	OpPoint start = curve.data->start;
-	OpPoint end = curve.data->end;
-    SPointWeight control(curve);
-    bool monotonicInX = OpMath::Between(start.x, control.pt.x, end.x);
-    bool monotonicInY = OpMath::Between(start.y, control.pt.y, end.y);
-	std::vector<float> tValues = AddExtrema(start, end, control, monotonicInX, monotonicInY);
-	if (tValues.empty())
-		return dConicAxisT(curve, axis, intercept  OP_DEBUG_PARAMS(debugAdded));
-    std::sort(tValues.begin(), tValues.end());
-    std::vector<OpPtT> ptTs(tValues.size() + 2);
-    ptTs.front() = { start, 0 };
-    ptTs.back() = { end, 1 };
-	DPointWeight dControl(curve);
-    for (unsigned index = 0; index < tValues.size(); ++index) {
-        ptTs[index + 1] = { DConicPointAtT(start, dControl, end, tValues[index]), tValues[index] }; 
-    } 
-	OpRoots result;
-	unsigned lastIndex = (unsigned) (ptTs.size() - 1);
-    for (unsigned index = 0; index < lastIndex; ++index) {
-        struct DConicData {
-            OpPoint endPts[2];
-            SPointWeight control;
-        } conicData { { ptTs[index].pt, ptTs[index + 1].pt }, {} };
-		float startT = ptTs[index].t;
-		float endT = ptTs[index + 1].t;
-		if (OpMath::Equal(intercept, conicData.endPts[0].choice(axis))) {
-			result.add(startT);
-			continue;
-		}
-		if (OpMath::Equal(intercept, conicData.endPts[1].choice(axis))) {
-			result.add(endT);
-			continue;
-		}
-		if (conicData.endPts[0].choice(axis) * conicData.endPts[1].choice(axis) > 0)
-			continue;
-        OP_ASSERT(conicData.endPts[0] != conicData.endPts[1]);
-        DPointWeight dPtW = DConicControl(start, dControl, end, ptTs[index], ptTs[index + 1]);
-        conicData.control = { { (float) dPtW.pt.x, (float) dPtW.pt.y }, dPtW.weight };
-		Curve part { curve.context, (CurveData*) &conicData, curve.size, curve.type };
-		OpRoots partRoot = dConicAxisT(part, axis, intercept  OP_DEBUG_PARAMS(debugAdded));
-		for (float root : partRoot.roots)
-			result.add(startT + root * (endT - startT));
-	}
-	return result;
+    OpRoots result = dConicRotatedT(curve, axis, intercept  OP_DEBUG_PARAMS(debugAdded));
+    result = result.keepValidT();
+    return result;
 }
 
 inline OpPoint dConicPtAtT(Curve c, float t) {

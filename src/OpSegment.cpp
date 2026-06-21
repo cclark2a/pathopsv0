@@ -474,6 +474,8 @@ void OpSegment::betweenCoincidence() {
                 + (miss.sect->ptT.t - miss.coinStart->ptT.t) * oppCoinRange / coinRange };
 	#else
 		OpPtT oppPtT { miss.sect->ptT.pt, coinOpp->c.matchClosest(miss.sect->ptT.pt) };
+		if (!OpMath::IsFinite(oppPtT.t))
+			continue;
 	#endif
         OpIntersection* oSect = coinOpp->addSegSect(oppPtT, sectOpp  OP_LINE_FILE_PARGS());
         if (!oSect)
@@ -633,15 +635,18 @@ bool OpSegment::fixCCSects() {
 	do {  // skip sects until sect point changes
 		mid = sects.i[++index];
 		midIsCcSect |= mid->ccSect;
-	} while (prior->ptT.t == mid->ptT.t);
+	} while (prior->ptT.t == mid->ptT.t || prior->ptT.pt == mid->ptT.pt);
+	// allow consecutive sects to have the same pt; then find the 
+	// prior different pt and the next different pt. If the mid range of points is 
+	// not monotonic, then move range to the closer of prior and next
 	while (++index < sects.i.size()) {
 		OpIntersection* next = sects.i[index];
-		if (mid->ptT.t == next->ptT.t) {
+		if (mid->ptT.t == next->ptT.t || mid->ptT.pt == next->ptT.pt) {
 			midIsCcSect |= next->ccSect;
 			continue;
 		}
-		OP_ASSERT(prior->ptT.t < mid->ptT.t /* && prior->ptT.pt != mid->ptT.pt */);
-		OP_ASSERT(mid->ptT.t < next->ptT.t /* && mid->ptT.pt != next->ptT.pt */);
+		OP_ASSERT(prior->ptT.t < mid->ptT.t && prior->ptT.pt != mid->ptT.pt);
+		OP_ASSERT(mid->ptT.t < next->ptT.t && mid->ptT.pt != next->ptT.pt);
 		if (midIsCcSect) {
 			OpVector priorV = mid->ptT.pt - prior->ptT.pt;
 			bool priorOK = segTan.dx * priorV.dx >= 0 && segTan.dy * priorV.dy >= 0;
@@ -1053,8 +1058,8 @@ void OpSegment::mergeMultiple(OpPoint masterPt, int masterID, OpPoint mergePt, i
 }
 
 PrefFound OpSegment::moveSects(OpPtT match, OpPoint destination) {
-	OP_ASSERT(!sects.unsorted);
 	OP_ASSERT(!sects.i.empty());
+	sects.sort();
 	SectCleanup cleanup = sects.moveSects(match, destination,
 			destination == sects.i.front()->ptT.pt ? MatchEnds::start : 
 			destination == sects.i.back()->ptT.pt ? MatchEnds::end : MatchEnds::none);

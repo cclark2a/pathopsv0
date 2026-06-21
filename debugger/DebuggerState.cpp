@@ -64,7 +64,8 @@ SDL_AppResult DebuggerState::checkForNewFiles() {
         return SDL_APP_CONTINUE;
     struct stat info;
     size_t fileNumber = 0;
-    for (;;) {
+    int MAX_FILE_NUMBER = INT_MAX;  // !!! set when debugging debugger
+    while (fileNumber < MAX_FILE_NUMBER) {
         std::string filename = DumpFile + STR(++fileNumber) + ".txt";
         std::string filePath = dmpFileToPath(filename);
         if (stat(filePath.c_str(), &info) == -1) {
@@ -82,7 +83,7 @@ SDL_AppResult DebuggerState::checkForNewFiles() {
             continue;
         if (dump.update(this)) {
             dump.lastTime = info.st_mtime;
-            continue;
+            return SDL_APP_CONTINUE;
         } 
         if (dump.updateAttempts > dump.maxUpdateAttempts) {
             OP_ASSERT(0);

@@ -1282,14 +1282,17 @@ PathOpsV0Lib::CurveData* CurveDataStorage::dumpSet(const char*& str) {
 
 // sets caller data in contours from string encoded bytes
 void CurveDataStorage::DumpSet(const char*& str, CurveDataStorage** previousPtr) {
-    CurveDataStorage* storage = new CurveDataStorage;
-    *previousPtr = storage;
-    storage->next = (CurveDataStorage*) OpDebugOptional(str, "next");  // non-zero means there is more
-    OpDebugRequired(str, "used");
-    storage->used = OpDebugReadSizeT(str);
-    OpDebugByteArray(str, storage->used, storage->storage);
-    if (storage->next)
-        DumpSet(str, &storage->next);
+    for (;;) {
+        CurveDataStorage* storage = new CurveDataStorage;
+        *previousPtr = storage;
+        storage->next = (CurveDataStorage*) OpDebugOptional(str, "next");  // non-zero means there is more
+        OpDebugRequired(str, "used");
+        storage->used = OpDebugReadSizeT(str);
+        OpDebugByteArray(str, storage->used, storage->storage);
+        if (!storage->next)
+            break;
+        previousPtr = &storage->next;
+    }
 }
 
 void CutRangeT::dumpSet(const char*& str) {
@@ -2610,6 +2613,20 @@ void OpLimb::dumpSet(const char*& str) {
     OpDebugRequired(str, "id");
     id = (int) OpDebugReadSizeT(str);
     static_assert(sizeof(*this) == offsetof(OpLimb, id) + sizeof(id) + 4);
+}
+
+void dmpParents(int limbID) {
+    std::string s;
+    const OpLimb* root = findLimb(limbID);
+    if (!root)
+        s = "no limb found for id " + STR(limbID);
+    else {
+        do {
+            s += root->debugDump(defaultLevel, defaultBase) + "\n";
+        } while ((root = root->parent));
+        debugPopMatching(s, '\n');
+    }
+    OpDebugFormat(s + "\n");
 }
 
 void OpTree::dumpSet(const char*& str) {

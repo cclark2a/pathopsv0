@@ -175,20 +175,17 @@ inline bool quadIsLine(Curve c, float threshold) {
     return linePts.ptOnLine(ctrlPt, threshold);
 }
 
-inline OpRoots quadAxisT(Curve curve, Axis axis, float axisIntercept
-		OP_DEBUG_PARAMS(const OpRoots& )) {
+inline OpRoots quadRotatedT(Curve curve, Axis axis, float intercept  
+		OP_DEBUG_PARAMS(const OpRoots& debugAdded)) {
+#if 1
     float a = curve.data->end.choice(axis);
     float b = quadControlPt(curve).choice(axis);
     float c = curve.data->start.choice(axis);
     a += c - 2 * b;    // A = a - 2*b + c
     b -= c;            // B = -(b - c)
-    OpRoots result = OpMath::QuadRootsDouble(a, 2 * b, c - axisIntercept);  // double req'd: testQuads3759897
-    result = result.keepValidT();
+    OpRoots result = OpMath::QuadRootsDouble(a, 2 * b, c - intercept);  // double req'd: testQuads3759897
     return result;
-}
-
-inline OpRoots quadRotatedT(Curve curve, Axis axis, float intercept  
-		OP_DEBUG_PARAMS(const OpRoots& debugAdded)) {
+#else
 	OpPoint start = curve.data->start;
 	OpPoint end = curve.data->end;
 	OpPoint control = quadControlPt(curve);
@@ -235,6 +232,14 @@ inline OpRoots quadRotatedT(Curve curve, Axis axis, float intercept
 			result.add(startT + root * (endT - startT));
 	}
 	return result;
+#endif
+}
+
+inline OpRoots quadAxisT(Curve curve, Axis axis, float axisIntercept
+		OP_DEBUG_PARAMS(const OpRoots& debugAdded)) {
+    OpRoots result = quadRotatedT(curve, axis, axisIntercept  OP_DEBUG_PARAMS(debugAdded));
+    result = result.keepValidT();
+    return result;
 }
 
 inline OpPoint quadPtAtT(Curve c, float t) {

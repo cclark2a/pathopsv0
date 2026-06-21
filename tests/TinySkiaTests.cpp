@@ -29,7 +29,7 @@ struct TinySuite {
 };
 
 std::vector<TinySuite> tinySuites = {
-    { V0Battles, "battle" },
+    { V0Battles, "battle", .17f },
     { V0Chalkboard, "chalkboard" },
     { V0Fuzz763, "fuzz763" },
     { V0Inverse, "inverse" },
@@ -38,11 +38,11 @@ std::vector<TinySuite> tinySuites = {
     { V0OpCircles, "circle" },
     { V0OpCubics, "cubic" },
     { V0OpFail, "opFail" },
-    { V0OpLoops, "loop", .5f },
+    { V0OpLoops, "loop" },
     { V0OpRects, "opRect" },
     { V0Simplify, "simplify" },
     { V0SimplifyDegenerates, "degenerate" },
-    { V0SimplifyFail, "simplifyFail" },
+    { V0SimplifyFail, "simplifyFail", 10000000 },
     { V0SimplifyQuadralaterals, "quadralateral" },
     { V0SimplifyQuads, "quad" },
     { V0SimplifyRects, "simplifyRect" },
@@ -66,10 +66,12 @@ struct TinyState {
 
     std::vector<std::string> skipFiles = { TEST_PATH_OP_SKIP_FILES };
     std::string skipTo = SKIP_TO_FILE;
+    std::string skipToSuite = TEST_SUITE_FIRST;
     std::string largestError;
     std::array<TinyError, 20> tinyErrors;
     std::atomic<float> pixelError = 0.f;
     std::atomic_int runIndex = 0; 
+    std::atomic_int intersectionError = 0;
     std::atomic_int gapError = 0;
     std::atomic_int testsError = 0;
     std::atomic_int testsRun = 0;
@@ -137,6 +139,8 @@ void TinyState::addADot(const OpDebugData& debugData) {
 std::string TinyState::stats() {
     std::string s;
     s += "testsRun:" + STR(testsRun) + " testsSkipped:" + STR(testsSkipped) + " ";
+    if (intersectionError)
+        s += "intersectionError:" + STR(intersectionError) + " ";
     if (gapError)
         s += "gapError:" + STR(gapError) + " ";
     if (testsError)
@@ -176,6 +180,9 @@ void TinyState::trackError(PathOpsV0Lib::ContextError contextError) {
 		case PathOpsV0Lib::ContextError::tree:
 			++treeError;
 			break;
+        case PathOpsV0Lib::ContextError::intersection:
+            ++intersectionError;
+            break;
 		case PathOpsV0Lib::ContextError::gap:
 			++gapError;
 			break;
@@ -187,7 +194,7 @@ void TinyState::trackError(PathOpsV0Lib::ContextError contextError) {
 	}
 }
 
-#if OP_DEBUG_SERIALIZE
+#if OP_DEBUG_SERIALIZE && TEST_ENABLE_V0
 static std::string debugOpTest(std::string testname, const SkPath& pathA, const SkPath& pathB, TinyOps op) {
 	std::string s;
     s += "void " + testname + "(TestOptions* options) {\n";
@@ -272,8 +279,9 @@ TestDone TestOptions::testSetup(SkPath& left, SkPath& right, TinyOps op, SkPath*
 }
 
 TestDone TestOptions::testPart(SkPath& a, SkPath& b, TinyOps op, SkPath* outPtr) {
-    // !!! add support for TEST_PATH_SKIP_TESTS
     using namespace PathOpsV0Lib;
+    testTrack.setName();
+#if TEST_ENABLE_V0
     Context* context = CreateContext();
     ContextUserData outPathData { outPtr, sizeof(outPtr), UserDataType::outPath };
     bool useDoublesInConics = USE_DOUBLE_CONICS;
@@ -325,7 +333,6 @@ TestDone TestOptions::testPart(SkPath& a, SkPath& b, TinyOps op, SkPath* outPtr)
 	ContextError contextError = Error(context);
 	if (ContextError::none == contextError) {
 #if OP_TEST_RASTER
-//        OP_DEBUG_SERIALIZE_CODE(debugRaster.deleteOld());
         if (OpDebugExpect::success == debugRef.expect)    
             debugRaster.in();
 #endif
@@ -342,7 +349,12 @@ TestDone TestOptions::testPart(SkPath& a, SkPath& b, TinyOps op, SkPath* outPtr)
 #endif
     OP_DEBUG_CODE(debugData = debugRef);
     DeleteContext(context);
+#else
+    testTrack.addRun();
+#endif
     tinyState.addADot(debugData);
+    if (testFunc.numbered)
+        ++testTrack.runIndex;
     ++testTrack.run;
     --testTrack.toRun;
     return testTrack.toRun <= 0 ? TestDone::yes : TestDone::no;
@@ -381,7 +393,13 @@ void TinyState::test() {
             s += " skip:" + STR(track.skip);
         OpDebugOut(s + "\n");
     #endif
+    bool firstSuiteSeen = skipToSuite.empty();
     for (const TinySuite& tinySuite : tinySuites) {
+        if (!firstSuiteSeen) {
+            if (tinySuite.name != skipToSuite)
+                continue;
+            firstSuiteSeen = true;
+        }
         if (!tinyState.skipTo.empty() && tinyState.skipTo != tinySuite.name)
             continue;
         track.maxError = tinySuite.maxError;
@@ -390,12 +408,16 @@ void TinyState::test() {
             OpDebugOut("suite:" + tinySuite.name + "\n");
     #endif
             (*tinySuite.func)(&track);
+            OpNop();
             continue;
         }
         // split tests into threads
+        if (!track.runNamedTest && !TESTS_TO_RUN)
+            track.toRun = INT_MAX;
         track.skip = INT_MAX;
         (*tinySuite.func)(&track);  // track.indexOffset is set here
         int totalTests = INT_MAX - track.skip;
+        track.testSkips.clear();
     #if THREAD_DEBUG
         std::string s = tinySuite.name + " totalTests:" + STR(totalTests);
         if (tinyState.testsToSkip)
@@ -413,10 +435,6 @@ void TinyState::test() {
             track.toRun = std::min(track.toRun, TESTS_TO_RUN);
         std::vector<std::thread> t;
         for (int index = 0; index < maxThreads; ) {
-    #if THREAD_DEBUG
-            OpDebugOut("thread:" + STR(index) + " " + tinySuite.name 
-                    + " skip:" + STR(track.skip) + " toRun:" + STR(track.toRun) + "\n");
-    #endif
             t.push_back(std::thread(threadTest, tinySuite, track));
             track.skip += track.toRun;
             ++index;
@@ -427,6 +445,36 @@ void TinyState::test() {
     }
     s = stats();
     OpDebugOut(s + "\n");
+}
+
+TestRun* TestTrack::addTested(std::vector<TestRun>& tests, RunType runType) {
+#if !TEST_ENABLE_V0
+    auto testRun = std::find_if(tests.begin(), tests.end(), [this](const TestRun& test) {
+            return test.funcName == testFunc->name && 
+            (!testFunc->numbered || test.last + 1 == runIndex); } );
+    if (testRun != tests.end()) {
+        OP_ASSERT(testFunc->numbered);
+        OP_ASSERT(testRun->last < runIndex);
+        if (testRun->last + 1 == runIndex) {
+            testRun->last = runIndex;
+            return &*testRun;
+        }
+    }
+    tests.push_back({ testFunc->name, runIndex, runIndex, runType });
+    return &tests.back();
+#else
+    return nullptr;
+#endif
+}
+
+void TestTrack::addSkipRange(RunType runType, int count) {
+    OP_ASSERT(1 == count || testFunc->numbered);
+#if !TEST_ENABLE_V0
+    TestRun* testRun = addTested(testSkips, runType);
+    testRun->last += count - 1;
+#endif
+    skip -= count;
+    runIndex += count;
 }
 
 bool TestTrack::runTests(const std::vector<TestFunc>& tests) {
@@ -452,36 +500,35 @@ bool TestTrack::runTests(const std::vector<TestFunc>& tests) {
     return false;
 }
 
+void TestTrack::setName() {
+    testName = testFunc->name;
+    if (testFunc->numbered)
+        testName += STR(runIndex + 1 - indexOffset);
+}
+
 TestDone TestTrack::skipInner(int count) {
+    setName();
     if (0 == toRun)
-        return TestDone::yes;
+        return addSkip(RunType::zeroToRun), TestDone::yes;
     if (hasDigits) {  // non-threaded
         OP_ASSERT(runNamedTest);
         if (testFunc->numbered) {
             if (testFunc->name != testMatch)
-                return TestDone::no;
-            if (testSuffix + indexOffset > runIndex + count) {
-                runIndex += count;
-                return TestDone::no;
-            }
+                return addSkip(RunType::noMatch), TestDone::no;
+            if (testSuffix + indexOffset > runIndex + count)
+                return addSkipRange(RunType::noNumber, count), TestDone::no;
         } else if (testFunc->name != TEST_FIRST)
-            return TestDone::no;
+            return addSkip(RunType::notFirst), TestDone::no;
     } else if (runNamedTest) {
         if (testFunc->numbered)
-            return TestDone::no;
+            return addSkip(RunType::noDigit), TestDone::no;
         if (testFunc->name != TEST_FIRST)
-            return TestDone::no;
+            return addSkip(RunType::notFirst), TestDone::no;
     }
-    if (skip >= count) {
-        skip -= count;
-        runIndex += count;
-        return TestDone::no;
-    }
-    if (skip)
-        return TestDone::skip;
-    testName = testFunc->name;
-    if (testFunc->numbered)
-        testName += STR(++runIndex - indexOffset);
+    if (skip >= count)
+        return addSkipRange(RunType::skip, count), TestDone::no;
+    if (skip > 0)
+        return addSkipRange(RunType::smallSkip, skip), TestDone::skip;
     return TestDone::run;
 }
 

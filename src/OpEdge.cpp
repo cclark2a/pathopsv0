@@ -97,7 +97,7 @@ bool OpHulls::debugSectCandidates(int index, const OpEdge& edge) const {
 #endif
 
 // checks to catch infinite loops if caller data isn't resolvable
-bool OpHulls::nudgeDeleted(const OpEdge& edge, const OpCurveCurve& cc, CurveRef which) {
+bool OpHulls::nudgeDeleted(const OpEdge& edge, OpCurveCurve& cc, CurveRef which) {
 	int safetyCount = 16;
 	PathOpsV0Lib::CurveCount nudgeFunc = edge.context()->contextCallbacks.hullNudgeFuncPtr;
 	if (nudgeFunc)
@@ -814,12 +814,14 @@ bool OpEdge::setLinkDirection(EdgeMatch match, std::vector<OpEdge*>* linkErasure
 }
 
 void OpEdge::setNextEdge(OpEdge* edge) {
+	OP_ASSERT(this != edge);
 	if (nextEdge)
 		nextEdge->priorEdge = nullptr;
 	nextEdge = edge;
 }
 
 void OpEdge::setPriorEdge(OpEdge* edge) {
+	OP_ASSERT(this != edge);
 	if (priorEdge)
 		priorEdge->nextEdge = nullptr;
 	priorEdge = edge;

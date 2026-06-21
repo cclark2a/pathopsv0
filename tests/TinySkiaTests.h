@@ -20,15 +20,44 @@ struct TestFunc {
     bool mayFail = false;
 };
 
+enum class RunType {
+    uninitialized,
+    noDigit,
+    noMatch,
+    noNumber,
+    notFirst,
+    run,
+    skip,
+    smallSkip,
+    test,
+    zeroToRun,
+};
+
+struct TestRun {
+    std::string funcName;
+    int first = INT_MAX;
+    int last = INT_MAX;
+    RunType type = RunType::uninitialized;
+};
+
 struct TestTrack {
     void buggySkiaNumbering(int testCount) {
         indexOffset = testCount;  
     }
 
+    TestRun* addTested(std::vector<TestRun>& , RunType );
+    void addRun() {
+        addTested(testRuns, RunType::test); }
+    void addSkip(RunType runType) {
+        addTested(testSkips, runType); }
+    void addSkipRange(RunType , int count);
     bool runTests(const std::vector<TestFunc>& tests);
+    void setName();
     TestDone skipInner(int count);
     bool skipTests(int count);
 
+    std::vector<TestRun> testRuns;
+    std::vector<TestRun> testSkips;
     const TestFunc* testFunc = nullptr;
     std::string testMatch;  // if run one: test to run, with trailing number removed
     std::string testName;  // set by function currently running

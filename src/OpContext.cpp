@@ -539,7 +539,6 @@ WindingCondition OpContext::pathOps() {
 	    if (checkEmpty())
 		    return 0;  // no existing tests exercise
 		sortedSegments.checkCoins();
-//	    sortIntersections();
 	    if (!fixCCSects())  // curve-curve intersections may have enough error to put sect list out of order
 		    OP_DEBUG_FAIL(*this, -1);
 	    sortIntersections(SortSmall::no);
@@ -704,7 +703,8 @@ bool OpContext::setError(PathOpsV0Lib::ContextError e  OP_DEBUG_PARAMS(int eID, 
 	OP_ASSERT(debugData.limitContours <= 0);  // break when debugging limited number of contours
 	if (PathOpsV0Lib::ContextError::finite != e 
 			&& PathOpsV0Lib::ContextError::toVertical != e
-			&& PathOpsV0Lib::ContextError::gap != e)
+			&& PathOpsV0Lib::ContextError::gap != e
+			&& OpDebugExpect::fail != debugExpect)
 		OpDebugOut("fatal error in " + debugData.testname + "\n");
 #endif
 	fatalError = PathOpsV0Lib::ContextError::gap != e;
