@@ -91,11 +91,16 @@ struct OpCurve {
 	OpRoots lineIntersect(const LinePts& line) const;
 	PathOpsV0Lib::CurveType lineType() const;
 	// Returns t of point on curve if any; returns NaN if no match. Used by line/curve intersection.
-	float match(float start, float end, OpPoint ) const;
-	float matchClosest(OpPoint ) const;
-	float matchCommon(float start, float end, OpPoint pt, OpVector slop) const;
+#if 0
+	float match(float start, float end, OpPoint , OpVector ptTan, OpPoint* matchPt) const;
+	float matchClosest(OpPoint , OpVector ptTan) const;
+	float matchCommon(float start, float end, OpPoint pt, OpVector ptTan, OpVector slop, 
+			OpPoint* matchPt) const;
+#endif
 	MatchReverse matchEnds(const LinePts& ) const;
 	MatchReverse matchExact(const OpCurve& ) const;
+	float matchVector(float start, float end, OpPoint , OpVector ) const;
+	float matchVector(OpPoint , OpVector ) const;
 	bool nearBounds(OpPoint ) const;
 	OpVector normal(float t) const;
 	NormalDirection normalDirection(Axis axis, float t) const;

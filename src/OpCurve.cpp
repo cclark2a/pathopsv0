@@ -288,7 +288,9 @@ PathOpsV0Lib::CurveType OpCurve::lineType() const {
     return funcPtr ? (*funcPtr)(c) : 1;
 }
 
-float OpCurve::matchCommon(float start, float end, OpPoint pt, OpVector slop) const {
+#if 0
+float OpCurve::matchCommon(float start, float end, OpPoint pt, OpVector ptTan, OpVector slop, 
+		OpPoint* matchPt) const {
 	if (!nearBounds(pt))
 		return OpNaN;
 	if (pt == c.data->start && 0 == start)
@@ -306,19 +308,48 @@ float OpCurve::matchCommon(float start, float end, OpPoint pt, OpVector slop) co
 	// example: testQuads9421393 needs small curve factor for segs (3, 7 to detect intersection)
 //			* context().callback(c.type).matchSlopFuncPtr();
 	if (!(xDistSq > yDistSq)) {  // reverse test in case y dist is nan
-		if (pt.isNearly(xPt, slop))
+		if (pt.isNearly(xPt, slop)) {
+			if (matchPt)
+				*matchPt = xPt;
 			return xRoot;
+		}
 	}
+	if (matchPt)
+		*matchPt = yPt;
 	return pt.isNearly(yPt, slop) ? yRoot : OpNaN;
 }
+#endif
 
-float OpCurve::match(float start, float end, OpPoint pt) const {
-	return matchCommon(start, end, pt, context().threshold);
+float OpCurve::matchVector(float start, float end, OpPoint pt, OpVector v) const {
+	if (!nearBounds(pt))
+		return OpNaN;
+	if (pt == c.data->start && 0 == start)
+		return 0;
+	if (pt == c.data->end && 1 == end)
+		return 1;
+	LinePts linePts { pt, pt + v };
+	OpRoots roots = lineIntersect(linePts);
+	for (float root : roots.roots) {
+		if (start >= root || root >= end)
+			continue;
+		OpVector threshold = context().threshold;
+		OpPoint foundPt = ptAtT(root);
+		if (!foundPt.isNearly(pt, threshold))
+			continue;
+		return root;
+	}
+	return OpNaN;
 }
 
-float OpCurve::matchClosest(OpPoint pt) const {
-	return matchCommon(0, 1, pt, {OpInfinity, OpInfinity});
+float OpCurve::matchVector(OpPoint pt, OpVector v) const {
+	return matchVector(0, 1, pt, v);
 }
+
+#if 0
+float OpCurve::matchClosest(OpPoint pt, OpVector ptTan) const {
+	return matchCommon(0, 1, pt, ptTan, {OpInfinity, OpInfinity}, nullptr);
+}
+#endif
 
 MatchReverse OpCurve::matchEnds(const LinePts& opp) const {
 	MatchReverse result { MatchEnds::none, false };

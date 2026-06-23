@@ -253,22 +253,21 @@ void OpSegment::manyCoincidences() {
 		OP_ASSERT(segA != segB);
 		OP_ASSERT(segA != segC);
 		// check A for C
-		OpPoint ptC = sectC->ptT.pt;
+		OpPtT ptTc = sectC->ptT;
 		OpPtT ptTa(SetToNaN::dummy);
-		OpIntersection* cInA = segA->sects.coinContains(ptC, segC, &ptTa);
+		OpIntersection* cInA = segA->sects.coinContains(ptTc.pt, segC, &ptTa);
 		if (cInA && cInA->coincidenceID)
 			return;
 		if (OpMath::IsNaN(ptTa.t))
-			ptTa = OpPtT(ptC, segA->c.match(0, 1, ptC));
+			ptTa = OpPtT(ptTc.pt, segA->c.matchVector(ptTc.pt, segC->c.normal(ptTc.t)));
 		if (OpMath::IsNaN(ptTa.t))
 			return;
 		OpPoint ptA = ptTa.pt;
-		OpPtT ptTc;
 		OpIntersection* aInC = segC->sects.coinContains(ptA, segA, &ptTc);
 		if (aInC && aInC->coincidenceID)
 			return;
 		if (OpMath::IsNaN(ptTc.t))
-			ptTc = OpPtT(ptA, segC->c.match(0, 1, ptA));
+			ptTc = OpPtT(ptA, segC->c.matchVector(ptA, segA->c.normal(ptTa.t)));
 		if (OpMath::IsNaN(ptTc.t))
 			return;
 		misses.emplace_back(ptTa, ptTc, segA, segC, cInA, aInC, sectA->coincidenceID
@@ -279,22 +278,22 @@ void OpSegment::manyCoincidences() {
 		OpSegment* segC = miss.segC;
 		OP_DEBUG_CODE(OpIntersection* oppSect = bEnd->opp);
 		OP_ASSERT(oppSect->segment == segA || oppSect->segment == segC);
-		OpPoint oppPt = bEnd->ptT.pt;
+		OpPtT oppPtT = bEnd->ptT;
 		OpPtT ptTc(SetToNaN::dummy);
-		OpIntersection* aInC = segC->sects.coinContains(oppPt, segA, &ptTc);
+		OpIntersection* aInC = segC->sects.coinContains(oppPtT.pt, segA, &ptTc);
 		if (aInC && aInC->coincidenceID)
 			return;
 		if (OpMath::IsNaN(ptTc.t))
-			ptTc = OpPtT(oppPt, segC->c.match(0, 1, oppPt));
+			ptTc = OpPtT(oppPtT.pt, segC->c.matchVector(oppPtT.pt, 
+					bEnd->segment->c.normal(oppPtT.t)));
 		if (OpMath::IsNaN(ptTc.t))
 			return;
-		OpPoint ptC = ptTc.pt;
 		OpPtT ptTa(SetToNaN::dummy);
-		OpIntersection* cInA = segA->sects.coinContains(ptC, segC, &ptTa);
+		OpIntersection* cInA = segA->sects.coinContains(ptTc.pt, segC, &ptTa);
 		if (cInA && cInA->coincidenceID)
 			return;
 		if (OpMath::IsNaN(ptTa.t))
-			ptTa = OpPtT(ptC, segA->c.match(0, 1, ptC));
+			ptTa = OpPtT(ptTc.pt, segA->c.matchVector(ptTc.pt, segC->c.normal(ptTc.t)));
 		if (OpMath::IsNaN(ptTa.t))
 			return;
 		// once both start and end of the missing intersections are found, set their coin and ends
@@ -473,7 +472,8 @@ void OpSegment::betweenCoincidence() {
         OpPtT oppPtT { miss.sect->ptT.pt,  oppCoinStartT 
                 + (miss.sect->ptT.t - miss.coinStart->ptT.t) * oppCoinRange / coinRange };
 	#else
-		OpPtT oppPtT { miss.sect->ptT.pt, coinOpp->c.matchClosest(miss.sect->ptT.pt) };
+		OpPtT oppPtT { miss.sect->ptT.pt, coinOpp->c.matchVector(miss.sect->ptT.pt,
+				miss.sect->segment->c.tangent(miss.sect->ptT.t)) };
 		if (!OpMath::IsFinite(oppPtT.t))
 			continue;
 	#endif

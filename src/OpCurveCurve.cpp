@@ -1082,11 +1082,11 @@ OpCurveCurve::OpCurveCurve(OpSegment* s, OpSegment* o, std::vector<OpIntersectio
 		}
         OpPtT original = segSingleton;
 		if (OpMath::IsNaN(segSingleton.t))
-			segSingleton = { oppSingleton.pt, parentEdge->curve.match(parentEdge->startT,
-					parentEdge->endT, oppSingleton.pt) };
+			segSingleton = { oppSingleton.pt, parentEdge->curve.matchVector(parentEdge->startT,
+					parentEdge->endT, oppSingleton.pt, opp->c.tangent(oppSingleton.t)) };
 		if (OpMath::IsNaN(oppSingleton.t))
-			oppSingleton = { original.pt, parentOpp->curve.match(parentOpp->startT,
-					parentOpp->endT, original.pt) };
+			oppSingleton = { original.pt, parentOpp->curve.matchVector(parentOpp->startT,
+					parentOpp->endT, original.pt, seg->c.tangent(segSingleton.t)) };
 		if (!segSingleton.isFinite() || !oppSingleton.isFinite())
 			return;
         if (!segSingleton.pt.isNearly(oppSingleton.pt, context->threshold))

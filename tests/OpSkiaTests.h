@@ -7,10 +7,10 @@
 #endif
 
 #define SKIP_TO_V0 0  // set to 1 to ignore file, test first and run first test in v0
-#define SKIP_TO_FILE "quad" // e.g., "simplify"  one file
-#define TEST_SUITE_FIRST ""  // e.g., "simplifyFail" skip suites prior to this one
+#define SKIP_TO_FILE "tiger" // e.g., "simplify"  one file
+#define TEST_SUITE_FIRST "tiger"  // e.g., "simplifyFail" skip suites prior to this one
 #if !OP_DEBUG_ALT
-#define TEST_FIRST "simplifyQuadsX"   // e.g., "simplifyQuads13071788" simplifyQuadsX" if file, one test
+#define TEST_FIRST "tiger8a_h_1"   // e.g., "simplifyQuads13071788" simplifyQuadsX" if file, one test
                         // !!! "loop8478" fails sometimes (san/valgrind found no error)
                         // cubic9092  cubic454498  cubic327361 troublesome unsectables
 #else

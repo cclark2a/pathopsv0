@@ -38,7 +38,7 @@ void OpSegments::initInX() {
 }
 
 // may need to adjust values in opp if end is nearly equal to seg
-std::vector<OpIntersection*> OpSegments::AddEndMatches(OpSegment* seg, OpSegment* opp) {
+std::vector<OpIntersection*> OpSegments::addEndMatches(OpSegment* seg, OpSegment* opp) {
     std::vector<OpIntersection*> result;
 	auto add = [&result](OpSegment* seg, OpSegment* opp, const OpPtT& segPtT, 
 			const OpPtT& oppPtT  OP_LINE_FILE_ARGS()) {
@@ -58,32 +58,35 @@ std::vector<OpIntersection*> OpSegments::AddEndMatches(OpSegment* seg, OpSegment
 	// check seg and opp ends against each other
 	float startSegT = checkEnds(OpPtT(opp->c.c.data->start, 0)  OP_LINE_FILE_PARGS());
 	float endSegT = checkEnds(OpPtT(opp->c.c.data->end, 1)  OP_LINE_FILE_PARGS());	
-	auto checkOpp = [add, seg, opp](const OpPtT& segPtT  OP_LINE_FILE_ARGS()) {
-		float oppT = opp->c.match(0, 1, segPtT.pt);
-		OpPtT oppPtT = opp->c.ptTAtT(oppT);
-		if (!OpMath::IsNaN(oppPtT.t))
+	auto checkOpp = [add, seg, opp](const OpPtT& segPtT, OpVector tangent  OP_LINE_FILE_ARGS()) {
+		float oppT = opp->c.matchVector(segPtT.pt, tangent);
+		if (!OpMath::IsNaN(oppT)) {
+			OpPtT oppPtT = opp->c.ptTAtT(oppT);
 			add(seg, opp, segPtT, oppPtT  OP_LINE_FILE_CARGS());
-		return oppPtT.t;
+		}
+		return oppT;
 	};
 	// if ends do not match, check if seg end touches opp curve
 	float startOppT = OpNaN;
 	float endOppT = OpNaN;
 	if (0 != startSegT && 0 != endSegT) 
-		startOppT = checkOpp(OpPtT(seg->c.c.data->start, 0)  OP_LINE_FILE_PARGS());  // see if start pt is on opp curve
+		startOppT = checkOpp(OpPtT(seg->c.c.data->start, 0), seg->c.tangent(0)
+				OP_LINE_FILE_PARGS());  // see if start pt is on opp curve
 	if (1 != startSegT && 1 != endSegT) 
-		endOppT = checkOpp(OpPtT(seg->c.c.data->end, 1)  OP_LINE_FILE_PARGS());
-	auto checkSeg = [add, seg, opp](const OpPtT& oppPtT  OP_LINE_FILE_ARGS()) {
-		float segT = seg->c.match(0, 1, oppPtT.pt);
-		OpPtT segPtT = seg->c.ptTAtT(segT);
-		if (OpMath::IsNaN(segPtT.t)) 
+		endOppT = checkOpp(OpPtT(seg->c.c.data->end, 1), seg->c.tangent(1)  OP_LINE_FILE_PARGS());
+	auto checkSeg = [add, seg, opp](const OpPtT& oppPtT, OpVector tangent  OP_LINE_FILE_ARGS()) {
+		float segT = seg->c.matchVector(oppPtT.pt, tangent);
+		if (OpMath::IsNaN(segT)) 
             return;
+		OpPtT segPtT = seg->c.ptTAtT(segT);
 		add(seg, opp, segPtT, oppPtT  OP_LINE_FILE_CARGS());
 	};
 	// check if opp end touches seg curve
 	if (OpMath::IsNaN(startSegT) && 0 != startOppT && 0 != endOppT)
-		checkSeg(OpPtT(opp->c.c.data->start, 0)  OP_LINE_FILE_PARGS());
+		checkSeg(OpPtT(opp->c.c.data->start, 0), opp->c.tangent(0)  OP_LINE_FILE_PARGS());
+	OpBreak2(seg, opp, 6, 10);
 	if (OpMath::IsNaN(endSegT) && 1 != startOppT && 1 != endOppT)
-		checkSeg(OpPtT(opp->c.c.data->end, 1)  OP_LINE_FILE_PARGS());
+		checkSeg(OpPtT(opp->c.c.data->end, 1), opp->c.tangent(1)  OP_LINE_FILE_PARGS());
     return result;
 }
 
@@ -112,6 +115,13 @@ FoundIntersections OpSegments::addLineCurveIntersection(OpSegment* opp, OpSegmen
 	for (float oppT : oppRoots.roots) {
 		OpPtT oppPtT = opp->c.ptTAtT(oppT);  // point at curve's t
 	//	OpPoint originalOpp = oppPtT.pt;
+	#if 0
+		if (oppStartMatch.isFinite() && oppEndMatch.isFinite()) {
+			OpRect oppMatch(oppStartMatch, oppEndMatch);
+			if (oppMatch.contains(oppPtT.pt))
+				continue;
+		}
+	#endif
 		float edgeT = seg->findLineT(oppPtT.pt);
 		if (!(0 <= edgeT) || !(edgeT <= 1))
 			continue;
@@ -127,6 +137,13 @@ FoundIntersections OpSegments::addLineCurveIntersection(OpSegment* opp, OpSegmen
 	#else
 		OpPtT edgePtT = seg->c.ptTAtT(edgeT);
 	#endif
+	#if 0
+		if (segStartMatch.isFinite() && segEndMatch.isFinite()) {
+			OpRect edgeMatch(segStartMatch, segEndMatch);
+			if (edgeMatch.contains(edgePtT.pt))
+				continue;
+		}
+	#endif
 			// don't add sects here if coincident or unsectable will be added below --
 			// i guess record this and defer until after coin/unsect has been checked
 		if (cc.limits.alreadyIn(edgePtT, oppPtT))
@@ -141,9 +158,11 @@ FoundIntersections OpSegments::addLineCurveIntersection(OpSegment* opp, OpSegmen
 		}
 		if (skipIt)
 			continue;
+#if 01
 		OP_DEBUG_CODE(bool alreadyContained = seg->sects.contains(edgePtT, opp));
 		OP_DEBUG_CODE(alreadyContained |= !!opp->sects.contains(oppPtT, seg));
 		OP_ASSERT(!alreadyContained);
+#endif
 		OpIntersection* sect = seg->addSegBase(edgePtT  OP_LINE_FILE_PARAMS(opp));
 		OpIntersection* oSect = opp->addSegBase(oppPtT  OP_LINE_FILE_PARAMS(seg));
 		sect->pair(oSect);
@@ -233,7 +252,7 @@ FoundIntersections OpSegments::addLineCurveIntersection(OpSegment* opp, OpSegmen
 	return FoundIntersections::yes;
 }
 
-void OpSegments::AddEndMatches(OpContour* contour, OpContour* oContour) {
+void OpSegments::addEndMatches(OpContour* contour, OpContour* oContour) {
 	bool same = contour == oContour;
 	for (size_t iDex = 0; iDex < contour->sorted.size(); ++iDex) {
 		OpSegment* seg = contour->sorted[iDex];
@@ -243,7 +262,7 @@ void OpSegments::AddEndMatches(OpContour* contour, OpContour* oContour) {
 			OpSegment* opp = oContour->sorted[oDex];
 			if (seg->c.aliasBounds().right < opp->c.aliasBounds().left)
 				break;
-            (void) AddEndMatches(seg, opp);  // ignore return result
+            (void) addEndMatches(seg, opp);  // ignore return result
 		}
 	}
 }
@@ -367,7 +386,7 @@ FoundIntersections OpSegments::findIntersections() {
 			if (member->id > oContour->id)
 				break;
             if (windingSect && !(*windingSect)(oContour->winding(), member->winding())) {
-                AddEndMatches(oContour, member);  // if both are frame, check endpoints only
+                addEndMatches(oContour, member);  // if both are frame, check endpoints only
                 continue;
             }
 			findIntersection(oContour, member);
@@ -402,7 +421,7 @@ bool OpSegments::findIntersection(OpSegment* seg, OpSegment* opp) {
 	// set both to lines if they are linear before using them in t calculations
 	(void) seg->c.isLine();
 	(void) opp->c.isLine();
-	std::vector<OpIntersection*> matchingSects = AddEndMatches(seg, opp);
+	std::vector<OpIntersection*> matchingSects = addEndMatches(seg, opp);
 	// if the bounds only share a corner, there's nothing more to do
 	// !!! this could also work by taking the tangents and looking for a negative cross product
 	if (seg->c.isSmall || opp->c.isSmall)  // small (disabled) just adds end matches
