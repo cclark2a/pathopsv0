@@ -163,11 +163,7 @@ struct OpContour {
         return { (ContourPtr) this, (void*) &windingStorage.front(), windingStorage.size() }; }
 	std::vector<OpEdge*>& windingEdges(Axis );
 
-	void zeroSmall() {
-		for (auto& segment : segments) {
-			segment.zeroSmall();
-		}
-	}
+	void zeroSmall();
 
 	OP_DEBUG_CODE(void debugMatchRay());
 #if OP_DEBUG_VALIDATE

@@ -784,6 +784,29 @@ std::vector<OpEdge*>& OpContour::windingEdges(Axis axis) {
 	return Axis::horizontal == axis ? overlapOwner->inX : overlapOwner->inY;
 }
 
+void OpContour::zeroSmall() {
+	OpSegment* smallSeg = nullptr;
+	bool allSmall = true;
+	for (size_t index = 0; index < segments.size(); ++index) {
+		OpSegment& segment = segments[index];
+		if (segment.disabled)
+			continue;
+		if (smallSeg)
+			segment.c.start = smallSeg->c.start;
+		if (segment.zeroSmall(!smallSeg)) {
+			smallSeg = &segment;
+			segment.setDisabled(OP_LINE_FILE_NPARGS());
+		} else {
+			smallSeg = nullptr;
+			allSmall = false;
+		}
+	}
+	if (smallSeg && segments.size() > 1)
+		segments.front().c.start = smallSeg->c.start;
+	if (allSmall)
+		disabled = true;
+}
+
 #if 0
 SegmentIterator::SegmentIterator(OpContext* c)
 	: contourIterator(c)

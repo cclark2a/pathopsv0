@@ -407,13 +407,13 @@ FindCept SectRay::findCept(OpEdge* edge, OpEdge* test) {
 					continue;
 				if (!test->bounds().overlaps(palEdge.bounds()))
 					continue;
-		#if OP_DEBUG
+		#if 0 && OP_DEBUG
 				if (test->startPt() != palEdge.startPt() && !palsReversed) {
 					OpDebugOut("!!! " + edge->context()->debugData.testname + "\n");
 				}
 		#endif
-				OP_ASSERT(test->startPt().isNearly(palEdge.startPt(), test->context()->threshold)
-						|| palsReversed);
+//				OP_ASSERT(test->startPt().isNearly(palEdge.startPt(), test->context()->threshold)
+//						|| palsReversed);
 				OpPoint testStart = test->curve.firstPt();
 				OpPoint oppStart = palsReversed ? palEdge.curve.lastPt() : palEdge.curve.firstPt();
 				if (testStart != oppStart 

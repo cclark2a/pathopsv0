@@ -604,13 +604,15 @@ OpPair OpCurve::xyAtT(OpPair t, XyChoice xy) const {
 	return (*funcPtr)(c, t, xy);
 }
 
-void OpCurve::zeroSmall(OpContour& contour) {
+bool OpCurve::zeroSmall(OpContour& contour, bool zeroStart) {
 	auto zero_small = [](float in, float thresh) {
 		return fabsf(in) <= thresh ? 0 : in;
 	};
 	OpVector threshold = context().threshold;
-	start.x = zero_small(c.data->start.x, threshold.dx);
-	start.y = zero_small(c.data->start.y, threshold.dy);
+	if (zeroStart) {
+		start.x = zero_small(c.data->start.x, threshold.dx);
+		start.y = zero_small(c.data->start.y, threshold.dy);
+	}
 	end.x = zero_small(c.data->end.x, threshold.dx);
 	end.y = zero_small(c.data->end.y, threshold.dy);
 	if (start != c.data->start || end != c.data->end) {
@@ -619,7 +621,8 @@ void OpCurve::zeroSmall(OpContour& contour) {
 	}
 	isSmall = start.isNearly(end, threshold);
 	if (isSmall)
-		start = end;
+		end = start;
+	return isSmall;
 }
 
 OpPoint OpCurve::hullPt(int index) const {

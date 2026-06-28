@@ -43,15 +43,6 @@ inline OpPoint CubicPtAtT(OpPoint start, CubicControls controls, OpPoint end, fl
     float c = 3 * one_t * t2;
     float d = t2 * t;
     OpPoint result = a * start + b * controls.pts[0] + c * controls.pts[1] + d * end;
-#if OP_TEST_RASTER
-    // Accumulated error may cause computed point to be off the line between start and end,
-    // even when controls are on that line. While this is an acceptable amount of error, it
-    // triggers false positives in the debug raster code on horizontal lines. To get around
-    // this, confine the y-result to a crude hull formed by the input points.
-    std::array<float, 4> ys { start.y, controls.pts[0].y, controls.pts[1].y, end.y };
-    auto yMinMax = std::minmax_element(ys.begin(), ys.end());
-    result.y = std::min(*yMinMax.second, std::max(*yMinMax.first, result.y));
-#endif
     return result;
 }
 

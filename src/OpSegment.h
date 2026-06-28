@@ -142,7 +142,7 @@ struct OpSegment {
 	float thresholdLength() const;
 	void transferCoins();
 //	void tripleSect();  // check intersections for three or more identical points
-	void zeroSmall();
+	bool zeroSmall(bool zeroStart);
 
 #if OP_DEBUG
 	bool debugFail() const;

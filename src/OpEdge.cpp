@@ -594,6 +594,7 @@ void OpEdge::markPals() {
 				addPal(dist.edge, 0, dist.reversed);
 		}
 	}
+	unsummable = true;
 }
 
 // if there is another path already output, and it is first found in this ray,
@@ -606,7 +607,7 @@ bool OpEdge::output(bool closed) {
 	bool abort = false;
 	// returns true if reverse/no reverse criteria found
 	// if all loop edges are unsectable, there may be no valid reverse criteria (testQuads5343280)
-	auto test = [&reverse, &abort](const Distance* outer, const Distance* inner) {
+	auto test = [&reverse, &abort, this](const Distance* outer, const Distance* inner) {
 		if (!outer->edge->inOutput && !outer->edge->inLinkups)
 			return false;
 		// reverse iff normal direction of inner and outer match and outer normal points to nonzero
@@ -617,8 +618,8 @@ bool OpEdge::output(bool closed) {
 			return true;  // don't reverse if outer normal in direction of inner points to zero
 		OpEdge* iEdge = inner->edge;
 	//	OP_ASSERT(!iEdge->inOutput);  // triggered by cubic1810520
-		if (iEdge->inOutput && !iEdge->hasPals()) {  // defer dealing with this until we find an easier test case
-			OpDebugOut("!!! edge already output\n");
+		if (iEdge->inOutput && !iEdge->hasPals() && Unsortable::none == iEdge->unsortable) {  // defer dealing with this until we find an easier test case
+			OpDebugOut(context()->debugData.testname + " !!! edge already output\n");
 			abort = true;
 			return true;
 		}
@@ -795,6 +796,8 @@ bool OpEdge::setLinkDirection(EdgeMatch match, std::vector<OpEdge*>* linkErasure
 	OpEdge* edge = this;
 	while (edge->priorEdge) {
 		std::swap(edge->priorEdge, edge->nextEdge);
+		if (EdgeMatch::none == edge->which())
+			edge->setWhich(EdgeMatch::start);
 		edge->setWhich(!edge->which());
 		edge = edge->nextEdge;
 	}

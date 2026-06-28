@@ -34,6 +34,21 @@ void OpCurve::debugScale(double scaleX, double scaleY, double offsetX, double of
 	end = c.data->end;
 }
 
+OpPoint OpCurve::debugPtAtTPinY(float t) {
+	OpPoint result = ptAtT(t);
+    // Accumulated error may cause computed point to be off the line between start and end,
+    // even when controls are on that line. While this is an acceptable amount of error, it
+    // triggers false positives in the debug raster code on horizontal lines. To get around
+    // this, confine the y-result to a crude hull formed by the input points.
+    std::vector<float> ys { c.data->start.y, c.data->end.y };
+	for (int index = 1; index < pointCount() - 1; ++index) {
+		ys.push_back(hullPt(index).y);
+	}
+    auto yMinMax = std::minmax_element(ys.begin(), ys.end());
+    result.y = std::min(*yMinMax.second, std::max(*yMinMax.first, result.y));
+	return result;
+}
+
 #if OP_DEBUG_SERIALIZE
 std::string RasterSample::debugDump(DebugLevel l, DebugBase b) const {
 	std::string s;
@@ -101,8 +116,8 @@ OpDebugSamples::OpDebugSamples(DebugRaster* r)
 void OpDebugSamples::addCurveXatY(const Curve& original, RasterSample& base, float tLo, float tHi) {
 	OpCurve curve(original, Rotated::yes);
 	curve.debugScale(1, raster->scale * raster->subSamples, 0, raster->offsetY);  // leave x alone
-	OpPoint xy = curve.ptAtT(tLo);
-	OpPoint xyEnd = curve.ptAtT(tHi);
+	OpPoint xy = curve.debugPtAtTPinY(tLo);
+	OpPoint xyEnd = curve.debugPtAtTPinY(tHi);
 	// error in point at t math may put points outside curve bounds; ceil then puts in wrong pixel
 	// restrict answer to y-axis bounds of curve
 	OpRect bounds = curve.fullBounds();

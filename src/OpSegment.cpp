@@ -504,6 +504,10 @@ void OpSegment::disableSmall() {
 // !!! this was lineIntersect which could miss if normal line points away from seg
 //     but it was changed without fixing the root bug, so may make things less stable ...
 OpPtT OpSegment::distance(const OpPtT& segPtT, OpSegment* opp) {
+	for (OpIntersection* oppSect : opp->sects.i) {
+		if (oppSect->opp->ptT.pt == segPtT.pt)
+			return oppSect->ptT;
+	}
 	OpVector normal = c.normal(segPtT.t);
 	if (!normal.isFinite())
 		return OpPtT(SetToNaN::dummy);
@@ -851,9 +855,10 @@ MatchReverse OpSegment::matchEnds(const OpSegment* opp) const {
 
 bool OpSegment::mergeEndPoints() {
 	OP_ASSERT(disabled || !sects.i.empty());
-	if ((disabled && !c.isSmall) || sects.i.front()->ptT.t == sects.i.back()->ptT.t
+	if (disabled || sects.i.front()->ptT.t == sects.i.back()->ptT.t
 			|| sects.i.front()->ptT.t != 0 || sects.i.back()->ptT.t != 1) {
-		disabled = true;
+		OP_DEBUG_CODE(if (!disabled))
+			setDisabled(OP_LINE_FILE_NPARGS());
 		endsMerged = true;
 		return false;
 	}
@@ -998,6 +1003,11 @@ bool OpSegment::mergeIntersections() {
 doBackup:
 		;
 	} while (index + 1 < sects.i.size());
+	if (sects.i.front()->ptT.pt == sects.i.back()->ptT.pt) {
+		OP_ASSERT(0 == sects.i.front()->ptT.t);
+		OP_ASSERT(1 == sects.i.back()->ptT.t);
+		setDisabled(OP_LINE_FILE_NPARGS());
+	}
 	merged = true;  // don't merge this segment again
 	return runAgain;  // but if an opposite segment changed, do rerun overlapping contours' segments
 }
@@ -1257,7 +1267,6 @@ void OpSegment::tripleSect() {
 }
 #endif
 
-void OpSegment::zeroSmall() {
-	c.zeroSmall(*contour); 
-//	ptBounds = c.ptBounds().outset(threshold());
+bool OpSegment::zeroSmall(bool zeroStart) {
+	return c.zeroSmall(*contour, zeroStart); 
 }

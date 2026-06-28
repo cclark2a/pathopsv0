@@ -79,9 +79,7 @@ OpWinding::OpWinding(const PathOpsV0Lib::Winding& wind, DebugWindingRef )
 #if OP_DEBUG || OP_DEBUGGER
 	, debugType(DebugWindingType::winding)    // treat as already copied
 #endif
-#if OP_TEST_RASTER
 	, usedByRaster(true)
-#endif	
 	{
 }
 

@@ -1788,8 +1788,8 @@ bool OpCurveCurve::ifNearly(OpEdge& edge, const OpPtT& edgePtT, OpEdge& oppEdge,
 
 bool OpCurveCurve::alreadyInLimits(const OpEdge* edge, const OpEdge* oEdge, 
 		const OpPtT& edgePtT, const OpPtT& oppPtT) {
-		if (limits.alreadyIn(edgePtT, oppPtT))
-			return true;
+	if (limits.alreadyIn(edgePtT, oppPtT))
+		return true;
 #if 0  // this breaks testQuads5635157; instead, disallow t values in deleted ranges
 // if this edge/opEdge is a subset of an existing limit, replace it
 	for (size_t index = 0; index < limits.size(); ++index) {
@@ -1910,8 +1910,9 @@ bool OpCurveCurve::reduceDistFlipped() {
         for (Interval interval : intervals) {
             OpEdge* split = allocEdge(segment, nullptr, interval.lo, interval.hi, NewEdge::none, 
                     EdgeOverlaps::overlaps  OP_LINE_FILE_PARAMS(segment->id));
+			if (split->disabled)
+				continue;
 		    split->ccOverlaps = true;
-		    OP_ASSERT(!split->disabled);
 		    splits.c.push_back(split);
         }
     };

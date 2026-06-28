@@ -2747,9 +2747,9 @@ std::string SegPt::debugDump(DebugLevel l, DebugBase b) const {
 std::string SnipPtTs::debugDump(DebugLevel l, DebugBase b) const {
     std::string s;
     s += "segPtT:" + segPtT.debugDump(l, b) + " ";
-    s += "oppPtT:" + oppPtT.debugDump(l, b) + " ";
-    s += "segCut:" + segCut.debugDump(l, b) + " ";
-    s += "oppCut:" + oppCut.debugDump(l, b) + " ";
+    s += "oppPtT:" + oppPtT.debugDump(l, b) + "\n";
+    s += "segCut:" + segCut.debugDump(l, b) + "\n";
+    s += "oppCut:" + oppCut.debugDump(l, b);
     return s;
 }
 

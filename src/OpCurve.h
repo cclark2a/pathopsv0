@@ -10,9 +10,6 @@
 struct OpContext;
 struct OpContour;
 
-#if OP_TEST_RASTER
-struct OpEdge;
-#endif
 enum class EdgeMatch : int8_t;
 
 // arranged so down/left is -1, up/right is +1
@@ -144,12 +141,13 @@ struct OpCurve {
     OpContext& writableContext() const { 
         return *(OpContext*) c.context; }
 	OpPair xyAtT(OpPair t, XyChoice xy) const;
-	void zeroSmall(OpContour& );
+	bool zeroSmall(OpContour& , bool zeroStart);
 #if OP_DEBUG || OP_DEBUGGER
 	bool debugIsLine() const;
 #endif
 #if OP_TEST_RASTER
 	void debugScale(double scaleX, double scaleY, double offsetX, double offsetY);
+	OpPoint debugPtAtTPinY(float );
 #endif
 #if OP_DEBUGGER
 	OpCurve debugSubDivide(float t1, float t2) const;

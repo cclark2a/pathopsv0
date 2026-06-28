@@ -284,7 +284,7 @@ struct EdgeFilterName {
     if (thisID) s += #thisID ":" + STR(thisID->id) + " "
 
 #define DEBUG_DUMP_COMMON_STRUCT(thisStruct) \
-    s += #thisStruct ":" + thisStruct.debugDump(l, b) + "\n"
+    s += #thisStruct ":" + thisStruct.debugDump(l, b) + " "
 
 #define DEBUG_DUMP_FIRST_STRUCT(thisStruct) \
     std::string s; \

@@ -134,7 +134,7 @@ static void chalkboard_threaded(TestOptions* options) {
             }
             if (samples >= 32)
                 testlines ^= 0xFFFFFFFFFFFFFFFFLL;
-            if (!options->skipTests(1) && !chalkboard(options, testlines))
+            if (!options->skipTests(1) && chalkboard(options, testlines))
                 return;
         }
     }
@@ -144,8 +144,13 @@ static void chalkboard_1(TestOptions* options) {
     chalkboard(options, 0xFFFFFFFFFFFFFFFFLL);
 }
 
+static void chalkboard_test_one(TestOptions* options) {
+    chalkboard(options, 288230376554500096ULL);
+}
+
 void V0Chalkboard(TestTrack* track) {
     static std::vector<TestFunc> tests = {
+        TEST_FUNC(chalkboard_test_one),
         TEST_FUNC(chalkboard_1),
         TEST_FUNC_NUMBERED(chalkboard_threaded),
     };
