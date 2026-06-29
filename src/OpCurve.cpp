@@ -56,7 +56,8 @@ OpRoots OpCurve::axisRawHit(Axis axis, float intercept, MatchEnds matchEnds) con
 	}
 	OpRoots moreRoots = (*func)(c, axis, intercept  OP_DEBUG_PARAMS(result));
 	for (float root : moreRoots.roots) {
-		result.addEnd(root);
+		if (!OpMath::IsNaN(root))
+			result.addEnd(root);
 	}
 	result.sort();
 	if (Rotated::yes == rotated && 2 < result.count()) {
@@ -329,15 +330,23 @@ float OpCurve::matchVector(float start, float end, OpPoint pt, OpVector v) const
 		return 1;
 	LinePts linePts { pt, pt + v };
 	OpRoots roots = lineIntersect(linePts);
-	for (float root : roots.roots) {
-		if (start >= root || root >= end)
-			continue;
-		OpVector threshold = context().threshold;
-		OpPoint foundPt = ptAtT(root);
-		if (!foundPt.isNearly(pt, threshold))
-			continue;
-		return root;
+	OP_ASSERT(isLineSet);
+	if (roots.roots.size() <= 1 || !isLineResult) {
+		for (float root : roots.roots) {
+			if (start >= root || root >= end)
+				continue;
+			OpVector threshold = context().threshold;
+			OpPoint foundPt = ptAtT(root);
+			if (!foundPt.isNearly(pt, threshold))
+				continue;
+			return root;
+		}
 	}
+	OpVector span = c.data->end - c.data->start;
+	XyChoice ch = fabs(span.dx) > fabs(span.dy) ? XyChoice::inX : XyChoice::inY;
+	float t = (pt.choice(ch) - c.data->start.choice(ch)) / span.choice(ch);
+	if (start <= t && t <= end && ptAtT(t).isNearly(pt, context().threshold))
+		return t;
 	return OpNaN;
 }
 
