@@ -145,7 +145,7 @@ static void chalkboard_1(TestOptions* options) {
 }
 
 static void chalkboard_test_one(TestOptions* options) {
-    chalkboard(options, 288230376554500096ULL);
+    chalkboard(options, 12645427950128977621U);
 }
 
 void V0Chalkboard(TestTrack* track) {

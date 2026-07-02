@@ -17,13 +17,6 @@ struct RayTargets;
 enum class CurveRef;
 enum class FoundPtT;
 
-// Pals attempt to aggregate windings where the edge' ray sort order is unknown, but the collective
-//  effect can be determined by summing the pals' windings. The 'pal many' winding tries to cache
-//  this result, but since pals aren't required to have identical spans, any cache may not work for
-//  an arbitrary ray. The 'op edge pal many' flag disables this winding cache, computing it as 
-//  needed by intersecting the ray with each edge as is done with other edges.
-#define OP_EDGE_PAL_MANY 0
-
 enum class NewEdge {
     none,
 	isLeft,
@@ -369,9 +362,6 @@ private:
 		, upright_impl( { SetToNaN::dummy, SetToNaN::dummy } )
 		, winding(WindingUninitialized::dummy)
 		, sum(WindingUninitialized::dummy)
-#if OP_EDGE_PAL_MANY
-		, palMany(WindingUninitialized::dummy)
-#endif
         , startDist(SetToNaN::dummy)
         , endDist(SetToNaN::dummy)
 		, startT(OpNaN)
@@ -566,9 +556,6 @@ public:
 	OpPointBounds linkBounds;
 	OpWinding winding;	// contribution: always starts as 1, 0 (or 0, 1)
 	OpWinding sum;  // total incl. normal side of edge for operands (fill count in normal direction)
-#if OP_EDGE_PAL_MANY
-	OpWinding palMany;  // temporary used by unsectables to contain all pal windings combined
-#endif
 	std::vector<CoinPal> coinPals;  // track coincidences bracketing edge by ID
 	std::vector<OpIntersection*> unSects;  // unsectable sects bracketing edge (to mark as pals)
 	std::vector<EdgePal> pals;	 // edge + pals share sect overlap; or ray can't order edge and pals

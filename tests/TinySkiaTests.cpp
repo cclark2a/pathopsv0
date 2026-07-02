@@ -48,7 +48,7 @@ std::vector<TinySuite> tinySuites = {
     { V0SimplifyRects, "simplifyRect" },
     { V0SimplifyTriangles, "triangle" },
     { V0Tiger, "tiger", .21f },
-    { V0Tests, "v0" },
+    { V0Tests, "v0", 10 },
 };
 
 thread_local std::string currentTest;  // can't be in a struct
@@ -272,8 +272,8 @@ TestDone TestOptions::testSetup(SkPath& left, SkPath& right, TinyOps op, SkPath*
         OpDebugOut("test:" + testTrack.testName + "\n");
 #endif
     debugData = OpDebugData(testTrack.testName, 
-            testFunc.mayFail ? OpDebugExpect::fail : OpDebugExpect::success, 
-            testTrack.maxError, CURVE_CURVE_1, CURVE_CURVE_2, CURVE_CURVE_DEPTH, CURVE_CURVE_DUMP,
+            testFunc.mayFail ? OpDebugExpect::fail : OpDebugExpect::success, testTrack.maxError, 
+            CURVE_CURVE_1, CURVE_CURVE_2, CURVE_CURVE_DEPTH, CURVE_CURVE_DUMP, UNAMBIGUOUS_DUMP,
             tinyState.defeatBreak, TEST_DEFEAT_DUMPS, testTrack.runNamedTest, !ignoreRaster);
     return testPart(left, right, op, result);
 }
@@ -480,6 +480,8 @@ void TestTrack::addSkipRange(RunType runType, int count) {
 bool TestTrack::runTests(const std::vector<TestFunc>& tests) {
     auto testOne = [this](const TestFunc& test) {
         for (std::string skipName : TEST_PATH_SKIP_TESTS) {
+            if (TEST_FIRST == skipName)
+                continue; 
             if (test.name == skipName)
                 return false;
         }

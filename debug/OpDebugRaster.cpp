@@ -705,6 +705,7 @@ float DebugRaster::out() {
 #if OP_DEBUG || OP_DEBUGGER
 	if (sendToDebugger) {
 		output.rasterize();
+		context->debugData.defeatDumps = false;
 		OP_DEBUG_SERIALIZE_CODE(context->dumpFile(__func__, DumpRaster::yes));
 	}
 #endif

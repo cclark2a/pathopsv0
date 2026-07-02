@@ -312,7 +312,7 @@ void OpContext::mergeEndPoints() {
 #endif
 #if OP_DEBUG
 	PathOpsV0Lib::DebugValue debugMergeEnds = debugContextCallbacks.debugMergeEndsFuncPtr;
-	int debugSafetyCount = debugMergeEnds ? (*debugMergeEnds)() : 100;
+	int debugSafetyCount = debugMergeEnds ? (*debugMergeEnds)() : 100 * contours.size();
 #endif
 	// prefer end points
 	for (size_t index = 0; index < contours.size(); ++index) {

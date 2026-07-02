@@ -120,6 +120,16 @@ void OpLimb::addEach(OpContour& contour, OpTree& tree) {
 	}
 }
 
+bool OpLimb::parentSeen(OpEdge* test) const {
+	const OpLimb* ancestor = parent;
+	while (ancestor) {
+		if (ancestor->edge == test)
+			return true;
+		ancestor = ancestor->parent;
+	}
+	return false;
+}
+
 bool OpLimb::ptsMatch(EdgeMatch limbEnd, const std::vector<OpPoint>& testPts) const {
 	OP_ASSERT(EdgeMatch::start == limbEnd || EdgeMatch::end == limbEnd);
 	const std::vector<OpPoint>& pts = EdgeMatch::start == limbEnd ? firstPts : lastPts;
@@ -240,14 +250,26 @@ OpLimb* OpLimb::tryAdd(OpTree& tree, OpEdge* test, EdgeMatch m, LimbPass limbPas
 	OP_ASSERT(lastLimbEdge);
 	if (LimbPass::miswound == limbPass && lastLimbEdge == test)
 		return nullptr;
+#if LEGACY_CONTAINS
 	if (LimbPass::unsectPair != limbPass && tree.contains(this, test))
 		return nullptr;
 	if (LimbPass::disabledCenterless == limbPass && tree.deepContains(this, test, m, limbPass))
 		return nullptr;
+#endif
 	std::vector<OpPoint> testEnds = test->collectMatch(!m);
 	bool loopedToFirstPoint = tree.firstMatch(testEnds);
-	if (!loopedToFirstPoint && (EdgeMatch::start == m ? test->startSeen : test->endSeen))
+	bool seen = EdgeMatch::start == m ? test->startSeen : test->endSeen;
+	if (!loopedToFirstPoint && seen)
 		return nullptr;
+#if LEGACY_CONTAINS
+	if ((test->startSeen || test->endSeen) && parentSeen(test))
+		return nullptr;
+#else
+	if (seen)
+		return nullptr;
+	if ((test->startSeen || test->endSeen) && parentSeen(test))
+		return nullptr;
+#endif
 	// compare test wind zero against their parent's last edge wind zero
 	// OP_ASSERT(!test->isPal(last) || LimbPass::linked != limbPass);  // breaks pentrek10
 	// Edge direction and winding are tricky (see description at wind zero declaration.)
@@ -256,11 +278,7 @@ OpLimb* OpLimb::tryAdd(OpTree& tree, OpEdge* test, EdgeMatch m, LimbPass limbPas
 	// is computed for the unreversed orientation.
 	if (WindZero::unset != lastLimbEdge->windZero && WindZero::unset != test->windZero
 			&& (LimbPass::linked == limbPass || LimbPass::miswound == limbPass)
-#if OP_EDGE_PAL_MANY
-			&& !lastLimbEdge->palMany.isSet() 
-#else
 			&& lastLimbEdge->pals.empty()
-#endif
 			&& Unsortable::filler != lastLimbEdge->unsortable) {
 		WindZero zeroSide = test->windZero;
 		// if last which end is end, flip last's wind zero (for comparsion, flip zero side);
@@ -282,7 +300,11 @@ OpLimb* OpLimb::tryAdd(OpTree& tree, OpEdge* test, EdgeMatch m, LimbPass limbPas
 	//     
 	if (parent && LimbPass::disjoint != treePass)  // if not trunk
 		childBounds.add(limbBounds);
+#if LEGACY_CONTAINS
 	if (test->inLinkups)
+#else
+	if (LimbPass::linked == limbPass)
+#endif
 		(EdgeMatch::start == m ? test->startSeen : test->endSeen) = true;
 	// if this edge added to limb bounds makes perimeter larger than best, skip
 	// !!! are their cases where smallest perimeter is not the best test?
@@ -292,17 +314,24 @@ OpLimb* OpLimb::tryAdd(OpTree& tree, OpEdge* test, EdgeMatch m, LimbPass limbPas
 	// note that best may not have ray to edge; e.g., outline of 'O' (edge contains inner contour)
 	if (childBounds.perimeter() > tree.bestPerimeter)
 		return nullptr;
-	OpLimb* newParent = this;
+#if LEGACY_CONTAINS
 	if (tree.containsParent(this, test, m))
 		return nullptr;
+#endif
 #if 0  // breaks quad test (unknown #) next time, record test it fixes...
 	if (LimbPass::disabledCenterless == limbPass) 
 		test->setWhich(m);
 #endif
+#if LEGACY_CONTAINS
 	if (LimbPass::unlinked == limbPass)
 		test->startSeen = true;
+#else
+	if (LimbPass::unlinked == limbPass || LimbPass::disabledBackwards == limbPass 
+			|| LimbPass::disabledCenterless == limbPass || LimbPass::smallEdge == limbPass)
+		(EdgeMatch::start == m ? test->startSeen : test->endSeen) = true;
+#endif
 	OpLimb* branch = tree.makeLimb();
-	branch->set(tree, test, newParent, m, limbPass, limbContour, limbIndex, otherEnd, &childBounds);
+	branch->set(tree, test, this, m, limbPass, limbContour, limbIndex, otherEnd, &childBounds);
 	return branch;
 }
 
@@ -351,7 +380,7 @@ OpTree::OpTree(OpEdge* edge)
 	, smallGap(false) {
 	id = context->nextID();
 	maxLimbs = context->contextCallbacks.maxLimbsFuncPtr ?
-			context->contextCallbacks.maxLimbsFuncPtr((PathOpsV0Lib::Context*) context) : 1000;
+			context->contextCallbacks.maxLimbsFuncPtr((PathOpsV0Lib::Context*) context) : 100000;
 	OP_DEBUG_CODE(context->debugTree = this);
 	OP_ASSERT(edge->inLinkups);
 	OP_DEBUG_IMAGE_CODE_OLD(context->debugLimbClear());
@@ -502,6 +531,7 @@ void OpTree::addUnsectableLoop(OpJoiner& joiner, OpLimb* end) {
 }
 #endif
 
+#if 1 || LEGACY_CONTAINS
 bool OpTree::contains(OpLimb* parent, OpEdge* edge) const {
 	OpLimbStorage* limbs = context->limbCurrent;
 	while (limbs) {
@@ -539,6 +569,7 @@ bool OpTree::containsParent(OpLimb* parent, OpEdge* edge, EdgeMatch m) const {
 	}
 	return false;
 }
+#endif
 
 // !!! maybe more than 1 identical filler is possible ?! wait for test case to implement
 // !!! in some rare case, there may be a ton of fillers; if this ever occurs, more filler
@@ -551,6 +582,7 @@ bool OpTree::containsFiller(int ccUnsectableID) const {
 	return context->containsFiller(ccUnsectableID);
 }
 
+#if LEGACY_CONTAINS
 // for passes like disabled centerless, check if candidate edge has already been added to tree
 // find the added edge, and see which path is preferable
 bool OpTree::deepContains(const OpLimb* limb, OpEdge* edge, EdgeMatch match, LimbPass pass) const {
@@ -586,6 +618,7 @@ bool OpTree::deepContains(const OpLimb* limb, OpEdge* edge, EdgeMatch match, Lim
 	}
 #endif
 }
+#endif
 
 float OpTree::firstDistance(OpPoint pt) const {
 	OP_ASSERT(trunk);
@@ -784,7 +817,29 @@ void OpTree::makeTrunk(OpEdge* edge) {
 				limb.addEach(*member, *this);
 			}
 			if (totalUsed > maxLimbs) {
-				OP_DEBUG_DUMP_CODE(context->dumpFile("treeError"));
+		#if OP_DEBUG_DUMP
+				std::string s;
+				for (int i = index; i < totalUsed; ++i) {
+					const OpLimb& test = nthLimb(i);
+					s += STR(i) + " " + test.debugDump(defaultLevel, defaultBase) + "\n";
+			#if 0
+					std::string sa;
+					const OpLimb* a = test.parent ? test.parent->parent : nullptr;
+					if (!a)
+						continue;
+					while (a) {
+						sa += "[l:" + STR((int) a->linkedIndex) + " e:" + STR(a->edge->id) + "] ";
+						a = a->parent;
+					}
+					sa.pop_back();
+					s += " ancestors: " + sa + "\n";
+			#endif
+				}
+				OpDebugFormat(s);
+				context->debugData.defeatDumps = false;
+				context->dumpFile("treeError");
+				OpNop();
+		#endif
 				context->setError(PathOpsV0Lib::ContextError::tree  
 						OP_DEBUG_PARAMS(edge->id));
 				return;
@@ -962,7 +1017,7 @@ OpJoiner::~OpJoiner() {
 
 bool OpJoiner::linkRemaining(OpContour* contour) {
 	LinkUps& linkups = contour->linkups;
-    OP_DEBUG_DUMP_CODE(context->dumpFile("linkRemaining"));
+    OP_DEBUG_DUMP_CODE(context->dumpFile(__func__));
 	linkPass = LinkPass::remaining;
 	// match links may add or remove from link ups. Iterate as long as link ups is not empty
 	for (auto e : linkups.l) {
@@ -1083,7 +1138,10 @@ bool OpJoiner::LinkEnd(OpEdge* first) {
 }
 
 void OpJoiner::linkUnambiguous(OpContour* contour, LinkPass lp) {
-    OP_DEBUG_DUMP_CODE(context->dumpFile("linkUnambiguous"));
+#if OP_DEBUG_DUMP
+	if (context->debugData.dumpUnambiguous)
+    	context->dumpFile(__func__);
+#endif
 	OP_DEBUG_VALIDATE_CODE(debugValidate());
 	// match up edges that have only a single possible prior or next link, and add them to new list
 	linkPass = lp;

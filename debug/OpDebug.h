@@ -97,7 +97,7 @@ struct OpDebugRaster;
 struct OpDebugData {
 	OpDebugData() {}
 	OpDebugData(std::string tn, OpDebugExpect expected, float maxErr, int cc1, int cc2, int ccDepth, 
-			bool ccAll, bool noBreaks, bool noDumps, bool runOne, bool showErr) 
+			bool ccAll, bool unambiguous, bool noBreaks, bool noDumps, bool runOne, bool showErr) 
 		: testname(tn)
 		, expect(expected)
 		, maxError(maxErr)
@@ -105,6 +105,7 @@ struct OpDebugData {
         , curveCurve2(cc2)
         , curveCurveDepth(ccDepth)
 		, dumpAllCcs(ccAll)
+		, dumpUnambiguous(unambiguous)
 		, defeatBreak(noBreaks)
 		, defeatDumps(noDumps)
         , runOneFile(runOne)
@@ -121,6 +122,7 @@ struct OpDebugData {
 	int dumpIndex = 0;  // number of dumped file
 	int limitContours = 0;
 	bool dumpAllCcs = true;
+	bool dumpUnambiguous = true;
 	bool defeatBreak = false;
 	bool defeatDumps = false;
 	bool limitReached = false;

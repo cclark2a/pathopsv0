@@ -170,7 +170,7 @@ if (testlines & (1LL << i++)) path.close();
 }
 
 static void tiger8a_h_1(TestOptions* options) {
-    uint64_t testlines = 497394136579;  // 345778585611 best so far: 0x0000001d14c14bb1;
+    uint64_t testlines = 300783165520;  // 345778585611 best so far: 0x0000001d14c14bb1;
     tiger8a_x(options, testlines);
 }
 
@@ -243,7 +243,7 @@ static void tiger_threaded(TestOptions* options) {
 }
 
 static void tiger8b_h_1(TestOptions* options) {
-    uint64_t testlines = 217854190527;  // best so far: 0x000000201304b4a3
+    uint64_t testlines = 68730544267;
     tiger8b_x(options, testlines);
 }
 

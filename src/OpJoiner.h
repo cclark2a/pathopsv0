@@ -37,6 +37,8 @@ struct LinkUps {
 	std::vector<OpEdge*> l;
 };
 
+#define LEGACY_CONTAINS 0
+
 struct OpJoiner {
     OP_DEBUG_DUMP_CODE(OpJoiner(DumpSerialization , OpContext* );)
 	OpJoiner(OpContext& );
@@ -101,6 +103,7 @@ struct OpLimbStorage;
 
 struct OpLimb {
 	void addEach(OpContour& , OpTree& );
+	bool parentSeen(OpEdge* ) const;
 	bool ptsMatch(EdgeMatch limbEnd, const std::vector<OpPoint>& ) const;
 	bool ptsMatch(EdgeMatch limbEnd, const OpLimb* test, EdgeMatch testEnd) const;
 	void set(OpTree& , OpEdge* , OpLimb* parent, EdgeMatch , LimbPass , OpContour* ,
