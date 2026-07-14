@@ -178,10 +178,10 @@ void DebuggerState::playback() {
     DEBUG_SET_REQUIRED_VALUE(depth, verboseLevel);
     DEBUG_SET_REQUIRED_VALUE(verboseLevel, error);
     ASSERT_ORDERED(error, bitsToShow);  // don't restore
-    DEBUG_SET_BOOL(bitsToShow, allowUpdate);
+    ASSERT_ORDERED(bitsToShow, allowUpdate);
     DEBUG_SET_BOOL(allowUpdate, showContours);
-    DEBUG_SET_BOOL(showContours, showEdges);
-    DEBUG_SET_BOOL(showEdges, showHex);
+    DEBUG_SET_BOOL(showContours, hideEdges);
+    DEBUG_SET_BOOL(hideEdges, showHex);
     // !!! need some way to call a custom set function ?
     defaultBase = showHex ? DebugBase::hex : DebugBase::dec;
     DEBUG_SET_BOOL(showHex, showIntersections);
@@ -212,10 +212,10 @@ void DebuggerState::record() {
     DEBUG_DUMP_REQUIRED_VALUE(depth, verboseLevel);
     DEBUG_DUMP_REQUIRED_VALUE(verboseLevel, error);
     ASSERT_ORDERED(error, bitsToShow);  // don't save
-    DEBUG_DUMP_BOOL(bitsToShow, allowUpdate);
+    ASSERT_ORDERED(bitsToShow, allowUpdate);
     DEBUG_DUMP_BOOL(allowUpdate, showContours);
-    DEBUG_DUMP_BOOL(showContours, showEdges);
-    DEBUG_DUMP_BOOL(showEdges, showHex);
+    DEBUG_DUMP_BOOL(showContours, hideEdges);
+    DEBUG_DUMP_BOOL(hideEdges, showHex);
     DEBUG_DUMP_BOOL(showHex, showIntersections);
     DEBUG_DUMP_BOOL(showIntersections, showOutput);
     DEBUG_DUMP_BOOL(showOutput, showRays);
@@ -243,7 +243,7 @@ void DebuggerState::record() {
 void DebuggerState::redraw() {
     if (!context) 
         return;
-#if OP_DEBUG
+#if OP_DEBUG_VALIDATE
     if (validation)
         validate();
 #endif
@@ -362,7 +362,7 @@ void DebuggerState::update() {
     redraw();
 }
 
-#if OP_DEBUG
+#if OP_DEBUG_VALIDATE
 void DebuggerState::validate() {
     for (OpType& id : ids) {
         id.validate();

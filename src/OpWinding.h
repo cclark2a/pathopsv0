@@ -71,7 +71,7 @@ enum class DebugWindingType {
 
 struct OpWinding {
 	OpWinding(WindingUninitialized );
-	OpWinding(OpEdge* edge, WindingSum );
+	OpWinding(const OpEdge* edge, WindingSum );
 	OpWinding(const PathOpsV0Lib::Winding& );  // allocates and copies
 #if OP_TEST_RASTER
 	OpWinding(DebugWindingRaster );  // don't allocate out of regular winding memory pool

@@ -4,18 +4,18 @@
 #include "TinySkiaTests.h"
 
 static void opCubicsX(TestOptions* options) {
-    float a = 0;
-    float b = 4;
-    float c = 0;
-    float d = 3;
+    float a = 1;
+    float b = 5;
+    float c = 3;
+    float d = 5;
     SkPathFillType e = SkPathFillType::kWinding;
     SkPathFillType f = SkPathFillType::kWinding;
     SkPath pathA, pathB;
     pathA.setFillType(e);
     float oA = 0;
-    float oB = 4;
-    float oC = 0;
-    float oD = 2;
+    float oB = 1;
+    float oC = 2;
+    float oD = 3;
     pathA.moveTo(oA, oB);
     pathA.cubicTo(oC, oD, b, a, d, c);
     pathA.close();
@@ -23,7 +23,7 @@ static void opCubicsX(TestOptions* options) {
     pathB.moveTo(a, b);
     pathB.cubicTo(c, d, oB, oA, oD, oC);
     pathB.close();
-    options->testOne(pathA, pathB, TinyOps::intersect);
+    options->testOne(pathA, pathB, TinyOps::unite);
 }
 
 // Skia tests omitted reverse difference; put those tests at the end to preserve numbering

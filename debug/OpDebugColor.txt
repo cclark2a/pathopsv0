@@ -7,7 +7,7 @@ $ prefix for OpDebugColor.h
 
 #include "OpDebug.h"
 
-#if OP_DEBUG_IMAGE || OP_DEBUGGER
+#if OP_DEBUGGER
 #include <utility>
 
 $ prefix for OpDebugColor.cpp
@@ -16,7 +16,7 @@ $ prefix for OpDebugColor.cpp
 
 #include "OpDebugColor.h"
 
-#if OP_DEBUG_IMAGE || OP_DEBUGGER
+#if OP_DEBUGGER
 
 $ lightly edited from https://www.rapidtables.com/web/color/RGB_Color.html
 $ processed to become: extern uint32_t [Cc]olor; uint32_t [Cc]olor = 0xFF123456; etc.

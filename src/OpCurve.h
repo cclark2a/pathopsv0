@@ -45,7 +45,7 @@ struct OpCurve {
 	}
 
 	OpCurve(PathOpsV0Lib::Curve , Rotated );
-#if OP_DEBUG_IMAGE
+#if OP_DEBUG_DUMP
 	OpCurve(PathOpsV0Lib::AddCurve , Rotated );
 #endif
 	// void adjust(OpPoint start, OpPoint end);
@@ -190,25 +190,5 @@ struct CurveDataStorage {
 	size_t used;
 	uint8_t storage[sizeof(OpPoint) * 256];
 };
-
-#if OP_DEBUG_IMAGE  
-// here because OpPoint is not declared in OpDebugImage.h or OpDebugDouble.h
-struct OpDebugRay {
-	OpDebugRay(Axis a, float v)
-		: axis(a)
-		, value(v)
-		, useAxis(true) {
-	}
-	OpDebugRay(const LinePts& pts) {
-		construct(pts);
-	}
-
-	void construct(const LinePts& pts);
-	LinePts pts;
-	Axis axis;
-	float value;
-	bool useAxis;
-};
-#endif
 
 #endif

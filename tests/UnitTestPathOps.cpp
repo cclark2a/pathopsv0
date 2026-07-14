@@ -21,7 +21,7 @@ extern void runTests();
 extern void runTinyTests();
 
 int main() {
-#if 0 && OP_DEBUG_IMAGE
+#if 0
     if (GENERATE_COLOR_FILES) {
         OpDebugGenerateColorFiles();
         return;

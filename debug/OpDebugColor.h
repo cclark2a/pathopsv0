@@ -6,7 +6,7 @@
 
 #include "OpDebug.h"
 
-#if OP_DEBUG_IMAGE || OP_DEBUGGER
+#if OP_DEBUGGER
 #include <utility>
 
 extern uint32_t maroon;

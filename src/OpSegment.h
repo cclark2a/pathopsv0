@@ -166,9 +166,6 @@ struct OpSegment {
     bool dumpInitialized() const;
 	#include "OpDebugDeclarations.h"
 #endif
-#if OP_DEBUG_IMAGE
-	bool debugContains(const OpEdge* ) const; // distinguishes owned edges from temporary edges
-#endif
 
 	OpContour* contour;
 	OpCurve c;
@@ -188,7 +185,7 @@ struct OpSegment {
 	bool oppMerged = false;
 //	bool startMoved;
 //	bool endMoved;
-#if OP_DEBUG_IMAGE || OP_DEBUGGER
+#if OP_DEBUGGER
 	uint32_t debugColor = debugBlack;
 #endif
     OP_LINE_FILE_DECLARE(debugSetDisabled)

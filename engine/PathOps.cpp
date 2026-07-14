@@ -23,7 +23,7 @@ static Contour* toInterface(OpContour* implementationContour) {
 
 Context* CreateContext() {
     OpContext* context = new OpContext();
-#if OP_DEBUG_IMAGE || OP_DEBUG_DUMP
+#if OP_DEBUGGER || OP_DEBUG_DUMP
     debugGlobalContext = context;
 #endif
     return toInterface(context);
@@ -70,7 +70,7 @@ void DeleteContext(Context* interfaceContext) {
     OpContext* context = toImplementation(interfaceContext);
 	OP_DEBUG_VALIDATE_CODE(context->debugJoiner = nullptr);
     delete context;
-#if OP_DEBUG_IMAGE || OP_DEBUG_DUMP
+#if OP_DEBUGGER || OP_DEBUG_DUMP
     debugGlobalContext = nullptr;
 #endif
 }

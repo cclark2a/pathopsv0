@@ -801,7 +801,7 @@ void OpContext::dumpSet(const char*& str) {
     debugValidateJoinerIndex = (int) OpDebugReadSizeT(str);
     ASSERT_SERIAL_OFFSET(*this, debugValidateJoinerIndex, 4, debugCallbacks);
 #else
-    ASSERT_ORDERED(dumpDummy, debugCallbacks);
+    ASSERT_ORDERED_OFFSET(windingSet, debugCallbacks, 5);
 #endif
 // debug call backs must be set before segments' curves can be set
     ASSERT_ORDERED(debugCallbacks, debugContextCallbacks);
@@ -1215,7 +1215,7 @@ void OpContour::dumpResolveAll(OpContext* c) {
 	DUMP_RESOLVE_ARRAY(endLinks.l);
     if (overlapOwner)
         c->dumpResolve(overlapOwner);
-#if OP_DEBUG_IMAGE
+#if OP_TEST
     for (PathOpsV0Lib::DebugCurveData& dcd : debugCurveData) {
         DebugCurveData_DumpResolve(context, dcd);
     }
@@ -1886,15 +1886,10 @@ void OpEdge::dumpSet(const char*& str) {
 	DEBUG_SET_BOOL(debugRayMatch, debugUnordered);
 	DEBUG_SET_BOOL(debugUnordered, debugSumSet);
 #endif
-    ASSERT_SERIAL_OFFSET(*this, debugSumSet, 6, dumpContext);
-    // omit dumpContext
 #if OP_DEBUG_DUMP
-    DEBUG_SET_BOOL(dumpContext, debugJoin);
-    DEBUG_SET_BOOL(debugJoin, debugLimb);
+    ASSERT_SERIAL_OFFSET(*this, debugSumSet, 6, dumpContext);  // omit dumpContext
+    DEBUG_SET_BOOL(dumpContext, debugLimb);
     DEBUG_SET_BOOL(debugLimb, debugReleased);
-    ASSERT_ORDERED_OFFSET(debugReleased, debugSetDisabled, 5);
-#else
-    ASSERT_ORDERED(dumpContext, debugSetDisabled);
 #endif
 #if OP_DEBUG_MAKER
     if (OpDebugOptional(str, "debugSetDisabled"))
@@ -1905,23 +1900,10 @@ void OpEdge::dumpSet(const char*& str) {
     ASSERT_ORDERED(debugSetMaker, debugSetSum);
     if (OpDebugOptional(str, "debugSetSum"))
         debugSetSum.dumpSet(str);
-    ASSERT_ORDERED(debugSetSum, debugPriorID);
-#elif OP_DEBUG_IMAGE
-    ASSERT_ORDERED(debugOne, debugPriorID);
-#else
-    ASSERT_ORDERED(dumpContext, debugPriorID);
 #endif
 #if OP_DEBUG_VALIDATE
     debugPriorID = (int) strID("debugPriorID");
     DEBUG_SET_BOOL(debugPriorID, debugScheduledForErasure);
-    static_assert(offsetof(OpEdge, debugScheduledForErasure) + sizeof(debugScheduledForErasure)
-            + 3 == sizeof(OpEdge));
-#elif OP_DEBUG_IMAGE
-    static_assert(offsetof(OpEdge, debugOne) + sizeof(debugOne)
-            + 0 == sizeof(OpEdge));
-#else
-    static_assert(offsetof(OpEdge, dumpContext) + sizeof(dumpContext)
-            + 0 == sizeof(OpEdge));
 #endif
 }
 

@@ -87,7 +87,7 @@ struct OpType {
     OpType(const struct EdgePal* p);
     OpType(const struct OpTree* t);
     OpType(const struct OpLimb* l);
-    void validate() const;
+    OP_DEBUG_VALIDATE_CODE(void validate() const;)
 
     OpRect bounds;
     union {
@@ -137,7 +137,7 @@ struct DebuggerAddPoly {
 
 struct DebuggerPoly {
     void dump() const;
-    OP_DEBUG_CODE(void validate() const);
+    OP_DEBUG_VALIDATE_CODE(void validate() const;)
 
     PathOpsV0Lib::Curve c;
     PathOpsV0Lib::CurveData cData;  // used by construction lines

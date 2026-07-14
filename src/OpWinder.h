@@ -58,7 +58,7 @@ struct OpWinder {
 	static IntersectResult CoincidentCheck(OpSegment* seg, OpSegment* opp);
 	static IntersectResult CoincidentCheck(std::array<CoinEnd, 4>& ends, bool* oppReversed,
 			XyChoice* );
-	static FoundIntercept FindACept(OpEdge* );
+	static FoundIntercept FindACept(OpEdge* , AllowTooManyRetries );
 	static ChainFail SetCept(OpEdge* );
 	static FoundWindings SetPriors(OpEdge*   OP_DEBUG_PARAMS(std::vector<OpEdge*>& debugVisited));
 	static ResolveWinding SetWindingByDistance(OpEdge* );

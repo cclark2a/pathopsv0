@@ -171,7 +171,7 @@ struct DebugRaster {
 	void sampleEdges();
 	void sampleOutput();
 	bool tooSmall() const;
-	OP_DEBUG_VALIDATE_CODE(void validate());
+	OP_DEBUG_VALIDATE_CODE(void validate();)
 #if OP_DEBUG_SERIALIZE
 	std::string debugDump(DebugLevel l, DebugBase b) const;
 //	void deleteOld();
@@ -199,7 +199,7 @@ struct DebugRaster {
 #if OP_DEBUG || OP_DEBUGGER
 	int8_t sendToDebugger = -1;
 #endif
-	OP_DEBUG_VALIDATE_CODE(bool disableValidate = true);
+	OP_DEBUG_VALIDATE_CODE(bool disableValidate = true;)
 };
 
 #endif

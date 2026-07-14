@@ -198,6 +198,7 @@ SDL_AppResult SDL_AppInit(void** appstate, int argc, char* argv[]) {
         return Fail("failed to allocate debuggerState");
     if (debuggerState->error)
         return Fail("debuggerState error: " + STR(debuggerState->error));
+    debuggerState->playback();
     *appstate = debuggerState;
     return SDL_APP_CONTINUE;
 }

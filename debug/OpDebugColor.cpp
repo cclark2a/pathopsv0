@@ -3,7 +3,7 @@
 
 #include "OpDebugColor.h"
 
-#if OP_DEBUG_IMAGE || OP_DEBUGGER
+#if OP_DEBUGGER
 
 uint32_t maroon = 0xFF800000;
 uint32_t Maroon = 0xFF800000;

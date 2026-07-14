@@ -109,7 +109,7 @@ struct DebuggerState {
     void setDepth(int );
     void setIDTypes();
     void update();
-#if OP_DEBUG
+#if OP_DEBUG_VALIDATE
     void validate();
 #endif
 
@@ -131,7 +131,7 @@ struct DebuggerState {
     bool bitsToShow = true;
     bool allowUpdate = true;
     bool showContours = false;
-    bool showEdges = true;
+    bool hideEdges = false;
     bool showHex = false;
     bool showIntersections = false;
     bool showOutput = false;
@@ -141,7 +141,7 @@ struct DebuggerState {
     bool showBits = false;
     bool showDumps = false;
 #if OP_DEBUG
-    bool validation = true;  // turn on as needed
+    bool validation = false;  // turn on as needed
 #endif
 };
 

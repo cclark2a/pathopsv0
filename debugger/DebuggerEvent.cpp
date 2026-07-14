@@ -169,7 +169,7 @@ KeyResult DebuggerState::keyEvent(const DebuggerEvent& debuggerEvent, KeyAction 
                 result.s = "d / D  curve/curve intersection depth: " 
                         + STR(depth) + " / " + STR(curveCurve->depth);
         break; 
-        case 'e': flip(showEdges, "edges (" + STR(count(IDType::edge)) + ")"); break;
+        case 'e': flip(hideEdges, "edges (" + STR(count(IDType::edge)) + ")"); break;
         case 'E': if (textTop) flip(textWindow.showErasures, "tree erasures"); break;
         case 'f': 
             if (picTop) flip(pictureWindow.drawFill, "fill"); 

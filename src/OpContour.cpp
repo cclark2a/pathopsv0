@@ -93,9 +93,6 @@ void OpContour::addJoinEdge(OpJoiner* joiner, OpEdge* e) {
 	if (e->disabled)
 		return;
 	e->setWhich(EdgeMatch::start);
-#if OP_DEBUG_IMAGE
-	e->debugJoin = true;
-#endif
 	if (!e->isSortable() || e->hasPals()) {
 		OP_DEBUG_VALIDATE_CODE(e->debugValidate());
 		unsortables.push_back(e);
@@ -611,8 +608,10 @@ RelinkJoins OpContour::relinkUnambiguous(OpJoiner* joiner, size_t link) {
 			if (!entry->linkHead)
 				continue;
 			std::vector<OpEdge*>& links = entry->segment->contour->linkups.l;
+	#if OP_DEBUG_VALIDATE
 			OP_ASSERT(entry->debugScheduledForErasure);
-			OP_DEBUG_CODE(entry->debugScheduledForErasure = false);
+			entry->debugScheduledForErasure = false;
+	#endif
 			entry->linkHead = false;
 			for (size_t index = 0; index < links.size(); ++index) {
 				if (links[index] == entry) {
@@ -660,7 +659,9 @@ void OpContour::removeLink(OpEdge* edge) {
 
 void OpContour::setLinkEdge(OpEdge* link, size_t index) {
 	OpContour* newContour = link->segment->contour;
+#if OP_DEBUG_VALIDATE
 	OP_ASSERT(!link->debugScheduledForErasure); 
+#endif
 	if (this != newContour) {
 		OP_ASSERT(!newContour->linkups.contains(link));
 		newContour->linkups.l.push_back(link);

@@ -19,7 +19,7 @@ OpWinding::OpWinding(const PathOpsV0Lib::Winding& copy)
 	OP_DEBUG_CODE(debugType = DebugWindingType::winding);
 }
 
-OpWinding::OpWinding(OpEdge* edge, WindingSum )
+OpWinding::OpWinding(const OpEdge* edge, WindingSum )
 	: w({ (ContourPtr) edge->segment->contour, edge->winding.w.data, edge->winding.w.size })
 	, type(WindingType::caller) {  // always copy
 	OP_ASSERT(WindingType::uninitialized != edge->winding.type);

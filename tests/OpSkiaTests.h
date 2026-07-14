@@ -7,7 +7,7 @@
 #endif
 
 #define SKIP_TO_V0 0  // set to 1 to ignore file, test first and run first test in v0
-#define SKIP_TO_FILE "simplify" // e.g., "simplify"  one file
+#define SKIP_TO_FILE "" // e.g., "simplify"  one file
 #define TEST_SUITE_FIRST ""  // e.g., "simplifyFail" skip suites prior to this one
 #if !OP_DEBUG_ALT
 #define TEST_FIRST "grshapearc"   // e.g., "simplifyQuads13071788" simplifyQuadsX" if file, one test
@@ -17,7 +17,6 @@
 #define TEST_FIRST ""  // for debugging two different tests simultaneously (test first & test alt)
 #endif
 #define TEST_EXTENDED 0
-#define TEST_ANALYZE 0
 
 /*
 single
@@ -41,21 +40,25 @@ count:1 0.111898132
 #define OP_TEST_V0 1  // set to zero to time Skia running tests
 #define USE_DOUBLE_CONICS 0  // set to one to use conics with double calculations intead of float
 #define TEST_DEFEAT_BREAK 0  // set to one to disallow debug breakpoints
-#define TEST_DEFEAT_DUMPS 1  // set to one to disallow rewriting dumps
+#define TEST_DEFEAT_DUMPS 0  // set to one to disallow rewriting dumps
 
 // loop191404 missing -0.078, 1.5323 t=0.281543255 oppT=0.290549636; 
 //                    -0.3563 2.0153 t=0.139774203 oppT=0.113169670
 #define CURVE_CURVE_1 4  // id of segment 1 to break in divide and conquer
 #define CURVE_CURVE_2 18  // id of segment 2 to break in divide and conquer
 #define CURVE_CURVE_DEPTH -1  // minimum recursion depth for curve curve break (-1 to disable)
-#define CURVE_CURVE_DUMP 0  // 1: dump all ccs; 0: only dump matching curve (for very large tests)
-#define UNAMBIGUOUS_DUMP 0  // 1: dump all ccs; 0: only dump matching curve (for very large tests)
+#define CURVE_CURVE_DUMP 1  // 1: dump all ccs; 0: only dump matching curve (for very large tests)
+#define UNAMBIGUOUS_DUMP 1  // 1: dump all ccs; 0: only dump matching curve (for very large tests)
 
 #define TEST_PATH_SKIP_TESTS { "grshapearc", "grshapearcs1" }  /* , "release_13", "pentrek10" */
 // when these tests are encountered, it and the remaining tests in the file are skipped
 #define TEST_PATH_OP_SKIP_REST
 #define TEST_PATH_OP_SKIP_FILES  /* e.g., "battle", "circleOp" */
 #define TEST_ENABLE_V0 1  // set zero to verify all tests are visited exactly once (disables engine)
+
+#define TEST_ANALYZE 1  // set to one to limit bounds and contours of very large tests
+#define LIMIT_CONTOURS 165  // when limited, maximum number of contours to check
+#define LIMIT_BOUNDS { 40, 6, 60, 9 }  // when limited, contours must start in bounds to be checked
 
 /*
 trunk:4923 bestGapLimb:[4927 e:823e..870 closeD:0] bestLimb:[4927 e:823e..870 closeD:0] bestDistance:0 bestPerimeter:0.00341796875 maxLimbs:1000 totalUsed:6 limbPass:unsectPair debugAddEach231

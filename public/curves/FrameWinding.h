@@ -99,8 +99,8 @@ inline bool frameVisibleFunc(Winding winding) {
 }
 
 inline void frameCallbacks(Context* context) {
-    SetWindingCallbacks(context, { frameAddFunc, frameKeepFunc, frameSubtractFunc, frameWoundFunc,
-            frameVisibleFunc,  frameZeroFunc, frameIntersectFunc });
+    SetWindingCallbacks(context, { frameAddFunc, frameKeepFunc, frameSubtractFunc, 
+            frameWoundFunc, frameVisibleFunc,  frameZeroFunc, frameIntersectFunc });
 }
 
 #if OP_DEBUG || OP_DEBUGGER

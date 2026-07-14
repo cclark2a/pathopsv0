@@ -41,23 +41,23 @@ DrawLevel TextWindow::doType(TextAction eventAction, const DebuggerEvent* event)
     OpPoint loc { leftMargin, topMargin };
     DrawLevel result = DrawLevel::none;
     std::vector<const OpContour*> shownContours;
-	for (auto& id : debuggerState->ids) {
+    auto doOneType = [this, &result, &shownContours, &loc, eventAction, event](OpType& id) {
         if (IDType::intersection == id.type) {
             if (!debuggerState->showIntersections)
-                continue;
+                return;
         } else if (IDType::segment == id.type) {
             if (!debuggerState->showSegments)
-                continue;
+                return;
         } else if (IDType::contour == id.type) {
             if (!debuggerState->showContours)
-                continue;
+                return;
             if (shownContours.end() == std::find(shownContours.begin(), shownContours.end(), 
                     id.contour))
                 shownContours.push_back(id.contour);
             else
-                continue;
+                return;
         } else if (IDType::edge != id.type)
-            continue;
+            return;
         id.bounds = OpRect(loc, loc + boxWH);
         if (id.bounds.right > screen.width() && id.bounds.left > leftMargin) {
             loc.x = leftMargin;
@@ -67,6 +67,15 @@ DrawLevel TextWindow::doType(TextAction eventAction, const DebuggerEvent* event)
         }
         result |= (*eventAction)(event, this, id);
         loc.x += boxWH.dx + 8;
+    };
+    if (showAll) {
+        for (auto& id : debuggerState->ids) {
+            doOneType(id);
+        }
+    } else {
+        for (DebuggerPoly& poly : debuggerState->pictureWindow.polys) {
+            doOneType(poly.opType);
+        }
     }
     return result;
 }
@@ -176,9 +185,9 @@ void TextWindow::innerUpdate(int& safetyCheck) {
     };
     std::vector<const OpSegment*> shownSegs;
     std::vector<const OpContour*> shownContours;
-	for (auto& id : debuggerState->ids) {
-        if (!id.selected && !showAll)
-            continue;
+    auto doID = [addWrapped, &shownSegs, &shownContours, this](OpType& id) {
+        if (!id.selected)
+            return;
         bool shownEdge = false;
         bool shownIntersection = false;
         bool shownSegment = false;
@@ -267,8 +276,17 @@ void TextWindow::innerUpdate(int& safetyCheck) {
             s = id.contour->debugDump(DebugLevel::normal, defaultBase);
         }
         if (s.empty())
-            continue;
+            return;
         addWrapped(s);
+    };
+    if (showAll) {
+        for (auto& id : debuggerState->ids) {
+            doID(id);
+        }
+    } else {
+        for (DebuggerPoly& poly : debuggerState->pictureWindow.polys) {
+            doID(poly.opType);
+        }
     }
     if (OpCurveCurve* cc = debuggerState->context->debugCurveCurve; cc && showCurveCurve) {
         std::string s = cc->debugDump(DebugLevel::normal, defaultBase);

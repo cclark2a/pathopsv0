@@ -808,6 +808,7 @@ void OpSegment::makePals() {
 						continue;
 					OP_ASSERT(!edge.isPal(&oEdge));
 					edge.pals.emplace_back(&oEdge, uID, uSect->unsectID != oSect->unsectID);
+					edge.unsummable = true;
 					hasPals = true;
 					contour->hasPals = true;
 					continue;

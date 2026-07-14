@@ -69,8 +69,11 @@ inline void unarySubtractFunc(Winding winding, Winding toSubtract) {
     difference.copyTo(winding);
 }
     
-inline void unaryCallbacks(Context* context) {
-    SetWindingCallbacks(context, { unaryAddFunc, unaryKeepFunc, unarySubtractFunc } );
+inline void unaryCallbacks(Context* context, bool isWindingFill = true) {
+    if (isWindingFill)
+        SetWindingCallbacks(context, { unaryAddFunc, unaryKeepFunc, unarySubtractFunc } );
+    else
+        SetWindingCallbacks(context, { unaryEvenOddFunc, unaryKeepFunc, unaryEvenOddFunc } );
 }
 
 #if OP_DEBUG || OP_DEBUGGER

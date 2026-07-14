@@ -302,7 +302,7 @@ const OpIntersection* OpDebugIntersectionIter::operator*() {
 
 #endif
 
-#if OP_DEBUG || OP_DEBUG_DUMP || OP_DEBUG_IMAGE
+#if OP_DEBUG || OP_DEBUG_DUMP
 int32_t OpDebugFloatToBits(float f) {
     FloatIntUnion d;
     d.f = f;
@@ -405,7 +405,7 @@ void OpDebugExitOnFail(std::string message, bool condition) {
     OpDebugExit(message);
 }
 
-#if OP_DEBUG || OP_DEBUG_DUMP || OP_DEBUG_IMAGE
+#if OP_DEBUG || OP_DEBUG_DUMP
 float OpDebugHexToFloat(const char*& str) {
     // !!! add support for hex float %a format
     FloatIntUnion d;
@@ -587,7 +587,7 @@ bool OpMath::IsDebugNaN(float f) {
 #include "OpCurveCurve.h"
 #include "PathOpsTypes.h"
 
-#if OP_DEBUG_IMAGE
+#if OP_DEBUG_DUMP
 OpCurve::OpCurve(PathOpsV0Lib::AddCurve addCurve, Rotated r)
 	: rotated(r)
 	, isLineSet(false)
@@ -628,12 +628,12 @@ OpCurve OpCurve::toVerticalDouble(const LinePts& line) const {
 #endif
 
 void CcCurves::debugAdd(EdgeRun& run) {
-    debugValidate();
+    OP_DEBUG_VALIDATE_CODE(debugValidate());
     OP_ASSERT(run.edgePtT.isFinite());
 //    OP_ASSERT(!OpMath::Equal(0.921024084f, run.edgePtT.t));
     int debugLo = debugRuns.empty() ? 0 : insertPos(debugRuns, run);
     debugRuns.insert(debugRuns.begin() + abs(debugLo), run);  // keep everything
-    debugValidate();
+    OP_DEBUG_VALIDATE_CODE(debugValidate());
 }
 
 void CcCurves::debugAdd(CcCurves& ccCurves) {
@@ -1263,6 +1263,12 @@ void OpSegment::debugValidate() const {
 }
 
 
+#endif  // OP_DEBUG_VALIDATE
+
+OpTree::~OpTree() {
+	context->debugTree = nullptr;
+}
+
 bool OpSegment::debugFail() const {
 	return contour->context->debugFail();
 }
@@ -1270,12 +1276,6 @@ bool OpSegment::debugFail() const {
 bool OpSegment::debugSuccess() const {
 	return contour->context->debugSuccess();
 }
-
-OpTree::~OpTree() {
-	context->debugTree = nullptr;
-}
-
-#endif  // OP_DEBUG_VALIDATE
 
 #endif  // OP_DEBUG
 

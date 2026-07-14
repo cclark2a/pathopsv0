@@ -25,7 +25,7 @@ void OpLimb::addEach(OpContour& contour, OpTree& tree) {
 	LimbPass linkedLimb = LimbPass::miswound <= pass ? LimbPass::miswound : LimbPass::linked;
 	for (unsigned index = 0; index < linkupsSize; ++index) {
 		OpEdge* test = contour.linkups.l[index];
-		if (test->disabled)
+		if (test->disabled || test->startSeen)
 			continue;
 		tryAdd(tree, test, EdgeMatch::start, linkedLimb, &contour, index);
 	}
@@ -33,7 +33,7 @@ void OpLimb::addEach(OpContour& contour, OpTree& tree) {
 	for (unsigned endIndex = 0; endIndex < endLinksSize; ++endIndex) {
 		OpEdge* test = contour.endLinks.l[endIndex];
 		OpEdge* last = test->lastEdge;
-		if (last->disabled)
+		if (last->disabled || last->endSeen)
 			continue;
 		tryAdd(tree, last, EdgeMatch::end, linkedLimb, &contour, endIndex, test);
 	}
@@ -43,8 +43,10 @@ void OpLimb::addEach(OpContour& contour, OpTree& tree) {
 		for (OpEdge* test : edges) {
 			if (test->inLinkups)
 				continue;
-			tryAdd(tree, test, EdgeMatch::start, LimbPass::unlinked); 
-			tryAdd(tree, test, EdgeMatch::end, LimbPass::unlinked);
+			if (!test->startSeen)
+				tryAdd(tree, test, EdgeMatch::start, LimbPass::unlinked); 
+			if (!test->endSeen)
+				tryAdd(tree, test, EdgeMatch::end, LimbPass::unlinked);
         }
 	}
 	if (LimbPass::unlinked == pass)
@@ -52,22 +54,26 @@ void OpLimb::addEach(OpContour& contour, OpTree& tree) {
 	if (!contour.centerlessBuilt)
 		contour.buildCenterless();
 	for (OpEdge* test : contour.disabledCenterless) {
-		tryAdd(tree, test, EdgeMatch::start, LimbPass::disabledCenterless);
-		tryAdd(tree, test, EdgeMatch::end, LimbPass::disabledCenterless);
+		if (!test->startSeen)
+			tryAdd(tree, test, EdgeMatch::start, LimbPass::disabledCenterless);
+		if (!test->endSeen)
+			tryAdd(tree, test, EdgeMatch::end, LimbPass::disabledCenterless);
 	}
 	if (LimbPass::disabledCenterless == pass)
 		return;
 	if (!contour.palsBuilt && contour.hasPals) 
 		contour.buildPals();
 	for (OpEdge* test : contour.disabledPals) {
-		OpLimb* dpStart = tryAdd(tree, test, EdgeMatch::start, LimbPass::disabledPals);
 		// a pair of disabled pals may form an edge where they are of unequal lengths
 		// so: add filler edge from test to test' pal (respecting pals 'reversed')
-		if (dpStart)
-			tryPal(tree, this, dpStart, EdgeMatch::start);
-		OpLimb* dpEnd = tryAdd(tree, test, EdgeMatch::end, LimbPass::disabledPals);
-		if (dpEnd)
-			tryPal(tree, this, dpEnd, EdgeMatch::end);
+		if (!test->startSeen) {
+			if (OpLimb* dpStart = tryAdd(tree, test, EdgeMatch::start, LimbPass::disabledPals))
+				tryPal(tree, this, dpStart, EdgeMatch::start);
+		}
+		if (!test->endSeen) {
+			if (OpLimb* dpEnd = tryAdd(tree, test, EdgeMatch::end, LimbPass::disabledPals))
+				tryPal(tree, this, dpEnd, EdgeMatch::end);
+		}
 	}
 	if (LimbPass::disabledPals == pass)
 		return;
@@ -76,17 +82,14 @@ void OpLimb::addEach(OpContour& contour, OpTree& tree) {
 	// iterate through edge pals looking for gap that connects lastPt via sect opp
 	// unsectable edges do not necessarily point to other unsectable through pals or upairs
 	for (EdgePal& edgePal : lastLimbEdge->pals) {
-		if (edgePal.edge->disabled)
+		OpEdge* test = edgePal.edge;
+		if (test->disabled)
 			continue;
-		if (!edgePal.edge->hasPals())
+		if (!test->hasPals())
 			continue;
-		tryAdd(tree, edgePal.edge, edgePal.reversed ? match : !match, LimbPass::unsectPair);
-#if 0
-		OpEdge* test = edgePal.edge + (EdgeMatch::start == match ? 1 : -1);
-		OpSegment* palSeg = edgePal.edge->segment;
-		if (&palSeg->edges.front() <= test && test <= &palSeg->edges.back())
-			tryAdd(tree, test, edgePal.reversed ? !match : match, LimbPass::unsectPair);
-#endif
+		EdgeMatch palMatch = edgePal.reversed ? match : !match;
+		if (EdgeMatch::start == palMatch ? !test->startSeen : !test->endSeen)
+			tryAdd(tree, test, palMatch, LimbPass::unsectPair);
 	}
 	if (LimbPass::unsectPair == pass)
 		return;
@@ -95,8 +98,10 @@ void OpLimb::addEach(OpContour& contour, OpTree& tree) {
 	if (LimbPass::unlinkedPal == pass)
 		return;
 	for (OpEdge* test : contour.smallEdges) {
-		tryAdd(tree, test, EdgeMatch::start, LimbPass::smallEdge);
-		tryAdd(tree, test, EdgeMatch::end, LimbPass::smallEdge);
+		if (!test->startSeen)
+			tryAdd(tree, test, EdgeMatch::start, LimbPass::smallEdge);
+		if (!test->endSeen)
+			tryAdd(tree, test, EdgeMatch::end, LimbPass::smallEdge);
 	}
 	if (LimbPass::smallEdge == pass)
 		return;
@@ -115,8 +120,10 @@ void OpLimb::addEach(OpContour& contour, OpTree& tree) {
 	if (!contour.backwardsBuilt)
 		contour.buildBackwards();
 	for (OpEdge* test : contour.disabledBackwards) {
-		tryAdd(tree, test, EdgeMatch::start, LimbPass::disabledBackwards);
-		tryAdd(tree, test, EdgeMatch::end, LimbPass::disabledBackwards);
+		if (!test->startSeen)
+			tryAdd(tree, test, EdgeMatch::start, LimbPass::disabledBackwards);
+		if (!test->endSeen)
+			tryAdd(tree, test, EdgeMatch::end, LimbPass::disabledBackwards);
 	}
 }
 
@@ -230,11 +237,11 @@ void OpLimb::set(OpTree& tree, OpEdge* test, OpLimb* p, EdgeMatch m, LimbPass l,
 		tree.bestGapLimb = this;
 	}
 	OP_DEBUG_DUMP_CODE(if (p) p->debugBranches.push_back(this));
-	OP_DEBUG_IMAGE_CODE_OLD(tree.debugLimbEdges(edge));
 }
 
 OpLimb* OpLimb::tryAdd(OpTree& tree, OpEdge* test, EdgeMatch m, LimbPass limbPass, 
 			OpContour* limbContour, size_t limbIndex, OpEdge* otherEnd) {
+//	OpBreak2(edge, test, 41433, 41432);
 	OP_ASSERT(!test->disabled || test->hasPals() || !test->isSortable() 
 			|| LimbPass::disabledCenterless <= limbPass);
 	OP_ASSERT(!test->hasLinkTo(m) || !test->isSortable() || test->disabled 
@@ -255,21 +262,14 @@ OpLimb* OpLimb::tryAdd(OpTree& tree, OpEdge* test, EdgeMatch m, LimbPass limbPas
 		return nullptr;
 	if (LimbPass::disabledCenterless == limbPass && tree.deepContains(this, test, m, limbPass))
 		return nullptr;
-#endif
 	std::vector<OpPoint> testEnds = test->collectMatch(!m);
 	bool loopedToFirstPoint = tree.firstMatch(testEnds);
 	bool seen = EdgeMatch::start == m ? test->startSeen : test->endSeen;
 	if (!loopedToFirstPoint && seen)
 		return nullptr;
-#if LEGACY_CONTAINS
-	if ((test->startSeen || test->endSeen) && parentSeen(test))
-		return nullptr;
-#else
-	if (seen)
-		return nullptr;
-	if ((test->startSeen || test->endSeen) && parentSeen(test))
-		return nullptr;
 #endif
+	if ((test->startSeen || test->endSeen) && parentSeen(test))
+		return nullptr;
 	// compare test wind zero against their parent's last edge wind zero
 	// OP_ASSERT(!test->isPal(last) || LimbPass::linked != limbPass);  // breaks pentrek10
 	// Edge direction and winding are tricky (see description at wind zero declaration.)
@@ -341,6 +341,7 @@ void OpLimb::tryPal(OpTree& tree, OpLimb* parent, OpLimb* limb, EdgeMatch m) {
 		if (limb->ptsMatch(m, palPts))
 			continue;
 		// if pal point is not close to test point, add filler between the two
+		edgePal.edge->setUnsetWhich();
 		OpEdge* filler = tree.addFiller(edgePal.edge->segment, limb->edge->whichCurvePt(m),
 				edgePal.edge->whichCurvePt(edgePal.reversed ? !m : m), FillerGap::no);
 		filler->curve.start = limb->edge->curve.whichAlias(m);
@@ -383,8 +384,6 @@ OpTree::OpTree(OpEdge* edge)
 			context->contextCallbacks.maxLimbsFuncPtr((PathOpsV0Lib::Context*) context) : 100000;
 	OP_DEBUG_CODE(context->debugTree = this);
 	OP_ASSERT(edge->inLinkups);
-	OP_DEBUG_IMAGE_CODE_OLD(context->debugLimbClear());
-	OP_DEBUG_IMAGE_CODE_OLD(debugLimbEdges(edge));
 }
 
 #if 0
@@ -496,9 +495,9 @@ void OpTree::addDisabled(OpContour& contour) {
 							nullptr, 0, nullptr);
 				}
 			};
-			if (limb.tryAdd(*this, test, EdgeMatch::start, LimbPass::disabledPals))
+			if (!test->startSeen && limb.tryAdd(*this, test, EdgeMatch::start, LimbPass::disabledPals))
 				putPal(EdgeMatch::start);
-			if (limb.tryAdd(*this, test, EdgeMatch::end, LimbPass::disabledPals))
+			if (!test->endSeen && limb.tryAdd(*this, test, EdgeMatch::end, LimbPass::disabledPals))
 				putPal(EdgeMatch::end);
 		} while (++index < totalUsed);
 	}
@@ -694,6 +693,13 @@ bool OpTree::join(OpJoiner& join) {
 	OP_DEBUG_DUMP_CODE(context->debugErasures = &linkupsErasures);
 	const OpLimb* bestL = bestLimb;
 	OpEdge* best = bestL->edge;
+#if OP_DEBUG
+	const OpLimb* debugL = bestLimb;
+	do {
+//		OpBreak(debugL->edge, 41435);
+		debugL = debugL->parent;
+	} while (debugL);
+#endif
 	if (EdgeMatch::end == bestL->match) {
         OP_ASSERT(EdgeMatch::none != best->which()  // !!! assert may be unnecessary; make sure disabled is correct choice
                 || (best->disabled && (LimbPass::disabledBackwards == bestL->treePass
@@ -1060,9 +1066,6 @@ bool OpJoiner::linkRemaining(OpContour* contour) {
 					break;
 			}
 		} while (RelinkJoins::again == relink);
-	#if SHOW_DEBUG_IMAGE && OP_DEBUG_IMAGE
-		redraw();
-	#endif
 		OP_DEBUG_VALIDATE_CODE(debugValidate());
 		OP_DEBUG_CODE(if (++debugLoopCounter < 0) OpDebugOut(""));  // allows seeing loop iteration that failed
 	}

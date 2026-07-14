@@ -156,6 +156,11 @@ struct RayTargets {
 #endif
 };
 
+enum class AllowTooManyRetries {
+	no,
+	yes
+};
+
 // captures ray info from edge that intersects other edges, horizontally or vertically
 struct SectRay {
 	bool add(OpWinder* , OpEdge* , float xy, float root, bool reversed);  // add to distances
@@ -172,9 +177,9 @@ struct SectRay {
 	bool cull();  // remove distances further from home than first dependent
 	const Distance* end(DistEnd e) const {
 		return DistEnd::front == e ? &distances.front() : &distances.back(); }
-	FindCept findCept(OpEdge* , OpEdge* test);
+	FindCept findCept(OpEdge* , OpEdge* test, AllowTooManyRetries );
 	FindCept findIntercept(OpWinder* , OpEdge* test);
-	Distance* find(const OpEdge* );  // returns edge in distances
+	const Distance* find(const OpEdge* ) const;  // returns edge in distances
 //	bool incomplete() const;
 	bool isOrdered(size_t index) const;  // false if dist edge and neighbors are reversed elsewhere
 //	bool missingContour(OpWinder* , OpEdge* ) const;
@@ -273,7 +278,7 @@ struct OpHulls {
 	void sort(bool useSmall);
 	DUMP_DECLARATIONS
 	OP_DEBUG_CODE(bool debugSectCandidates(int index, const OpEdge& edge) const);
-	OP_DEBUG_VALIDATE_CODE(void debugValidate() const);
+	OP_DEBUG_VALIDATE_CODE(void debugValidate() const;)
 
 	std::vector<HullSect> h;
 };
@@ -404,7 +409,6 @@ private:
 #endif
 #if OP_DEBUG_DUMP
 		dumpContext = nullptr;
-		debugJoin = false;
 		debugLimb = false;
 		debugReleased = false;
 #endif
@@ -424,7 +428,7 @@ public:
 	void addPal(OpEdge* , int uid, bool reversed);
 	void addPal(const Distance* d) {
 		addPal(d->edge, 0, d->reversed); }
-	CalcFail addSub(OpContour* winderOwner, Axis axis, float t, OpWinding* ) const;
+	CalcFail addSub(Axis axis, float t, OpWinding* ) const;
 	OpEdge* advanceToEnd(EdgeMatch );
 	WindingCondition apply();
 	OpRect bounds() const {
@@ -451,6 +455,7 @@ public:
 		return !pals.empty(); }
 	bool isActive() const { 
 		return active_impl; }
+	bool isKept() const;  // cumulative affect of unsortable edges' winding keeps this edge
 	bool isLine() {
 		return curve.isLine(); }
 	bool isPal(const OpEdge* opp) const {
@@ -489,11 +494,13 @@ public:
 	void setSum(const OpWinding&  OP_LINE_FILE_ARGS());  // called by macro SET_SUM
 	void setUnsortable(Unsortable );  // setter exists so debug breakpoints can be set
 	const OpCurve& setVertical(const LinePts& , MatchEnds);
+	void setUnsetWhich() {
+		if (EdgeMatch::none == whichEnd_impl) setWhich(EdgeMatch::start); }
 	void setWhich(EdgeMatch );  // setter exists so debug breakpoints can be set
 	OpPtT startPtT() const { return OpPtT(startPt(), startT); }
 	OpPoint startPt() const { return curve.firstPt(); }
 	void subDivide(OpPoint start, OpPoint end);
-	CalcFail subIfDL(OpContour* winderOwner, Axis axis, float t, OpWinding* ) const;
+	CalcFail subIfDL(Axis axis, float t, OpWinding* ) const;
 	void unlink();  // restore edge to unlinked state (for reusing unsortable or unsectable edges)
 	EdgeMatch which() const {
 		return whichEnd_impl; }
@@ -524,9 +531,6 @@ public:
 	#undef OP_X
 #endif
 #include "OpDebugDeclarations.h"
-#if OP_DEBUG_IMAGE
-	struct DebugOpCurve debugSetCurve() const;
-#endif
 #if OP_DEBUG || OP_DEBUGGER
 	const OpEdge* debugAdvanceToEnd(EdgeMatch match) const;
 	bool debugIsLoop() const {
@@ -537,11 +541,6 @@ public:
 	OpEdge(const OpEdge& ) = default;
 	~OpEdge();
 	void debugValidate() const;  // make sure pointer to edge is valid
-#endif
-#if OP_DEBUG_IMAGE
-	void addLink();
-	void color(uint32_t );
-	void drawLink();
 #endif
 
 	OpSegment* segment;
@@ -601,7 +600,6 @@ public:
 #endif
 #if OP_DEBUG_DUMP
 	OpContext* dumpContext;  // temporary edges don't have segment ptrs when unflattened
-	bool debugJoin;	 // true if included by joiner
 	bool debugLimb;  // true if a part of tree
 	bool debugReleased;  // true if (filler storage has been) deleted
 #endif
@@ -641,7 +639,7 @@ struct OpEdgeStorage {
 	OpEdge* debugIndex(int index) const;
 #endif
 	DUMP_DECLARATIONS
-#if OP_DEBUG_VALIDATE
+#if OP_DEBUG_DUMP  // keep deleted edges so raster sample can reference them
 	void debugRelease();
 #endif
 

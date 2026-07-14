@@ -28,19 +28,6 @@ std::string dumpSkiaOutPath(Context* context) {
 
 using namespace PathOpsV0Lib;
 
-int minMaxLimbs(Context* ) {
-	return 120;
-}
-
-bool DebugAnalyze(Context* c) {
-	OpContext* context = (OpContext*) c;
-	if (context->debugData.limitContours > 0) {
-        context->contextCallbacks.maxLimbsFuncPtr = minMaxLimbs;
-        return true;
-    }
-    return false;
-}
-
 void SetSkiaSimplifyCallbacksDebug(Context* context, Contour*, SkPath const&) {
     SetDebugContextCallbacks(context, {
             unaryDebugIsFill, nullptr, nullptr
@@ -72,7 +59,8 @@ void SetSkiaOpContourCallbacksDebug(Context* context, Contour*,
 void AddDebugSkiaPath(Context* c, Contour* contour, const SkPath& path) {
 	OpContext* context = (OpContext*) c;
 	OpDebugData& debugData = context->debugData;
-	OpPointBounds snag { 20, 0, 40, 10 };  // only snag contours that start in this bounds
+	OpRect snag = { debugData.limitBoundsL, debugData.limitBoundsT, 
+            debugData.limitBoundsR, debugData.limitBoundsB };  // only snag contours that start in this bounds
 	bool snagOn = false;
 	int contourCount = 0;
 	if (!path.isFinite()) {  // raw iter treats non-finite path as empty
@@ -83,47 +71,42 @@ void AddDebugSkiaPath(Context* c, Contour* contour, const SkPath& path) {
     OpPoint closeLine[2] = {{0, 0}, {0, 0}};  // initialize so first move doesn't add close line
     for (;;) {
         SkPoint pts[4];
+        OpPoint* opPts = (OpPoint*) pts;
         SkPath::Verb verb = iter.next(pts);
         switch (verb) {
         case SkPath::kMove_Verb:
             if (closeLine[0] != closeLine[1]) {
-                if (snagOn) AddLine(contour, { c, closeLine, sizeof(closeLine), 
-						(CurveType) SkPath::kLine_Verb } );
+                if (snagOn) AddLine(contour, { c, closeLine, sizeof(closeLine), SkPath::kLine_Verb } );
 				if (++contourCount >= debugData.limitContours)
 					return;
 			}			
-            closeLine[0] = closeLine[1] = { pts[0].fX, pts[0].fY };
+            closeLine[0] = closeLine[1] = opPts[0];
 			snagOn = snag.contains(closeLine[1]);
-            pts[1] = pts[0];
+            opPts[1] = opPts[0];
 			contour = Clone(contour);
             break;
         case SkPath::kLine_Verb:
-            if (pts[0] != pts[1])
-                if (snagOn) AddLine(contour, { c, (OpPoint*) pts, sizeof(SkPoint) * 2, 
-						(CurveType) SkPath::kLine_Verb } );
-            closeLine[0] = { pts[1].fX, pts[1].fY };
+            if (snagOn) AddLine(contour, { c, opPts, sizeof(OpPoint) * 2, SkPath::kLine_Verb } );
+            closeLine[0] = opPts[1];
             break;
         case SkPath::kQuad_Verb:
-            if (snagOn) AddQuads(contour, { c, (OpPoint*) pts, sizeof(SkPoint) * 3, 
-					(CurveType) SkPath::kQuad_Verb } );
-            closeLine[0] = { pts[2].fX, pts[2].fY };
+            if (snagOn) AddQuads(contour, { c, opPts, sizeof(OpPoint) * 3, SkPath::kQuad_Verb } );
+            closeLine[0] = opPts[2];
             break;
         case SkPath::kConic_Verb:
-            pts[3].fX = iter.conicWeight(); // !!! hacky
-            if (snagOn) AddConics(contour, { c, (OpPoint*) pts, sizeof(SkPoint) * 3 + sizeof(float), 
-                    (CurveType) SkPath::kConic_Verb } );
-            closeLine[0] = { pts[2].fX, pts[2].fY };
+            opPts[3].x = iter.conicWeight(); // !!! hacky
+            if (snagOn) AddConics(contour, { c, opPts, sizeof(OpPoint) * 3 + sizeof(float), 
+                    SkPath::kConic_Verb } );
+            closeLine[0] = opPts[2];
             break;
         case SkPath::kCubic_Verb:
-            if (snagOn) AddCubics(contour, { c, (OpPoint*) pts, sizeof(SkPoint) * 4, 
-					(CurveType) SkPath::kCubic_Verb } );
-            closeLine[0] = { pts[3].fX, pts[3].fY };
+            if (snagOn) AddCubics(contour, { c, opPts, sizeof(SkPoint) * 4, SkPath::kCubic_Verb } );
+            closeLine[0] = opPts[3];
             break;
         case SkPath::kClose_Verb:
         case SkPath::kDone_Verb:
-            if (closeLine[0] != closeLine[1])
-                if (snagOn) AddLine(contour, { c, closeLine, sizeof(closeLine), 
-						(CurveType) SkPath::kLine_Verb } );
+            if (closeLine[0] != closeLine[1] && snagOn)
+                AddLine(contour, { c, closeLine, sizeof(closeLine), SkPath::kLine_Verb } );
 			if (++contourCount >= debugData.limitContours)
 				return;
             if (SkPath::kDone_Verb == verb) {

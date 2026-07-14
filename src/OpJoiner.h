@@ -57,9 +57,6 @@ struct OpJoiner {
 #if OP_DEBUG_SERIALIZE
 #include "OpDebugDeclarations.h"
 #endif
-#if OP_DEBUG_IMAGE
-	void debugDraw();
-#endif
 
 	FoundEdge bestGap;
 	OpContext* context;
@@ -170,7 +167,6 @@ struct OpTree {
 	bool preferSibling(OpLimb*, OpEdge* );
 //	OpLimb* unsectableLoop() const;
 	DUMP_DECLARATIONS
-	OP_DEBUG_IMAGE_CODE(void debugLimbEdges(OpEdge*);)  // ; outside errors
 
 	OpContext* context;
 	OpLimb* trunk;

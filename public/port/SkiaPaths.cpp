@@ -101,19 +101,13 @@ void PathOpsV0Lib::emptySkPathFunc(Context* context) {
 }
 
 void SetSkiaContextCallbacks(Context* context) {
-#if TEST_ANALYZE
-    if (DebugAnalyze(context))
-        return;
-#endif
     SetContextCallbacks(context, { skiaOutput, emptySkPathFunc });
 }
 
 Contour* SetSkiaSimplifyCallbacks(Context* context, WindingData data, size_t size,
         bool isWindingFill  OP_DEBUG_PARAMS(const SkPath* pathPtr)) {
     Contour* contour = CreateContour(context, data, size);
-    WindingAdd addFunc = isWindingFill ? unaryAddFunc : unaryEvenOddFunc;
-    WindingAdd subtractFunc = isWindingFill ? unarySubtractFunc : unaryEvenOddFunc;
-    SetWindingCallbacks(context, { addFunc, unaryKeepFunc, subtractFunc });
+    unaryCallbacks(context, isWindingFill);
     OP_DEBUG_CODE(if (pathPtr) SetSkiaSimplifyCallbacksDebug(context, contour, *pathPtr));
     return contour;
 }
@@ -128,9 +122,12 @@ void SetSkiaOpContextCallbacks(Context* context, TinyOps op, BinaryWindType wind
         case TinyOps::reverseDifference: operatorFunc = binaryReverseDifferenceFunc; break;
         default: OP_ASSERT(0);
     }
+    if (BinaryWindType::evenOdd == windType) {
+        SetWindingCallbacks(context, { binaryEvenOddFunc, operatorFunc } );
+        return;
+    }
     WindingAdd addFunc = nullptr;
     switch (windType) {
-        case BinaryWindType::evenOdd: addFunc = binaryEvenOddFunc; break;
         case BinaryWindType::windLeft: addFunc = binaryAddLeftFunc; break;
         case BinaryWindType::windRight: addFunc = binaryAddRightFunc; break;
         case BinaryWindType::windBoth: addFunc = binaryAddFunc; break;
@@ -138,7 +135,6 @@ void SetSkiaOpContextCallbacks(Context* context, TinyOps op, BinaryWindType wind
     }
     WindingAdd subtractFunc = nullptr;
     switch (windType) {
-        case BinaryWindType::evenOdd: break;
         case BinaryWindType::windLeft: subtractFunc = binarySubtractLeftFunc; break;
         case BinaryWindType::windRight: subtractFunc = binarySubtractRightFunc; break;
         case BinaryWindType::windBoth: subtractFunc = binarySubtractFunc; break;
@@ -165,37 +161,37 @@ void AddSkiaPath(Context* context, Contour* contour, const SkPath& path) {
     OpPoint closeLine[2] = {{0, 0}, {0, 0}};  // initialize so first move doesn't add close line
     for (;;) {
         SkPoint pts[4];
+        OpPoint* opPts = (OpPoint*) pts;
         SkPath::Verb verb = iter.next(pts);
         switch (verb) {
         case SkPath::kMove_Verb:
             if (closeLine[0] != closeLine[1])
                 AddLine(contour, { context, closeLine, sizeof(closeLine), SkPath::kLine_Verb } );
-            closeLine[0] = closeLine[1] = { pts[0].fX, pts[0].fY };
-            pts[1] = pts[0];
+            closeLine[0] = closeLine[1] = opPts[0];
+            opPts[1] = opPts[0];
 			contour = Clone(contour);
-//            OP_DEBUG_CODE(if (addDebugPtr) addDebugPtr->add(contour));
             break;
         case SkPath::kLine_Verb:
-            AddLine(contour, { context, (OpPoint*) pts, sizeof(SkPoint) * 2, SkPath::kLine_Verb } );
-            closeLine[0] = { pts[1].fX, pts[1].fY };
+            AddLine(contour, { context, opPts, sizeof(OpPoint) * 2, SkPath::kLine_Verb } );
+            closeLine[0] = opPts[1];
             break;
         case SkPath::kQuad_Verb:
-            AddQuads(contour, { context, (OpPoint*) pts, sizeof(SkPoint) * 3, SkPath::kQuad_Verb } );
-            closeLine[0] = { pts[2].fX, pts[2].fY };
+            AddQuads(contour, { context, opPts, sizeof(OpPoint) * 3, SkPath::kQuad_Verb } );
+            closeLine[0] = opPts[2];
             break;
         case SkPath::kConic_Verb:
-            pts[3].fX = iter.conicWeight(); // !!! hacky
+            opPts[3].x = iter.conicWeight(); // !!! hacky
             if (useDoubleConics)
-                AddDConics(contour, { context, (OpPoint*) pts, sizeof(SkPoint) * 3 + sizeof(float), 
+                AddDConics(contour, { context, opPts, sizeof(OpPoint) * 3 + sizeof(float), 
                         SkPath::kConic_Verb } );
             else
-                AddConics(contour, { context, (OpPoint*) pts, sizeof(SkPoint) * 3 + sizeof(float), 
+                AddConics(contour, { context, opPts, sizeof(OpPoint) * 3 + sizeof(float), 
                         SkPath::kConic_Verb } );
-            closeLine[0] = { pts[2].fX, pts[2].fY };
+            closeLine[0] = opPts[2];
             break;
         case SkPath::kCubic_Verb:
-            AddCubics(contour, { context, (OpPoint*) pts, sizeof(SkPoint) * 4, SkPath::kCubic_Verb } );
-            closeLine[0] = { pts[3].fX, pts[3].fY };
+            AddCubics(contour, { context, opPts, sizeof(OpPoint) * 4, SkPath::kCubic_Verb } );
+            closeLine[0] = opPts[3];
             break;
         case SkPath::kClose_Verb:
         case SkPath::kDone_Verb:

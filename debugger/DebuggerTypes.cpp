@@ -56,6 +56,7 @@ OpType::OpType(const OpLimb* l)
     , type(IDType::limb) {
 }
 
+#if OP_DEBUG_VALIDATE
 void OpType::validate() const {
     OP_ASSERT(IDType::none != type);
     switch (type) {
@@ -71,6 +72,7 @@ void OpType::validate() const {
             break;
     }
 }
+#endif
 
 #if OP_DEBUG
 std::string NativeTextCache::debugDump() const {

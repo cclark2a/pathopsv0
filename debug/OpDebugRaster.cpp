@@ -665,7 +665,7 @@ void DebugRaster::in() {
 	if (tooSmall())
 		return;
 	sample(SampleType::contourResolved);
-	OP_DEBUG_CODE(validate());
+	OP_DEBUG_VALIDATE_CODE(validate());
 #if OP_DEBUG || OP_DEBUGGER
 	if (sendToDebugger) {
 		sample(SampleType::contourInput);
@@ -677,7 +677,7 @@ void DebugRaster::in() {
 	}
 	if (!sendToDebugger)
 		return;
-	OP_DEBUG_CODE(validate());
+	OP_DEBUG_VALIDATE_CODE(validate());
 	for (auto& s : sampleSets) {
 		s.rasterize();
 	}

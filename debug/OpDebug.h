@@ -75,7 +75,9 @@ void OpDebugOut(const std::string& );
 inline std::string OpDebugStr(void* x) { return std::to_string((unsigned long long)(void**)x); }
 inline std::string OpDebugStr(int32_t x) { return std::to_string(x); }
 inline std::string OpDebugStr(uint64_t x) { return std::to_string(x); }
+#ifndef _WIN32
 inline std::string OpDebugStr(size_t x) { return std::to_string(x); }
+#endif
 inline std::string OpDebugStr(const char* x) { return std::string(x); }
 std::string OpDebugStr(float value);
 inline std::string OpDebugStr(double value) { return OpDebugStr((float) value); }
@@ -114,18 +116,23 @@ struct OpDebugData {
 
 	std::string testname;
 	OpDebugExpect expect = OpDebugExpect::success;
+	float limitBoundsL;  // for very large tests, include contours that start in bounds
+	float limitBoundsT;
+	float limitBoundsR;
+	float limitBoundsB;
 	float error = 0;
 	float maxError = 0;
 	int curveCurve1 = 0;
 	int curveCurve2 = 0;
 	int curveCurveDepth = -1;
 	int dumpIndex = 0;  // number of dumped file
-	int limitContours = 0;
+	int limitContours = 0;  // for very large tests, number of contours to test
 	bool dumpAllCcs = true;
 	bool dumpUnambiguous = true;
 	bool defeatBreak = false;
 	bool defeatDumps = false;
-	bool limitReached = false;
+	bool limitTest = false;  // set true to respect limit bounds and limit contours
+	bool limitReached = false;  // for very large tests, set when limit contours is hit
 	bool runOneFile = false;
 	bool showError = true;
 	bool success = true;
@@ -133,10 +140,6 @@ struct OpDebugData {
 
 #define OP_DEBUG_DUMP_CODE(...)
 #define OP_DEBUG_DUMP_PARAMS(...)
-#define OP_DEBUG_IMAGE_CODE(...)
-#define OP_DEBUG_IMAGE_CODE_OLD(...)
-#define OP_DEBUG_IMAGE_PARAMS(...)
-#define OP_DEBUG_IMAGE_PARAMS_OLD(...)
 #define OP_DEBUG_SERIALIZE_CODE(...)
 #define OP_DEBUG_SERIALIZE_PARAMS(...)
 #define OP_DEBUGGER_CODE(...)
@@ -180,7 +183,6 @@ struct OpDebugData {
 #define OP_DEBUG_VALIDATE_CODE(...)
 #define OP_DEBUG_BREAK()
 #define OP_DEBUG_DUMP 0
-#define OP_DEBUG_IMAGE 0
 #define OP_DEBUG_MAKER 0
 #define OP_DEBUG_FAIL(object, returnValue) return returnValue
 #define OP_DEBUG_SERIALIZE OP_DEBUGGER
@@ -224,24 +226,16 @@ struct OpDebugData {
 
 #if (!OP_DEBUGGER && OP_DEBUG_FAST_TEST) || (defined OP_TINY_TEST && OP_TINY_TEST)
 	#define OP_DEBUG_DUMP 0
-	#define OP_DEBUG_IMAGE 0
 	#define OP_DEBUG_MAKER 0
-	#define OP_DEBUG_VALIDATE 01
+	#define OP_DEBUG_VALIDATE 0
 #else
 	#define OP_DEBUG_DUMP 1
-	#define OP_DEBUG_IMAGE 1
 	#define OP_DEBUG_MAKER 1
-	#define OP_DEBUG_VALIDATE 1
+	#define OP_DEBUG_VALIDATE 0
 #endif
 #define OP_DEBUG_PARAMS(...) , __VA_ARGS__
 #define OP_DEBUG_CODE(...) __VA_ARGS__
 
-#if OP_DEBUG_IMAGE
-#undef OP_DEBUG_IMAGE_CODE
-#define OP_DEBUG_IMAGE_CODE(...) __VA_ARGS__
-#undef OP_DEBUG_IMAGE_PARAMS
-#define OP_DEBUG_IMAGE_PARAMS(...) , __VA_ARGS__
-#endif
 #if OP_DEBUG_VALIDATE
 	#define OP_DEBUG_VALIDATE_CODE(...) __VA_ARGS__
 #else
@@ -469,7 +463,7 @@ std::string OpDebugDumpHex(float);
 #endif
 
 
-#if OP_DEBUG || OP_DEBUG_DUMP || OP_DEBUG_IMAGE || OP_DEBUGGER
+#if OP_DEBUG || OP_DEBUG_DUMP || OP_DEBUGGER
 
 std::string OpDebugDumpByteArray(const uint8_t* bytes, size_t size);
 int32_t OpDebugFloatToBits(float);

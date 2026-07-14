@@ -305,7 +305,18 @@ TestDone TestOptions::testPart(SkPath& a, SkPath& b, TinyOps op, SkPath* outPtr)
         int simpleData[] = { 1 };
         Contour* simple = SetSkiaSimplifyCallbacks(context, simpleData, sizeof(simpleData), 
                 isWindingFill(a)  OP_DEBUG_PARAMS(&a));
+#if TEST_ANALYZE
+        debugRef.limitTest = true;
+        debugRef.limitContours = LIMIT_CONTOURS;
+        OpRect limitBounds = LIMIT_BOUNDS;
+        debugRef.limitBoundsL = limitBounds.left;
+        debugRef.limitBoundsT = limitBounds.top;
+        debugRef.limitBoundsR = limitBounds.right;
+        debugRef.limitBoundsB = limitBounds.bottom;
+        AddDebugSkiaPath(context, simple, a);
+#else
         AddSkiaPath(context, simple, a);
+#endif
     } else {
         TinyOps mappedOp = MapInvertedSkPathOp(op, a.isInverseFillType(), b.isInverseFillType());
 #if OP_DEBUG_SERIALIZE

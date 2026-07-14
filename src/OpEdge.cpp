@@ -329,6 +329,7 @@ void OpEdge::addPal(OpEdge* edge, int uID, bool reversed) {
 		palIter = pals.end() - 1;
 		segment->hasPals = true;
 		segment->contour->hasPals = true;
+		unsummable = true;
 	}
 	auto& oPals = edge->pals;
 	auto distIter = std::find_if(oPals.begin(), oPals.end(), 
@@ -344,9 +345,7 @@ void OpEdge::addPal(OpEdge* edge, int uID, bool reversed) {
 
 // given an intersecting ray and edge t, add or subtract edge winding to sum winding
 // but don't change edge's sum, since an unsectable edge does not allow that accumulation
-CalcFail OpEdge::addSub(OpContour* winderOwner, Axis axis, float edgeInsideT, 
-		OpWinding* sumWinding) const 
-{
+CalcFail OpEdge::addSub(Axis axis, float edgeInsideT, OpWinding* sumWinding) const {
 //	OpWinding adjust(WindingUninitialized::dummy);
 	NormalDirection NdotR = normalDirection(axis, edgeInsideT);
 	if (NormalDirection::upRight == NdotR)
@@ -369,6 +368,8 @@ OpEdge* OpEdge::advanceToEnd(EdgeMatch match) {
 
 WindingCondition OpEdge::apply() {
 	if (centerless)
+		setDisabled(OP_LINE_FILE_NPARGS());
+	if (!isSortable() && !isKept())  // e.g., if pals cumulatively don't cross winding zero, disable
 		setDisabled(OP_LINE_FILE_NPARGS());
 	if (disabled || !isSortable() || !sum.isSet())
 		return 0;
@@ -541,6 +542,67 @@ bool OpEdge::containsLink(const OpEdge* edge) const {
 	return false;
 }
 
+// !!! should this be computed once and stored in edge's sum winding?
+// if isn't sortable, check if edge plus pals can't cross zero winding regardless of how pals are ordered
+// e.g. edge 482 is next to 435 but at winding === +3 so cumulative result is +1 regardless of order...
+bool OpEdge::isKept() const {
+	OP_ASSERT(!isSortable());
+	if (pals.empty())
+		return true;
+	int edgeIndex = (int) ray.distances.size();
+	while (ray.distances[--edgeIndex].edge != this) {
+		OP_ASSERT(edgeIndex > 0);
+	}
+	int lastPal = edgeIndex;
+	while (lastPal < (int) ray.distances.size() - 1) {
+		OpEdge* nextEdge = ray.distances[lastPal + 1].edge;
+		if (pals.end() == std::find_if(pals.begin(), pals.end(), [nextEdge](const EdgePal& edgePal) {
+				return nextEdge == edgePal.edge; } ))
+			break;
+		++lastPal;
+	}
+	int firstPal = edgeIndex;
+	while (firstPal > 0) {
+		OpEdge* priorEdge = ray.distances[firstPal - 1].edge;
+		if (pals.end() == std::find_if(pals.begin(), pals.end(), [priorEdge](const EdgePal& edgePal) {
+				return priorEdge == edgePal.edge; } ))
+			break;
+		--firstPal;
+	}
+	int summedIndex = firstPal;
+	OpEdge* computedSum = nullptr;
+	while (summedIndex > 0) {
+		computedSum = ray.distances[--summedIndex].edge;
+		if (computedSum->isSummable() && computedSum->sum.isSet())
+			break; 
+		computedSum = nullptr;
+	}
+	OpWinding priorWinding(this, WindingSum::dummy);
+	if (computedSum) {
+		const Distance& sumDistance = ray.distances[summedIndex];
+//		OP_ASSERT(!sumEdge->isUnsectable());
+		if (computedSum->sum.isSet())
+			priorWinding.w = computedSum->sum.copyData();
+		else
+			priorWinding.zero();
+		computedSum->subIfDL(ray.axis, sumDistance.edgeInsideT, &priorWinding);
+	}
+	while (++summedIndex < firstPal) {
+		const Distance& priorDist = ray.distances[summedIndex];
+		OpEdge* priorEdge = priorDist.edge;
+		priorEdge->addSub(ray.axis, priorDist.edgeInsideT, &priorWinding);
+	}
+	OpWinding sumWinding(this, WindingSum::dummy);
+	sumWinding.w = priorWinding.copyData();
+	bool discardAll = true;
+	for (int palIndex = firstPal; palIndex <= lastPal; ++palIndex) {
+		const Distance& dist = ray.distances[palIndex];
+		dist.edge->addSub(ray.axis, dist.edgeInsideT, &sumWinding);
+		discardAll &= PathOpsV0Lib::WindKeep::Discard == priorWinding.keep(sumWinding);
+	}
+	return !discardAll;
+}
+
 void OpEdge::linkToEdge(FoundEdge& found, EdgeMatch match) {
 	OpEdge* oppEdge = found.edge;
 	advanceToEnd(EdgeMatch::start)->clearLast();
@@ -594,7 +656,6 @@ void OpEdge::markPals() {
 				addPal(dist.edge, 0, dist.reversed);
 		}
 	}
-	unsummable = true;
 }
 
 // if there is another path already output, and it is first found in this ray,
@@ -694,6 +755,7 @@ bool OpEdge::outputLinkedList() {
 // if so, mark edges accordingly and reuse to build next linked list
 // !!! tracking must be used for cut or some other new frame fill, but unsure if it still works...
 void OpEdge::outputLink(OpEdge* firstEdge, bool closeLoop) {
+//	OpBreak(this, 41435);
 	OpCurve copy(curve.c, Rotated::no);
 	if (EdgeMatch::end == which())
 		copy.reverse();
@@ -867,9 +929,7 @@ void OpEdge::subDivide(OpPoint startPoint, OpPoint endPoint) {
 	}
 }
 
-CalcFail OpEdge::subIfDL(OpContour* winderOwner, Axis axis, float edgeInsideT, 
-		OpWinding* sumWinding) const 
-{
+CalcFail OpEdge::subIfDL(Axis axis, float edgeInsideT, OpWinding* sumWinding) const {
 	NormalDirection NdotR = normalDirection(axis, edgeInsideT);
 	if (NormalDirection::downLeft == NdotR)
 		sumWinding->subtract(winding);

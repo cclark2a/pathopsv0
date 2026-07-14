@@ -126,6 +126,23 @@ OpEdge* findEdge(int ID) {
     return nullptr;
 }
 
+std::vector<const OpEdge*> findEdgeUnsectable(int ID) {
+    std::vector<const OpEdge*> result;
+#if OP_DEBUG_GLOBALS
+    for (const auto c : contourIterator) {
+        for (const auto& seg : c->segments) {
+            for (const auto& edge : seg.edges) {
+                for (const EdgePal& pal : edge.pals) {
+                    if (ID == pal.unsectID)
+                        result.push_back(&edge);
+                }
+            }
+        }
+    }
+#endif
+    return result;
+}
+
 std::vector<const OpEdge*> findEdgeRayMatch(int ID) {
     std::vector<const OpEdge*> result;
 #if OP_DEBUG_GLOBALS
@@ -743,6 +760,11 @@ std::string DebugDump(int id, DebugLevel l, DebugBase b) {
     if (std::vector<const OpIntersection*> uSects = findSectUnsectable(id); uSects.size()) {
         for (auto uSect : uSects) {
             s += uSect->debugDump(l, b) + "\n";
+        }
+    }
+    if (std::vector<const OpEdge*> uEdges = findEdgeUnsectable(id); uEdges.size()) {
+        for (auto uEdge : uEdges) {
+            s += uEdge->debugDump(l, b) + "\n";
         }
     }
     if (const OpSegment* segment = findSegment(id))
@@ -1991,10 +2013,8 @@ std::string OpEdge::debugDump(DebugLevel l, DebugBase b) const {
 #if OP_DEBUG_DUMP
     ASSERT_ORDERED_OFFSET(debugSumSet, dumpContext, 6);
     // omit dumpContext
-    EDGE_BOOL(dumpContext, debugJoin);
-    EDGE_BOOL(debugJoin, debugLimb);
+    EDGE_BOOL(dumpContext, debugLimb);
     EDGE_BOOL(debugLimb, debugReleased);
-    ASSERT_ORDERED_OFFSET(debugReleased, debugSetDisabled, 5);
 #endif
 #if OP_DEBUG_MAKER
     if (debugSetDisabled.valid())
@@ -2006,7 +2026,6 @@ std::string OpEdge::debugDump(DebugLevel l, DebugBase b) const {
     ASSERT_ORDERED(debugSetMaker, debugSetSum);
     if (debugSetSum.valid())
         s += "debugSetSum:" + debugSetSum.debugDump() + " ";
-    ASSERT_ORDERED(debugSetSum, debugPriorID);
 #endif
 #if OP_DEBUG_VALIDATE
     s += strID(EF::debugPriorID, "debugPriorID", debugPriorID);
@@ -2824,7 +2843,7 @@ std::string debugDumpColor(DebugLevel l, uint32_t c) {
 }
 #endif
 
-#if OP_DEBUG_VALIDATE && OP_DEBUG_DUMP
+#if OP_DEBUG_DUMP
 OpContext* fromFile(std::string filename) {
     std::string buffer = dmpFileToStr(filename);
     if (buffer.empty())

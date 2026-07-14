@@ -52,7 +52,7 @@ void PictureWindow::addBounds() {
     for (DebuggerPoly& poly : polys) {
         if (!poly.isPrimary)
             continue;
-        if (debuggerState->showEdges && poly.opType.edge)
+        if (!debuggerState->hideEdges && poly.opType.edge)
             addRect(poly, poly.opType.edge->bounds());
         if (debuggerState->showSegments && poly.opType.segment)
             addRect(poly, poly.opType.segment->c.aliasBounds());
@@ -60,7 +60,7 @@ void PictureWindow::addBounds() {
             addRect(poly, poly.opType.contour->bounds);
     }
     polys.insert(polys.begin(), toAdd.begin(), toAdd.end());
-    OP_DEBUG_CODE(validate());
+    OP_DEBUG_VALIDATE_CODE(validate());
 } 
 
 void PictureWindow::addDevice(std::vector<OpPoint>& pts, DebuggerPoly& poly) {
@@ -118,7 +118,7 @@ void PictureWindow::addHulls() {
         toAdd.back().contours.push_back(hull.size());
     }
     polys.insert(polys.begin(), toAdd.begin(), toAdd.end());
-    OP_DEBUG_CODE(validate());
+    OP_DEBUG_VALIDATE_CODE(validate());
 }
 
 void PictureWindow::clear() {
@@ -246,7 +246,7 @@ void PictureWindow::addGrid() {
         if (fy != yes.front() && fy != yes.back())
     		addLine({ screen.left,  yToScreen(fy) }, { screen.right, yToScreen(fy) });
     }
-    OP_DEBUG_CODE(grid.validate());
+    OP_DEBUG_VALIDATE_CODE(grid.validate());
 	if (!drawValues)
         return;
     for (size_t index = 0; index + 1 < xes.size(); ++index) {
@@ -468,7 +468,7 @@ void PictureWindow::addIDs() {
             continue;
         if (!poly.c.context)
             continue;
-        if ((IDType::edge != poly.opType.type || !debuggerState->showEdges)
+        if ((IDType::edge != poly.opType.type || debuggerState->hideEdges)
                 && (IDType::intersection != poly.opType.type || !debuggerState->showIntersections)
                 && (IDType::segment != poly.opType.type || !debuggerState->showSegments)
                 && (IDType::contour != poly.opType.type || !debuggerState->showContours))
@@ -499,7 +499,7 @@ void PictureWindow::addTangents() {
     for (auto& poly : polys) {
         if (!poly.isPrimary)
             continue;
-        if ((IDType::edge != poly.opType.type || !debuggerState->showEdges)
+        if ((IDType::edge != poly.opType.type || debuggerState->hideEdges)
                 && (IDType::segment != poly.opType.type || !debuggerState->showSegments)
                 && (IDType::contour != poly.opType.type || !debuggerState->showContours))
             continue;
@@ -547,7 +547,7 @@ void PictureWindow::addPoints() {
         }
     };
     for (auto& poly : polys) {
-        if (IDType::edge == poly.opType.type && poly.isPrimary && debuggerState->showEdges) {
+        if (IDType::edge == poly.opType.type && poly.isPrimary && !debuggerState->hideEdges) {
             add(poly.opType, poly.opType.edge->curve.c.data->start);
             add(poly.opType, poly.opType.edge->curve.c.data->end);
             if (drawControls)
@@ -609,7 +609,7 @@ void PictureWindow::addRays() {
 }
 
 void PictureWindow::addTs() {
-    if (!debuggerState->showEdges || !drawTs)
+    if (debuggerState->hideEdges || !drawTs)
         return;
     for (auto& poly : polys) {
         if (!poly.isPrimary)
@@ -625,7 +625,7 @@ void PictureWindow::addTs() {
 }
 
 void PictureWindow::addWindings() {
-    if (!debuggerState->showEdges || !drawWindings)
+    if (debuggerState->hideEdges || !drawWindings)
         return;
     for (auto& poly : polys) {
         if (!poly.isPrimary)
@@ -697,7 +697,7 @@ void PictureWindow::colorPolys() {
 bool PictureWindow::drawOne(DebuggerPoly& poly) {
     if (IDType::segment == poly.opType.type && !debuggerState->showSegments)
         return false;
-    if (IDType::edge == poly.opType.type && !debuggerState->showEdges)
+    if (IDType::edge == poly.opType.type && debuggerState->hideEdges)
         return false;
     if (IDType::intersection == poly.opType.type && !debuggerState->showIntersections)
         return false;
@@ -723,8 +723,24 @@ uint32_t PictureWindow::edgeColor(const OpEdge& e) {
     return color;
 }
 
+void PictureWindow::saveSelected() {
+    selectedIDs.clear();
+    for (DebuggerPoly& poly : polys) {
+        if (poly.opType.selected)
+            selectedIDs.push_back(poly.opType.id);
+    }
+}
+
+void PictureWindow::restoreSelected() {
+    for (DebuggerPoly& poly : polys) {
+        if (selectedIDs.end() != std::find(selectedIDs.begin(), selectedIDs.end(), poly.opType.id))
+            poly.opType.selected = true;
+    }
+}
+
 void PictureWindow::update() {
     setSize();
+    saveSelected();
     clear();
     OpPointBounds contourBounds;
     OpContourIterator contourIter(context());
@@ -794,6 +810,7 @@ void PictureWindow::update() {
     addWindings();
     addRays();
     addGrid();
+    restoreSelected();
 }
 
 void PictureWindow::move(OpVector v) { 

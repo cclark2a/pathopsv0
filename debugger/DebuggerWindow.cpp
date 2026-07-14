@@ -131,7 +131,7 @@ void DebuggerWindow::add(std::vector<OpPoint>& pts ) {
         add(curve, nullptr);
         last = pt;
     }
-    OP_DEBUG_CODE(validate());
+    OP_DEBUG_VALIDATE_CODE(validate());
 }
 
 // for fill only
@@ -168,7 +168,7 @@ bool DebuggerWindow::add(OpPoint pt1, OpPoint pt2, DebuggerAddPoly* polyAdder) {
     if (lines->empty() || lines->back() != pt1)
         lines->push_back(pt1);
     lines->push_back(pt2);
-    OP_DEBUG_CODE(validate());
+    OP_DEBUG_VALIDATE_CODE(validate());
     return true;
 }
 
@@ -184,7 +184,7 @@ DebuggerPoly& DebuggerWindow::add(const OpRect& r, uint32_t color, float thickne
     poly.contours.push_back(points.size());
     poly.color = color;
     poly.thickness = thickness;
-    OP_DEBUG_CODE(validate());
+    OP_DEBUG_VALIDATE_CODE(validate());
     return poly;
 }
 
@@ -305,7 +305,9 @@ std::string DebuggerWindow::debugTextDump(size_t index) {
     OP_ASSERT(index < textCache.size());
     return textCache[index].debugDump();
 }
+#endif
 
+#if OP_DEBUG_VALIDATE
 void DebuggerWindow::validate() const {
     for (const DebuggerPoly& poly : polys) {
         poly.validate();

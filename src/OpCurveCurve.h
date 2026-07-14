@@ -146,7 +146,7 @@ struct CcCurves {
     OP_DEBUG_CODE(void debugAdd(EdgeRun& ));
     OP_DEBUG_CODE(void debugAdd(CcCurves& ));
     OP_DEBUG_CODE(void debugCheck(const OpEdge* , EdgeMatch) const);
-	OP_DEBUG_VALIDATE_CODE(void debugValidate() const);  // assert if not sorted
+	OP_DEBUG_VALIDATE_CODE(void debugValidate() const;)  // assert if not sorted
 
     OpCurveCurve* cc;
 	std::vector<OpEdge*> c;  // !!! is this sorted?

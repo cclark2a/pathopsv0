@@ -61,6 +61,8 @@ struct PictureWindow : public DebuggerWindow {
     void playback(const char*& str ) override;
     std::string record() override;
     void resolvePoints();
+    void restoreSelected();
+    void saveSelected();
     void setDevice();
     OpPoint toLocal(OpPoint p) const;
     OpPoint toDevice(OpPoint p) const;
@@ -70,6 +72,7 @@ struct PictureWindow : public DebuggerWindow {
 #if OP_DEBUG_DUMP
     void dump();
 #endif
+    std::vector<int> selectedIDs;
     GridLabel gridLabel;
     OpVector zoomOffset {0, 0};
     double scale = 0; // factor to go from local to device (zero is uninitialized)

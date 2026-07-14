@@ -3,7 +3,7 @@
 // #include "OpDebugImage.h"
 #include <algorithm>
 
-#if OP_DEBUG_IMAGE
+#if 0  // !!! out of date
 
 enum class DebugGen {
     none,

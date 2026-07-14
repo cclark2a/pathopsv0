@@ -94,6 +94,8 @@ struct DebuggerWindow {
     // self-debugging:
     std::string debugTextDump(size_t index);
     void dumpWindow();
+#endif
+#if OP_DEBUG_VALIDATE
     void validate() const;
 #endif
 
