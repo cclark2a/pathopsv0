@@ -37,8 +37,6 @@ struct LinkUps {
 	std::vector<OpEdge*> l;
 };
 
-#define LEGACY_CONTAINS 0
-
 struct OpJoiner {
     OP_DEBUG_DUMP_CODE(OpJoiner(DumpSerialization , OpContext* );)
 	OpJoiner(OpContext& );
@@ -75,14 +73,16 @@ struct OpJoiner {
 	OP_ENUM_MEMBER(none), \
 	OP_ENUM_MEMBER(linked),    /* in linkups list with correct winding */ \
 	OP_ENUM_MEMBER(unlinked),  /* in unsectByArea and in unsortables */ \
-	OP_ENUM_MEMBER(unsectPair), /* gap to other edge in unsectable pair */ \
+	OP_ENUM_MEMBER(unsectPair),  /* gap to other edge in unsectable pair */ \
+	OP_ENUM_MEMBER(coinPals),  /* disabled through edge level coincidence */  \
 	OP_ENUM_MEMBER(disabledCenterless),  /* in disabled, and so small no center could be computed */ \
 	OP_ENUM_MEMBER(disabledPals),  /* in disabled pals */ \
+	OP_ENUM_MEMBER(unlinkedPal),  /* unlinked variant that permits siblings to connect to seen edges' pals */ \
 	OP_ENUM_MEMBER(miswound),  /* in linkups list, including entries with the wrong winding */ \
 	OP_ENUM_MEMBER(disjoint),  /* gap to closest in linkups list, or gap to edge start (loop) */ \
-	OP_ENUM_MEMBER(unlinkedPal),  /* unlinked variant that permits siblings to connect to seen edges' pals */ \
-	OP_ENUM_MEMBER(smallEdge ),  /* edges from nearby intersections (delta t is below set value) */ \
+	OP_ENUM_MEMBER(smallEdge),  /* edges from nearby intersections (delta t is below set value) */ \
 	OP_ENUM_MEMBER(disabledBackwards),  /* undetected mis-sort may be closable (e.g, loop156850) */ \
+	OP_ENUM_MEMBER(disabled),  /* all-else failed; likely missed an intersection (e.g, tiger testlines = 68730544267) */ \
 	OP_ENUM_MEMBER(debugStop)  /* debugging aid when limb pass is advanced past final value */
 
 // keep track of all edge possibilities to find the best closing path
@@ -99,16 +99,14 @@ struct OpTree;
 struct OpLimbStorage;
 
 struct OpLimb {
-	void addEach(OpContour& , OpTree& );
+	void addEach(OpContour& );
 	bool parentSeen(OpEdge* ) const;
 	bool ptsMatch(EdgeMatch limbEnd, const std::vector<OpPoint>& ) const;
 	bool ptsMatch(EdgeMatch limbEnd, const OpLimb* test, EdgeMatch testEnd) const;
-	void set(OpTree& , OpEdge* , OpLimb* parent, EdgeMatch , LimbPass , OpContour* ,
+	void set(OpEdge* , OpLimb* parent, EdgeMatch , OpContour* ,
 			size_t index, OpEdge* otherEnd, const OpPointBounds* bounds = nullptr);
-	OpLimb* tryAdd(OpTree& , OpEdge* , EdgeMatch , LimbPass , 
-			OpContour* limbContour = nullptr,
+	OpLimb* tryAdd(OpEdge* , EdgeMatch , OpContour* limbContour = nullptr,
 			size_t index = 0, OpEdge* first = nullptr);
-	void tryPal(OpTree& , OpLimb* parent, OpLimb* limb, EdgeMatch );
 	DUMP_DECLARATIONS
 #if OP_DEBUG_SERIALIZE
 	std::string debugDumpIDs(DebugLevel , bool bracket) const;
@@ -116,6 +114,7 @@ struct OpLimb {
 	OpPointBounds limbBounds;  // bounds of this limb and any branches
 	std::vector<OpPoint> firstPts;  // only required for first limb in tree, but eases debugging
 	std::vector<OpPoint> lastPts;  // [0] is last t's point; others are sect aliases
+	OpTree* tree  OP_DEBUG_INIT_PTR(OpTree);
 	OpEdge* edge  OP_DEBUG_INIT_PTR(OpEdge);
 	OpEdge* lastLimbEdge  OP_DEBUG_INIT_PTR(OpEdge);
 	const OpLimb* parent  OP_DEBUG_INIT_PTR(const OpLimb);
@@ -128,7 +127,6 @@ struct OpLimb {
 	LimbPass treePass  OP_DEBUG_INIT(LimbPass);  // linked/miswound: if match is end, last in linked
 	bool deadEnd  OP_DEBUG_INIT_BOOL();
 	bool looped  OP_DEBUG_INIT_BOOL();
-	bool resetPass  OP_DEBUG_INIT_BOOL();  // when new parent is found, restart limb pass
 
 #if OP_DEBUG_SERIALIZE
 	std::vector<OpLimb*> debugBranches;
@@ -148,14 +146,15 @@ struct OpTree {
 	OpTree(OpEdge* );
 	OP_DEBUG_CODE(~OpTree());
 //	void addAlternateEnd();
-	void addDisabled(OpContour& );
+//	void addDisabled(OpContour& );
 	OpEdge* addFiller(OpSegment* , OpPoint , OpPoint , FillerGap );
 //	void addUnsectableLoop(OpJoiner& , OpLimb* );
 	bool contains(OpLimb* , OpEdge* ) const;
 	bool containsFiller(OpLimb* , OpPoint , OpPoint ) const;
 	bool containsFiller(int ccUnsectableID) const;
 	bool containsParent(OpLimb* , OpEdge* , EdgeMatch ) const;
-	bool deepContains(const OpLimb* , OpEdge* , EdgeMatch , LimbPass ) const;
+	bool deepContains(const OpLimb* , OpEdge* , EdgeMatch ) const;
+	bool exhausted();
 	float firstDistance(OpPoint ) const;
 	bool firstMatch(const std::vector<OpPoint>& ) const;
 	bool gap(float distance) const;
@@ -163,11 +162,13 @@ struct OpTree {
 	bool join(OpJoiner& );
 	OpLimb& nthLimb(int index);
 	OpLimb* makeLimb();
-	void makeTrunk(OpEdge* );
+	bool makeTrunk(OpEdge* );
 	bool preferSibling(OpLimb*, OpEdge* );
+	void setError(OpEdge* , int index);
 //	OpLimb* unsectableLoop() const;
 	DUMP_DECLARATIONS
 
+	std::vector<int> passIndex;
 	OpContext* context;
 	OpLimb* trunk;
 	OpLimb* bestGapLimb;  // used only by detached pass
@@ -178,7 +179,7 @@ struct OpTree {
 	int totalUsed;
 	int id;
 	LimbPass limbPass;
-	bool disabled;  // set when found contour is proportionately made up of disabled edges
+//	bool disabled;  // set when found contour is proportionately made up of disabled edges
 	bool smallGap;
 #if OP_DEBUG || OP_DEBUGGER
 	int debugAddEach = 0;
@@ -189,7 +190,7 @@ struct OpLimbStorage {
 	OpLimbStorage() {
 		static_assert(((ARRAY_COUNT(storage) - 1) & ARRAY_COUNT(storage)) == 0);
 	}
-	OpLimb* allocate();
+	OpLimb* allocate(OpTree* );
 	void reset();
 #if OP_DEBUG_SERIALIZE
 	int debugCount() const;

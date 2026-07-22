@@ -1124,9 +1124,11 @@ void OpContour::dumpSet(const char*& str) {
 	DUMP_EDGES(*this, inX, inY);
 	DUMP_EDGES(*this, inY, byArea);
 	DUMP_EDGES(*this, byArea, unsectByArea);
-	DUMP_EDGES(*this, unsectByArea, disabledBackwards);
+	DUMP_EDGES(*this, unsectByArea, coinPals);
+	DUMP_EDGES(*this, coinPals, disabledBackwards);
 	DUMP_EDGES(*this, disabledBackwards, disabledCenterless);
-	DUMP_EDGES(*this, disabledCenterless, disabledPals);
+	DUMP_EDGES(*this, disabledCenterless, disabledEdges);
+	DUMP_EDGES(*this, disabledEdges, disabledPals);
 	DUMP_EDGES(*this, disabledPals, smallEdges);
 	DUMP_EDGES(*this, smallEdges, unsortables);
     ASSERT_ORDERED(unsortables, windingStorage);
@@ -1154,7 +1156,9 @@ void OpContour::dumpSet(const char*& str) {
         treeID = OpDebugReadSizeT(str);
     DEBUG_SET_BOOL(treeID, backwardsBuilt);
     DEBUG_SET_BOOL(backwardsBuilt, centerlessBuilt);
-    DEBUG_SET_BOOL(centerlessBuilt, hasPals);
+    DEBUG_SET_BOOL(centerlessBuilt, coinPalsBuilt);
+    DEBUG_SET_BOOL(coinPalsBuilt, disabledBuilt);
+    DEBUG_SET_BOOL(disabledBuilt, hasPals);
     DEBUG_SET_BOOL(hasPals, palsBuilt);
     DEBUG_SET_BOOL(palsBuilt, disabled);
     DEBUG_SET_BOOL(disabled, overlapsMerged);
@@ -1162,7 +1166,7 @@ void OpContour::dumpSet(const char*& str) {
     DEBUG_SET_BOOL(segEndsMerged, segMerged);
     DEBUG_SET_BOOL(segMerged, debugEmpty);
 #if OP_DEBUGGER || OP_TEST
-    ASSERT_SERIAL_OFFSET(*this, debugEmpty, 3, debugCurveData);
+    ASSERT_SERIAL_OFFSET(*this, debugEmpty, 1, debugCurveData);
     if (OpDebugOptional(str, "debugCurveData")) {
         debugCurveData.resize(OpDebugReadSizeT(str));
         for (PathOpsV0Lib::DebugCurveData& curveData : debugCurveData) {
@@ -2354,8 +2358,8 @@ void dmpRay(const OpEdge& edge) {
 	for (const auto& distance : edge.ray.distances) {
 		s += distance.debugDump(defaultLevel, defaultBase) + "\n";
 	}
-	for (const auto& erase : edge.ray.erased) {
-		s += "erased " + erase.debugDump(defaultLevel, defaultBase) + "\n";
+	for (const auto& erase : edge.ray.debugErased) {
+		s += "debugErased " + erase.debugDump(defaultLevel, defaultBase) + "\n";
 	}
     OpDebugFormat(s);
 }
@@ -2410,9 +2414,8 @@ void OpEdgeStorage::DumpSet(const char*& str, OpContext* dumpContext, DumpStorag
             edge = dumpContext->allocateEdge(dumpContext->ccStorage  OP_DEBUG_PARAMS("ccStorage"));
         else if (DumpStorage::filler == type)
             edge = dumpContext->allocateEdge(dumpContext->fillerStorage  OP_DEBUG_PARAMS("fillerStorage"));
-        else {
+        else
             OpDebugExit("edge storage missing");
-        }
         (void) new(edge) OpEdge();
         edge->dumpContext = dumpContext;
         edge->dumpSet(str);
@@ -2428,7 +2431,7 @@ void OpEdgeStorage::dumpResolveAll(OpContext* c) {
 void OpLimbStorage::DumpSet(const char*& str, OpContext* dumpContext) {
     size_t count = OpDebugReadSizeT(str);
     for (size_t index = 0; index < count; ++index) {
-        OpLimb* limb = dumpContext->allocateLimb();
+        OpLimb* limb = dumpContext->allocateLimb(dumpContext->debugTree);
         limb->dumpSet(str);
     }
 }
@@ -2559,7 +2562,8 @@ void OpLimb::dumpSet(const char*& str) {
         for (OpPoint& pt : lastPts)
             pt.dumpSet(str);
     }
-    ASSERT_ORDERED(lastPts, edge);
+    ASSERT_ORDERED(lastPts, tree);
+    ASSERT_ORDERED(tree, edge);
     edge = (OpEdge*) (OpDebugOptional(str, "edge") ? OpDebugReadSizeT(str) : 0);
     ASSERT_ORDERED(edge, lastLimbEdge);
     lastLimbEdge = (OpEdge*) (OpDebugOptional(str, "lastLimbEdge") ? OpDebugReadSizeT(str) : 0);
@@ -2583,9 +2587,9 @@ void OpLimb::dumpSet(const char*& str) {
     deadEnd = OpDebugBool(str, "deadEnd");
     ASSERT_ORDERED(deadEnd, looped);
     looped = OpDebugBool(str, "looped");
-    ASSERT_ORDERED(looped, resetPass);
-    resetPass = OpDebugBool(str, "resetPass");
-    ASSERT_SERIAL_OFFSET(*this, resetPass, 6, debugBranches);
+//    ASSERT_ORDERED(looped, resetPass);
+ //   resetPass = OpDebugBool(str, "resetPass");
+    ASSERT_SERIAL_OFFSET(*this, looped, 7, debugBranches);
     if (OpDebugOptional(str, "debugBranches")) {
         size_t count = OpDebugReadSizeT(str);
         for (size_t index = 0; index < count; ++index)
@@ -2612,7 +2616,8 @@ void dmpParents(int limbID) {
 }
 
 void OpTree::dumpSet(const char*& str) {
-    static_assert(0 == offsetof(OpTree, context));  // skip context
+    static_assert(0 == offsetof(OpTree, passIndex));  // skip context
+    ASSERT_ORDERED(passIndex, context);
     ASSERT_ORDERED(context, trunk);
     trunk = (OpLimb*) (OpDebugOptional(str, "trunk") ? OpDebugReadSizeT(str) : 0);
     ASSERT_ORDERED(trunk, bestGapLimb);
@@ -2631,11 +2636,11 @@ void OpTree::dumpSet(const char*& str) {
     id = OpDebugReadNamedInt(str, "id");
     ASSERT_ORDERED(id, limbPass);
     limbPass = LimbPassStr(str, "limbPass", LimbPass::none);
-    ASSERT_ORDERED(limbPass, disabled);
-    disabled = OpDebugOptional(str, "disabled");
-    ASSERT_ORDERED(disabled, smallGap);
+    ASSERT_ORDERED(limbPass, smallGap);
+//    disabled = OpDebugOptional(str, "disabled");
+//    ASSERT_ORDERED(disabled, smallGap);
     smallGap = OpDebugOptional(str, "smallGap");
-    ASSERT_SERIAL_OFFSET(*this, smallGap, 1, debugAddEach);
+    ASSERT_SERIAL_OFFSET(*this, smallGap, 2, debugAddEach);
     debugAddEach = OpDebugReadNamedInt(str, "debugAddEach");
     static_assert(sizeof(OpTree) == offsetof(OpTree, debugAddEach) + sizeof(debugAddEach) + 4);
 }
@@ -2789,13 +2794,13 @@ void SectRay::dumpSet(const char*& str) {
     distances.resize(size);
     for (Distance& dist : distances)
         dist.dumpSet(str);
-    ASSERT_ORDERED(distances, erased);
-    OpDebugRequired(str, "erased");
+    ASSERT_ORDERED(distances, debugErased);
+    OpDebugRequired(str, "debugErased");
     size = OpDebugReadSizeT(str);
-    erased.resize(size);
-    for (Distance& erase : erased)
+    debugErased.resize(size);
+    for (Distance& erase : debugErased)
         erase.dumpSet(str);
-    ASSERT_ORDERED(erased, insideBounds);
+    ASSERT_ORDERED(debugErased, insideBounds);
     if (OpDebugOptional(str, "insideBounds"))
         insideBounds.dumpSet(str);
     ASSERT_ORDERED(insideBounds, homeTangent);
@@ -2831,7 +2836,7 @@ void SectRay::dumpResolveAll(OpContext* context) {
     targets.dumpResolveAll(context);
     for (Distance& dist : distances)
         dist.dumpResolveAll(context);
-    for (Distance& erase : erased)
+    for (Distance& erase : debugErased)
         erase.dumpResolveAll(context);
 }
 

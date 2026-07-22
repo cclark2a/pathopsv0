@@ -65,17 +65,23 @@ SDL_AppResult DebuggerState::checkForNewFiles() {
     struct stat info;
     size_t fileNumber = 0;
     int MAX_FILE_NUMBER = INT_MAX;  // !!! set when debugging debugger
+    auto selectDump = [this]() {
+        setDump(std::max(0, std::min(clickDump, (int) dumps.size() - 1)));
+    };
     while (fileNumber < MAX_FILE_NUMBER) {
         std::string filename = DumpFile + STR(++fileNumber) + ".txt";
         std::string filePath = dmpFileToPath(filename);
         if (stat(filePath.c_str(), &info) == -1) {
-            if (dumps.size() >= fileNumber)
+            if (dumps.size() >= fileNumber) {
                 dumps.resize(fileNumber - 1);
-            currentDump = std::max(0, std::min(clickDump, (int) dumps.size() - 1));
+                selectDump();
+            }
             break;
         }
-        if (dumps.size() < fileNumber)
+        if (dumps.size() < fileNumber) {
             dumps.emplace_back();
+            selectDump();
+        }
         OP_ASSERT(fileNumber <= dumps.size());
         DebuggerDump& dump = dumps[fileNumber - 1];
         dump.filename = filename;
@@ -158,6 +164,10 @@ DebuggerWindow* DebuggerState::focus(SDL_WindowID id) {
     return lastFocus;
 }
 
+bool DebuggerState::isSelected(int id) const {
+    return selectedIDs.end() != std::find(selectedIDs.begin(), selectedIDs.end(), id);
+}
+
 const std::string StateFile = "DebuggerState.txt";
 
 void DebuggerState::playback() {
@@ -165,12 +175,16 @@ void DebuggerState::playback() {
     if (buffer.empty())
         return;
     const char* str = buffer.c_str();
-    while (OpDebugOptional(str, "id")) {
+    while (OpDebugOptional(str, "selected")) {
         int id = (int) OpDebugReadSizeT(str);
+#if 0
         auto foundID = std::find_if(ids.begin(), ids.end(), [id](const OpType& opType) {
                 return id == opType.id; });
         if (ids.end() != foundID)
             foundID->selected = true;
+#else
+        setSelected(id);
+#endif
     }
     // !!! add any additional global state here
     DEBUG_SET_REQUIRED_VALUE(dumpWindow, clickDump);
@@ -200,9 +214,8 @@ void DebuggerState::playback() {
 
 void DebuggerState::record() {
     std::string s;
-    for (auto& id : ids) {
-        if (id.selected)
-            s += "id:" + STR(id.id) + " ";
+    for (int id : selectedIDs) {
+        s += "selected:" + STR(id) + " ";
     }
     if (!s.empty())
         s.back() = '\n';
@@ -255,6 +268,7 @@ void DebuggerState::redraw() {
     draw();
 }
 
+#if 0
 void DebuggerState::saveSelection() {
     selectedIDs.clear();
     for (const OpType& opType : ids) {
@@ -262,6 +276,7 @@ void DebuggerState::saveSelection() {
             selectedIDs.push_back(opType.id);
     }
 }
+#endif
 
 // -1: draw none ; 0: draw all ; > 0 draw matching depth
 void DebuggerState::setDepth(int ) {
@@ -281,6 +296,13 @@ void DebuggerState::setDepth(int ) {
             continue;
 		id.drawn = id.edge->debugDepth < depth && id.edge->debugCC >= depth;
 	}
+}
+
+void DebuggerState::setDump(int d) {
+    if (currentDump == d)
+        return;
+    OpDebugOut("currentDump: " + STR(currentDump) + " -> " + STR(d) + "\n");
+    currentDump = d;
 }
 
 void DebuggerState::setIDTypes() {
@@ -334,6 +356,7 @@ void DebuggerState::setIDTypes() {
     }
     std::sort(ids.begin(), ids.end(), [](const OpType& a, const OpType& b) {
             return a.id < b.id; });
+#if 0
     for (int selectedId : selectedIDs) {
         // !!! since ids is sorted, could use lower_bound or whatever...
         //     .. but if performance is really a problem, walk both (assuming selectedID is sorted)
@@ -344,6 +367,21 @@ void DebuggerState::setIDTypes() {
             (*idIter).selected = true;
     }
     selectedIDs.clear();
+#endif
+}
+
+void DebuggerState::setSelected(int id) {
+    if (isSelected(id))
+        return;
+    selectedIDs.push_back(id);
+}
+
+void DebuggerState::toggleSelected(int id) {
+    auto position = std::find(selectedIDs.begin(), selectedIDs.end(), id);
+    if (position == selectedIDs.end())
+        selectedIDs.push_back(id);
+    else 
+        selectedIDs.erase(position);
 }
 
 void DebuggerState::update() {

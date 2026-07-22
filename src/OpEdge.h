@@ -196,7 +196,9 @@ struct SectRay {
 
 	RayTargets targets;
 	std::vector<Distance> distances;
-	std::vector<Distance> erased;  // distances saved in case axis conflict requires restoring
+#if OP_DEBUG  // !!! no code to use this, yet
+	std::vector<Distance> debugErased;  // distances saved in case axis conflict requires restoring
+#endif
 	OpRect insideBounds;  // intersection of curve bounds and alias bounds
 	OpVector homeTangent;  // used to determine if unsectable edge is reversed
 	float normal = OpNaN;  // ray used to find windings on home edge (e.g., axis: h, center.y)

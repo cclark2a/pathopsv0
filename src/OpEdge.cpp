@@ -926,6 +926,7 @@ void OpEdge::subDivide(OpPoint startPoint, OpPoint endPoint) {
  	if (startPoint == endPoint || curve.firstPt() == curve.lastPt()) {
 //		OP_ASSERT(0);	// triggered by fuzz763_9 ; triggered by loop63275
 		setDisabled(OP_LINE_FILE_NPARGS());
+		centerless = curve.c.data->start != curve.c.data->end;
 	}
 }
 

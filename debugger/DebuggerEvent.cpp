@@ -297,7 +297,7 @@ KeyResult DebuggerState::keyEvent(const DebuggerEvent& debuggerEvent, KeyAction 
             if (!currentDump) 
                 break;
             if (KeyAction::act == action) {
-                --currentDump;
+                setDump(currentDump - 1);
                 result.l = DrawLevel::file;
             } else
                 result.s += "show dump " + STR(currentDump - 1);
@@ -306,7 +306,7 @@ KeyResult DebuggerState::keyEvent(const DebuggerEvent& debuggerEvent, KeyAction 
             if (currentDump + 1 >= dumps.size())
                 break;
             if (KeyAction::act == action) {
-                ++currentDump;
+                setDump(currentDump + 1);
                 result.l = DrawLevel::file;
             } else
                 result.s += "show dump " + STR(currentDump + 1);

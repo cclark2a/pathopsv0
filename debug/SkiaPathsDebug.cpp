@@ -13,7 +13,6 @@
 #include "curves/UnaryWinding.h"
 #include "OpContext.h"
 
-
 // char* so it can be called from immediate window
 namespace PathOpsV0Lib {
 

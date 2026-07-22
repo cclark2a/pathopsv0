@@ -7,10 +7,10 @@
 #endif
 
 #define SKIP_TO_V0 0  // set to 1 to ignore file, test first and run first test in v0
-#define SKIP_TO_FILE "" // e.g., "simplify"  one file
+#define SKIP_TO_FILE "tiger" // e.g.,  "tiger"   one file
 #define TEST_SUITE_FIRST ""  // e.g., "simplifyFail" skip suites prior to this one
 #if !OP_DEBUG_ALT
-#define TEST_FIRST "grshapearc"   // e.g., "simplifyQuads13071788" simplifyQuadsX" if file, one test
+#define TEST_FIRST "tiger8b_h_1"   // e.g.,  "tiger8b_h_1"   if file, one test
                         // !!! "loop8478" fails sometimes (san/valgrind found no error)
                         // cubic9092  cubic454498  cubic327361 troublesome unsectables
 #else
@@ -56,9 +56,9 @@ count:1 0.111898132
 #define TEST_PATH_OP_SKIP_FILES  /* e.g., "battle", "circleOp" */
 #define TEST_ENABLE_V0 1  // set zero to verify all tests are visited exactly once (disables engine)
 
-#define TEST_ANALYZE 1  // set to one to limit bounds and contours of very large tests
+#define TEST_ANALYZE 0  // set to one to limit bounds and contours of very large tests
 #define LIMIT_CONTOURS 165  // when limited, maximum number of contours to check
-#define LIMIT_BOUNDS { 40, 6, 60, 9 }  // when limited, contours must start in bounds to be checked
+#define LIMIT_BOUNDS { 48.0237312, 24.2018681, 50.9992294, 32.9181442 }  // when limited, contours must start in bounds to be checked
 
 /*
 trunk:4923 bestGapLimb:[4927 e:823e..870 closeD:0] bestLimb:[4927 e:823e..870 closeD:0] bestDistance:0 bestPerimeter:0.00341796875 maxLimbs:1000 totalUsed:6 limbPass:unsectPair debugAddEach231

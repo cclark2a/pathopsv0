@@ -542,7 +542,8 @@ void SectRay::markDependents(OpEdge* edge) {
 	test->dependent = true;
 	if (dependentIndex) {
 		// keep distances to be erased in case, later, axis conflict requires them
-		erased.insert(erased.begin(), distances.begin(), distances.begin() + dependentIndex);
+		OP_DEBUG_CODE(debugErased.insert(debugErased.begin(), distances.begin(), 
+				distances.begin() + dependentIndex));
 		distances.erase(distances.begin(), distances.begin() + dependentIndex);
 	}
 }
@@ -1172,7 +1173,8 @@ FoundWindings OpWinder::SetWindings(OpContext& context) {
 						&& verticals.end() != std::find(verticals.begin(), verticals.end(), edge)) {
 					OP_ASSERT(Axis::horizontal == axis);
 					edge->ray.distances.clear();
-				} else if (EdgeFail::none != edge->rayFail) {
+				} else if (EdgeFail::none != edge->rayFail 
+						|| ChainFail::failIntercept == chainFail) {
 	// keep first horizontal (or recompute it) if ray finding gives up
 	// or keep first vertical if, after giving up, edge is more horizontal than vertical
 	//	? use edge bounds to choose w or h?
@@ -1185,13 +1187,13 @@ FoundWindings OpWinder::SetWindings(OpContext& context) {
 					edge->ray.axis = edge->bounds().largerAxis();
 					edge->ray.normal = midPt.choice(edge->ray.axis);
 					edge->ray.homeCept = midPt.choice(!edge->ray.axis);
-	edge->ray.targets.chainBounds = edge->bounds();
-	OpContour* contour = edge->segment->contour;
-	const OpRect& overlapBounds = contour->overlapOwner->overlapBounds;
-	if (Axis::horizontal == edge->ray.axis)
-		edge->ray.targets.chainBounds.left = overlapBounds.left;
-	else
-		edge->ray.targets.chainBounds.top = overlapBounds.top;
+					edge->ray.targets.chainBounds = edge->bounds();
+					OpContour* contour = edge->segment->contour;
+					const OpRect& overlapBounds = contour->overlapOwner->overlapBounds;
+					if (Axis::horizontal == edge->ray.axis)
+						edge->ray.targets.chainBounds.left = overlapBounds.left;
+					else
+						edge->ray.targets.chainBounds.top = overlapBounds.top;
 					FindACept(edge, AllowTooManyRetries::yes);
 					edge->ray.sort();
 				}
@@ -1316,7 +1318,12 @@ FoundWindings OpWinder::SetWindings(OpContext& context) {
 						reciprocals.insert(reciprocals.end(), locals.begin(), locals.end());
 				}
 				for (EdgePal* reciprocal : reciprocals) {
-					edge.addPal(reciprocal->edge, reciprocal->unsectID, reciprocal->reversed);
+					OpEdge* oEdge = reciprocal->edge;
+					edge.addPal(oEdge, reciprocal->unsectID, reciprocal->reversed);
+					std::vector<Distance>& oDist = oEdge->ray.distances;
+					if (oDist.end() != std::find_if(oDist.begin(), oDist.end(), [edge]
+							(const Distance& test) { return test.edge->id == edge.id; } ))
+						oEdge->addPal(&edge, reciprocal->unsectID, reciprocal->reversed);
 				}
 			}
 		}

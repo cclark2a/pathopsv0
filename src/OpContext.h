@@ -72,7 +72,7 @@ struct OpContext {
 	PathOpsV0Lib::CurveData* allocateCurveData(size_t );
 	OpEdge* allocateEdge(OpEdgeStorage*&   OP_DEBUG_PARAMS(std::string debugName));
 	OpIntersection* allocateIntersection();
-	OpLimb* allocateLimb();
+	OpLimb* allocateLimb(OpTree* );
 	PathOpsV0Lib::WindingData* allocateWinding(size_t  OP_DEBUG_RASTER_PARAMS(bool usedByRaster));
 	bool allowError(PathOpsV0Lib::ContextError , PathOpsV0Lib::Curve* = nullptr);
 

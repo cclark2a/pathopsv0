@@ -133,7 +133,7 @@ OpIntersection* OpContext::allocateIntersection() {
 	return &sectStorage->storage[sectStorage->used++];
 }
 
-OpLimb* OpContext::allocateLimb() {
+OpLimb* OpContext::allocateLimb(OpTree* tree) {
 	if (!limbStorage)
 		limbStorage = new OpLimbStorage;
 	if (limbStorage->used == ARRAY_COUNT(limbStorage->storage)) {
@@ -143,7 +143,7 @@ OpLimb* OpContext::allocateLimb() {
 		limbStorage->prevBlock = next;
 		limbStorage = next;
 	}
-	return limbStorage->allocate();
+	return limbStorage->allocate(tree);
 }
 
 PathOpsV0Lib::WindingData* OpContext::allocateWinding(size_t size  

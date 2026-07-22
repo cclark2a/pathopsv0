@@ -100,14 +100,18 @@ struct DebuggerState {
     DrawLevel eventCommon(const DebuggerEvent& );
     std::string floatToStr(float );
     DebuggerWindow* focus(SDL_WindowID );
+    bool isSelected(int ID) const;
     KeyResult keyEvent(const DebuggerEvent& debuggerEvent, KeyAction action);
     void playback();
     static void RaiseWindows();
     void record();
     void redraw();  // changed window size, lay out again
-    void saveSelection();
+ //   void saveSelection();
     void setDepth(int );
+    void setDump(int );
     void setIDTypes();
+    void setSelected(int id);
+    void toggleSelected(int id);
     void update();
 #if OP_DEBUG_VALIDATE
     void validate();
@@ -115,6 +119,7 @@ struct DebuggerState {
 
     std::vector<DebuggerDump> dumps;
     std::vector<OpType> ids;
+    std::vector<OpType> polyIds;
     std::vector<int> selectedIDs;
     OpContext* context = nullptr;
     DebuggerWindow* lastFocus = nullptr;  // never help window

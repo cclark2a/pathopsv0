@@ -81,8 +81,9 @@ DrawLevel TextWindow::doType(TextAction eventAction, const DebuggerEvent* event)
 }
 
 static DrawLevel AddType(const DebuggerEvent* , TextWindow* textWindow, OpType& opType) {
+    bool isSelected = textWindow->debuggerState->isSelected(opType.id);
     DebuggerPoly& polyRect = textWindow->addIdBox(opType.bounds, STR(opType.id), 
-        opType.selected ? yellow : lightGray);
+        isSelected ? yellow : lightGray);
     polyRect.opType = opType;
     return DrawLevel::draw;
 }
@@ -98,17 +99,18 @@ static DrawLevel HoverType(const DebuggerEvent* event, TextWindow* textWindow, O
     if (!poly)
         return DrawLevel::none;
     bool mouseOverButton = opType.bounds.contains(event->mouse);
-    poly->color = opType.selected ? yellow : mouseOverButton ? white : lightGray;
+    bool isSelected = textWindow->debuggerState->isSelected(opType.id);
+    poly->color = isSelected ? yellow : mouseOverButton ? white : lightGray;
     poly = textWindow->debuggerState->pictureWindow.findPolyByID(opType.id);
     if (poly && poly->thickness)
         poly->thickness = mouseOverButton ? 4.f : 1.f;
     return DrawLevel::draw;
 }
 
-static DrawLevel SelectType(const DebuggerEvent* event, TextWindow* , OpType& opType) {
+static DrawLevel SelectType(const DebuggerEvent* event, TextWindow* textWindow, OpType& opType) {
     if (!opType.bounds.contains(event->mouse))
         return DrawLevel::none;
-    opType.selected ^= true;
+    textWindow->debuggerState->toggleSelected(opType.id);
     return DrawLevel::update;
 }
 
@@ -150,12 +152,6 @@ std::string TextWindow::format(std::string in) {
     return formatted;
 }
 
-struct Field {
-    const char* name;
-    const char* data;
-    const char* end;
-};
-
 void TextWindow::innerUpdate(int& safetyCheck) {
     if (++safetyCheck > 2) {
         OpDebugOut(std::string(__func__) + ": unexpected recursion: " + STR(safetyCheck) + "\n");
@@ -186,7 +182,7 @@ void TextWindow::innerUpdate(int& safetyCheck) {
     std::vector<const OpSegment*> shownSegs;
     std::vector<const OpContour*> shownContours;
     auto doID = [addWrapped, &shownSegs, &shownContours, this](OpType& id) {
-        if (!id.selected)
+        if (!debuggerState->isSelected(id.id))
             return;
         bool shownEdge = false;
         bool shownIntersection = false;
@@ -217,45 +213,7 @@ void TextWindow::innerUpdate(int& safetyCheck) {
                 shownSegment = true;
             } 
             if (IDType::edge == id.type) {
-        #if 0
-                std::vector<EdgeFilter> showFields = { EF::id, EF::startT, EF::endT, EF::curve, 
-                    EF::winding, EF::sum, EF::whichEnd_impl };
-                OpSaveEF saveEF(showFields);
-                s = id.edge->debugDump(DebugLevel::normal, defaultBase);
-        #else
-                std::vector<std::string> showFields = { "edge", "startT", "endT", "curve",
-                    "wind", "sum", "whichEnd_impl" };
-                std::string master = id.edge->debugDump(DebugLevel::normal, defaultBase);
-                std::vector<Field> foundFields;
-                for (const char* ch = &master.front(); ch < &master.back(); ) {
-                    if (!isalpha(*ch)) {
-                        OP_ASSERT(*ch <= ' ');
-                        ++ch;
-                        continue;
-                    }
-                    const char* start = ch;
-                    while (ch < &master.back() && isalpha(*ch))
-                        ++ch;
-                    const char* data = ch;
-                    int brackets = 0;
-                    while (ch < &master.back()) {
-                        brackets += '[' == *ch || '{' == *ch;
-                        brackets -= ']' == *ch || '}' == *ch;
-                        ++ch;
-                        if (!brackets && ' ' == *ch)
-                            break;
-                    }
-                    foundFields.push_back({ start, data, ch });
-                }
-                for (std::string& show : showFields) {
-                    for (const Field& found : foundFields) {
-                        if (show.size() == found.data - found.name  
-                                && 0 == strncmp(&show.front(), found.name, show.size()))
-                            s += std::string(found.name, found.end - found.name) + " ";
-                    }
-                }
-                debugPopMatching(s, ' ');
-        #endif
+                s = id.edge->debugDump(DebugLevel::brief, defaultBase);
                 shownEdge = true;
             } 
             if (IDType::intersection == id.type) {
@@ -329,7 +287,7 @@ void TextWindow::innerUpdate(int& safetyCheck) {
         if (s.empty())
             addWrapped("(no links)");
         else
-            addWrapped(s);
+            addWrapped("links\n" + s);
     }
     if (debuggerState->showOutput) {
         DebugRaster* raster = debuggerState->context->debugRaster;

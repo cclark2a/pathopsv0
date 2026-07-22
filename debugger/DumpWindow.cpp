@@ -20,16 +20,17 @@ DrawLevel DumpWindow::click(const DebuggerEvent* event) {
     }
     OpPoint localLocation(10, 10);
     float lineHeight = debuggerState->textWindow.boxWH.dy;
-    if (event->mouse.y < localLocation.y)
+    if (event->mouse.x < localLocation.x || event->mouse.y < localLocation.y
+            || event->mouse.x > localLocation.x + windowWidth)
         return DrawLevel::none;
     int index = (int) ((event->mouse.y - localLocation.y) / lineHeight);
     if (index >= (int) debuggerState->dumps.size())
         return DrawLevel::none;
     if (debuggerState->currentDump == index)
         return DrawLevel::none;
-    debuggerState->saveSelection();
+//    debuggerState->saveSelection();
     debuggerState->clickDump = index;
-    debuggerState->currentDump = index;
+    debuggerState->setDump(index);
     return DrawLevel::file;  //  preserve selected, switch, and restore selected
 }
 

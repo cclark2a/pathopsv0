@@ -84,11 +84,13 @@ struct OpContour {
 
 	void buildBackwards();
 	void buildCenterless();
+	void buildCoinPals();
+	void buildDisabled();
 	void buildPals();
     void clear();
     void clearEdges();
     void clearSegments();
-	bool detachIfLoop(OpJoiner* , OpEdge* , EdgeMatch loopEnd);
+	bool detachIfLoop(OpJoiner* , OpEdge* , std::vector<OpEdge*>* erasures, EdgeMatch loopEnd);
 	bool disabledPal(OpPoint, OpPoint) const;  // !!! bare minimum to fix cubic129075 (experiment)
 	bool fixCCSects();
     void init(OpContext* , PathOpsV0Lib::WindingData winding, size_t size);
@@ -192,8 +194,10 @@ struct OpContour {
 	// for joiner:
 	std::vector<OpEdge*> byArea;
 	std::vector<OpEdge*> unsectByArea;
+	std::vector<OpEdge*> coinPals;
 	std::vector<OpEdge*> disabledBackwards;
 	std::vector<OpEdge*> disabledCenterless;
+	std::vector<OpEdge*> disabledEdges;
 	std::vector<OpEdge*> disabledPals;
 	std::vector<OpEdge*> smallEdges;  // edges with spans less than some caller-supplied t range
 	std::vector<OpEdge*> unsortables;
@@ -209,6 +213,8 @@ struct OpContour {
 	int treeID;  // tracks if contour has been initialized in this tree's context (for edge 'seen')
 	bool backwardsBuilt;
 	bool centerlessBuilt;
+	bool coinPalsBuilt;
+	bool disabledBuilt;
 	bool hasPals;
 	bool palsBuilt;
 	bool disabled;

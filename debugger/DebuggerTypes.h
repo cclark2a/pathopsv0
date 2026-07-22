@@ -104,7 +104,7 @@ struct OpType {
     int curveIndex = -1;  // only used by contour
     IDType type = IDType::none;
     bool inCcStorage = false;
-    bool selected = false;
+//  bool selected = false;
     bool drawn = true;
 };
 

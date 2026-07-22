@@ -588,7 +588,7 @@ void PictureWindow::addRays() {
     if (!debuggerState->showRays)
         return;
     for (auto& id : debuggerState->ids) {
-        if (!id.selected)
+        if (!debuggerState->isSelected(id.id))
             continue;
         if (IDType::edge != id.type)
             continue;
@@ -723,6 +723,7 @@ uint32_t PictureWindow::edgeColor(const OpEdge& e) {
     return color;
 }
 
+#if 0
 void PictureWindow::saveSelected() {
     selectedIDs.clear();
     for (DebuggerPoly& poly : polys) {
@@ -737,10 +738,11 @@ void PictureWindow::restoreSelected() {
             poly.opType.selected = true;
     }
 }
+#endif
 
 void PictureWindow::update() {
     setSize();
-    saveSelected();
+//    saveSelected();
     clear();
     OpPointBounds contourBounds;
     OpContourIterator contourIter(context());
@@ -810,7 +812,7 @@ void PictureWindow::update() {
     addWindings();
     addRays();
     addGrid();
-    restoreSelected();
+//    restoreSelected();
 }
 
 void PictureWindow::move(OpVector v) { 

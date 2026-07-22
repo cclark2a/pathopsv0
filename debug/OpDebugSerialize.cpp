@@ -1525,7 +1525,15 @@ std::string OpContour::debugDump(DebugLevel l, DebugBase b) const {
         debugPopMatching(s, ' ');
 		s += closeBracket;
 	}
-    ASSERT_ORDERED(unsectByArea, disabledBackwards);
+    ASSERT_ORDERED(unsectByArea, coinPals);
+	if (!coinPals.empty()) {
+		s += "coinPals:" + STR(coinPals.size()) + "[";
+		for (OpEdge* e : coinPals)
+			s += STR(e->id) + " ";
+        debugPopMatching(s, ' ');
+		s += closeBracket;
+	}
+    ASSERT_ORDERED(coinPals, disabledBackwards);
 	if (!disabledBackwards.empty()) {
 		s += "disabledBackwards:" + STR(disabledBackwards.size()) + "[";
 		for (OpEdge* e : disabledBackwards)
@@ -1541,7 +1549,15 @@ std::string OpContour::debugDump(DebugLevel l, DebugBase b) const {
         debugPopMatching(s, ' ');
 		s += closeBracket;
 	}
-    ASSERT_ORDERED(disabledCenterless, disabledPals);
+    ASSERT_ORDERED(disabledCenterless, disabledEdges);
+	if (disabledEdges.size()) {
+		s += "disabledEdges:" + STR(disabledEdges.size()) + "[";
+		for (OpEdge* e : disabledEdges)
+			s += STR(e->id) + " ";
+        debugPopMatching(s, ' ');
+		s += closeBracket;
+	}
+    ASSERT_ORDERED(disabledEdges, disabledPals);
 	if (disabledPals.size()) {
 		s += "disabledPals:" + STR(disabledPals.size()) + "[";
 		for (OpEdge* e : disabledPals)
@@ -1604,7 +1620,9 @@ std::string OpContour::debugDump(DebugLevel l, DebugBase b) const {
     DEBUG_DUMP_OPTIONAL_VALUE(id, treeID);
     DEBUG_DUMP_BOOL(treeID, backwardsBuilt);
     DEBUG_DUMP_BOOL(backwardsBuilt, centerlessBuilt);
-    DEBUG_DUMP_BOOL(centerlessBuilt, hasPals);
+    DEBUG_DUMP_BOOL(centerlessBuilt, coinPalsBuilt);
+    DEBUG_DUMP_BOOL(coinPalsBuilt, disabledBuilt);
+    DEBUG_DUMP_BOOL(disabledBuilt, hasPals);
     DEBUG_DUMP_BOOL(hasPals, palsBuilt);
     DEBUG_DUMP_BOOL(palsBuilt, disabled);
     DEBUG_DUMP_BOOL(disabled, overlapsMerged);
@@ -1612,7 +1630,7 @@ std::string OpContour::debugDump(DebugLevel l, DebugBase b) const {
     DEBUG_DUMP_BOOL(segEndsMerged, segMerged);
     DEBUG_DUMP_BOOL(segMerged, debugEmpty);
 #if OP_DEBUGGER || OP_TEST
-    ASSERT_SERIAL_OFFSET(*this, debugEmpty, 3, debugCurveData);
+    ASSERT_SERIAL_OFFSET(*this, debugEmpty, 1, debugCurveData);
     if (!debugCurveData.empty()) {
 		s += "debugCurveData:" + STR(debugCurveData.size()) + "[";
 		for (int index = 0; index < (int) debugCurveData.size(); ++index) {
@@ -1691,13 +1709,10 @@ OpContour* OpContourStorage::debugIndex(int contourIndex) const {
 }
 
 std::string OpCurve::debugDump(DebugLevel l, DebugBase b) const {
-    std::string s = Curve_DebugDump(c, l, b) + " ";
-    // jiggery pokery to enclose remaining in curve's braces
-    if (DebugLevel::normal == l) {
-        debugPopMatching(s, ' ');
-        debugPopMatching(s, '}');
-        s += " ";
-    }
+    std::string s;
+    if (DebugLevel::normal == l)
+        s += "{";
+    s += Curve_DebugDump(c, l, b) + " ";
     if (DebugLevel::brief != l) {
         if (start != c.data->start)
             s += "start:" + start.debugDump(l, b) + " ";
@@ -1807,7 +1822,49 @@ std::string OpCurveCurve::debugDump(DebugLevel l, DebugBase b) const {
     return debugPopMatching(s, ' ');
 }
 
+struct Field {
+    const char* name;
+    const char* data;
+    const char* end;
+};
+
 std::string OpEdge::debugDump(DebugLevel l, DebugBase b) const {
+    if (DebugLevel::brief == l) {
+        std::string master = debugDump(DebugLevel::normal, b);
+        std::vector<std::string> showFields = { "edge", "startT", "endT", "curve",
+            "wind", "sum", "whichEnd_impl" };
+        std::vector<Field> foundFields;
+        std::string s;
+        for (const char* ch = &master.front(); ch < &master.back(); ) {
+            if (!isalpha(*ch)) {
+                OP_ASSERT(*ch <= ' ');
+                ++ch;
+                continue;
+            }
+            const char* start = ch;
+            while (ch < &master.back() && isalpha(*ch))
+                ++ch;
+            const char* data = ch;
+            int brackets = 0;
+            while (ch < &master.back()) {
+                brackets += '[' == *ch || '{' == *ch;
+                brackets -= ']' == *ch || '}' == *ch;
+                ++ch;
+                if (!brackets && ' ' == *ch)
+                    break;
+            }
+            foundFields.push_back({ start, data, ch });
+        }
+        for (std::string& show : showFields) {
+            for (const Field& found : foundFields) {
+                if (show.size() == found.data - found.name  
+                        && 0 == strncmp(&show.front(), found.name, show.size()))
+                    s += std::string(found.name, found.end - found.name) + " ";
+            }
+        }
+        debugPopMatching(s, ' ');
+        return s;
+    }
     DebugLevel debugLevelRay = l;
     if (DebugLevel::ray == debugLevelRay)
         l = DebugLevel::normal;
@@ -2289,7 +2346,8 @@ std::string OpLimb::debugDump(DebugLevel l, DebugBase b) const {
         debugPopMatching(s, ',');
         s += "} ";
     }
-    ASSERT_ORDERED(lastPts, edge);
+    ASSERT_ORDERED(lastPts, tree);
+    ASSERT_ORDERED(tree, edge);
     if (DebugLevel::file == l && OP_DEBUG_INITED_PTR(edge))
         s += "edge:" + STR(edge->id) + " ";
     ASSERT_ORDERED(edge, lastLimbEdge);
@@ -2323,10 +2381,10 @@ std::string OpLimb::debugDump(DebugLevel l, DebugBase b) const {
     s += BoolToStr(l, deadEnd, "deadEnd", "deadEnd") + " "; 
     ASSERT_ORDERED(deadEnd, looped);
     s += BoolToStr(l, looped, "looped", "looped") + " ";
-    ASSERT_ORDERED(looped, resetPass);
-    s += BoolToStr(l, resetPass, "resetPass", "resetPass") + " ";
+//    ASSERT_ORDERED(looped, resetPass);
+//    s += BoolToStr(l, resetPass, "resetPass", "resetPass") + " ";
 #if OP_DEBUG_DUMP
-    ASSERT_SERIAL_OFFSET(*this, resetPass, 6, debugBranches);
+    ASSERT_SERIAL_OFFSET(*this, looped, 7, debugBranches);
     if (debugBranches.size()) {
         s += "debugBranches:" + STR(debugBranches.size()) + "[";
         for (auto limb : debugBranches)
@@ -2561,7 +2619,8 @@ bool OpSegment::dumpInitialized() const {
 
 std::string OpTree::debugDump(DebugLevel l, DebugBase b) const {
     std::string s;
-    static_assert(0 == offsetof(OpTree, context));  // skip context
+    static_assert(0 == offsetof(OpTree, passIndex));  // skip context
+    ASSERT_ORDERED(passIndex, context);
     ASSERT_ORDERED(context, trunk);
     if (trunk)
         s += " trunk:" + STR(trunk->id);
@@ -2589,13 +2648,13 @@ std::string OpTree::debugDump(DebugLevel l, DebugBase b) const {
     ASSERT_ORDERED(id, limbPass);
     if (LimbPass::uninitialized != limbPass)
         s += " limbPass:" + LimbPassName(limbPass);
-    ASSERT_ORDERED(limbPass, disabled);
-    if (disabled)
-        s += " disabled";
-    ASSERT_ORDERED(disabled, smallGap);
+    ASSERT_ORDERED(limbPass, smallGap);
+ //   if (disabled)
+ //       s += " disabled";
+ //   ASSERT_ORDERED(disabled, smallGap);
     if (smallGap)
         s += " smallGap";
-    ASSERT_SERIAL_OFFSET(*this, smallGap, 1, debugAddEach);
+    ASSERT_SERIAL_OFFSET(*this, smallGap, 2, debugAddEach);
     if (debugAddEach)
         s += " debugAddEach" + STR(debugAddEach);
     static_assert(sizeof(OpTree) == offsetof(OpTree, debugAddEach) + sizeof(debugAddEach) + 4);
@@ -2691,7 +2750,7 @@ std::string RayTargets::debugDump(DebugLevel l, DebugBase b) const {
 
 std::string SectRay::debugDumpHeader(DebugLevel l, DebugBase b) const {
     std::string s;
-    ASSERT_ORDERED(erased, insideBounds);
+    ASSERT_ORDERED(debugErased, insideBounds);
     if (insideBounds.isFinite())
         s += debugLabel(l, "insideBounds") + insideBounds.debugDump(l, b) + " ";
     ASSERT_ORDERED(insideBounds, homeTangent);
@@ -2743,15 +2802,15 @@ std::string SectRay::debugDump(DebugLevel l, DebugBase b) const {
     if (addLF && !distances.empty())
         s += "\n ";
     s += "} ";
-    ASSERT_ORDERED(distances, erased);
-    s += "erased:" + STR(erased.size()) + "{";
-    for (const Distance& erase : erased) {
+    ASSERT_ORDERED(distances, debugErased);
+    s += "debugErased:" + STR(debugErased.size()) + "{";
+    for (const Distance& erase : debugErased) {
         s += erase.debugDump(l, b) + ", ";
 	}
     debugPopMatching(s, ' ');
     debugPopMatching(s, ',');
     s += "} ";
-    ASSERT_ORDERED(erased, insideBounds);
+    ASSERT_ORDERED(debugErased, insideBounds);
     s += debugDumpHeader(l, b); 
     return s;
 }
