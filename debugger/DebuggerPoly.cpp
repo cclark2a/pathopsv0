@@ -6,168 +6,220 @@
 #include "OpSegment.h"
 #include "DebugOpsTypes.h"
 
-struct DebugSect {  // curve intersected with focus rectangle, and intersection pinned to rect
-    OpPtT sect;
-    bool pin;
-};
+OpRect OpCurve::debugBounds(float tStart, float tEnd) const {
+    if (Rotated::no == rotated)
+        return OpRect(ptAtT(tStart), ptAtT(tEnd));
+    if (0 == tStart && 1 == tEnd)
+        return fullBounds();
+    OpCurve sub = debugSubDivide(tStart, tEnd);
+    return sub.fullBounds();
+}
 
-bool DebuggerAddPoly::add(const PathOpsV0Lib::Curve& c) {
-    if (c.data->start == c.data->end)
-        return false;
+void DebuggerAddPoly::add(const OpCurve& curve, float tStart, float tEnd) {
+#if DEBUG_CLIP
+    auto setupClip = [this, curve, tStart, tEnd]() {
+        return window->createDebugClip(opType, curve, tStart, tEnd);
+    };
+    auto setClip = [setupClip](const OpPtT& lastPtT, const OpPtT& ptT) {
+        DebugClip* clipPtr = setupClip();
+        clipPtr->clipStart = lastPtT;  // may be full span or clipped span
+        clipPtr->clipEnd = ptT;
+        return clipPtr;
+    };
+    auto setBase = [curve, tStart, tEnd, setClip]() {
+        return setClip(curve.ptTAtT(tStart), curve.ptTAtT(tEnd));
+    };
+    auto setSide = [setClip](const OpPtT& lastPtT, const OpPtT& ptT, int lastSide, int side) {
+        DebugClip* clipPtr = setClip(lastPtT, ptT);
+        clipPtr->lastSide = lastSide;
+        clipPtr->side = side;
+    };
+#endif
+    OpRect bounds = curve.debugBounds(tStart, tEnd);  // curve.fullBounds();
+    if (bounds.isEmpty())
+        return;
     // if adding fill, wrap curve to focus bounds
-    OpCurve curve(c, monotonic ? Rotated::no : Rotated::yes);
-    OpPointBounds bounds = curve.fullBounds();
-    auto addVertical = [c, bounds, this](float x) {
+    const OpRect& focus = window->focus;
+    auto addVertical = [curve, bounds, tStart, tEnd, focus, this  CLIP_PARAM(setBase)](float x) {
         if (!addingFill)
-            return false;
-        float top = std::max(bounds.top, window->focus.top);
-        float bottom = std::min(bounds.bottom, window->focus.bottom);
-        if (top >= bottom)
-            return false;
-        if (c.data->start.y > c.data->end.y)
+            return;
+        float top = std::max(bounds.top, focus.top);
+        float bottom = std::min(bounds.bottom, focus.bottom);
+        if (top >= bottom) {
+#if DEBUG_CLIP
+            DebugClip* clipPtr = setBase();
+            clipPtr->clipCorner = bounds.right <= focus.left
+                   ? (bounds.bottom <= focus.top ? ClipCorner::topLeft : ClipCorner::bottomLeft)
+                   : (bounds.bottom <= focus.top ? ClipCorner::topRight : ClipCorner::bottomRight);
+#endif
+            return;
+        }
+        if (curve.c.data->start.y > curve.c.data->end.y)
             std::swap(top, bottom);
-        return window->add({ x, top }, { x, bottom }, this);
+        window->add(this, OpPtT({ x, top }, tStart), OpPtT({ x, bottom }, tEnd)  
+                CLIP_PARAM(curve, tStart, tEnd));
+#if DEBUG_CLIP
+        DebugClip* clipPtr = setBase();
+        clipPtr->clipEdge = focus.left == x ? ClipEdge::left : ClipEdge::right;
+#endif
+        return;
     };
-    auto addHorizontal = [c, bounds, this](float y) {
+    auto addHorizontal = [curve, bounds, tStart, tEnd, focus, this  CLIP_PARAM(setBase)](float y) {
         if (!addingFill)
-            return false;
-        float left = std::max(bounds.left, window->focus.left);
-        float right = std::min(bounds.right, window->focus.right);
-        if (left >= right)
-            return false;
-        if (c.data->start.x > c.data->end.x)
+            return;
+        float left = std::max(bounds.left, focus.left);
+        float right = std::min(bounds.right, focus.right);
+        if (left >= right) {
+#if DEBUG_CLIP
+           DebugClip* clipPtr = setBase();
+           clipPtr->clipCorner = bounds.bottom <= focus.top
+                   ? (bounds.right <= focus.left ? ClipCorner::topLeft : ClipCorner::topRight)
+                   : (bounds.right <= focus.left ? ClipCorner::bottomLeft : ClipCorner::bottomRight);
+#endif
+            return;
+        }
+        if (curve.c.data->start.x > curve.c.data->end.x)
             std::swap(left, right);
-        return window->add({ left, y }, { right, y }, this);
+        window->add(this, OpPtT({ left, y }, tStart), OpPtT({ right, y }, tEnd)  
+                CLIP_PARAM(curve, tStart, tEnd));
+#if DEBUG_CLIP
+        DebugClip* clipPtr = setBase();
+        clipPtr->clipEdge = focus.top == y ? ClipEdge::top : ClipEdge::bottom;
+#endif
+        return;
     };
-    if (bounds.right <= window->focus.left)
-        return addVertical(window->focus.left);
-    if (bounds.left >= window->focus.right)
-        return addVertical(window->focus.right);
-    if (bounds.bottom <= window->focus.top)
-        return addHorizontal(window->focus.top);
-    if (bounds.top >= window->focus.bottom)
-        return addHorizontal(window->focus.bottom);
-    if (window->focus.contains(bounds))
-        return window->add(curve, this);
-    std::vector<DebugSect> sects;
+    if (bounds.right <= focus.left)
+        return addVertical(focus.left);
+    if (bounds.left >= focus.right)
+        return addVertical(focus.right);
+    if (bounds.bottom <= focus.top)
+        return addHorizontal(focus.top);
+    if (bounds.top >= focus.bottom)
+        return addHorizontal(focus.bottom);
+    if (focus.contains(bounds)) {
+        window->add(curve, this, tStart, tEnd, tStart, tEnd);
+        return;
+    }
+    std::vector<OpPtT> ptTs;
     // !!! this generates parallels to window frame which are not part of original curve
     // bounds overlaps, but curve may not intersect; find interior ends, intersection with bounds
-    auto addPin = [this, &sects](OpPtT end) {
-        OpPoint sect = { OpMath::PinSorted(window->focus.left, end.pt.x, window->focus.right),
-                OpMath::PinSorted(window->focus.top, end.pt.y, window->focus.bottom) };
-        sects.push_back({{ sect, end.t }, sect != end.pt });
+    auto addPin = [&ptTs, focus](OpPtT end) {
+        OpPoint sect = { OpMath::PinSorted(focus.left, end.pt.x, focus.right),
+                OpMath::PinSorted(focus.top, end.pt.y, focus.bottom) };
+        ptTs.push_back({ sect, end.t });
     };
-    auto addSects = [&curve, addPin](OpRoots roots, float xy, Axis axis) {
+    auto addSects = [&curve, &ptTs](OpRoots roots, float xy, Axis axis) {
         for (float root : roots.roots) {
             OpPtT ptAtT = curve.ptTAtT(root);
+        #if 0
             ptAtT.pt.choice(axis) = xy;
             addPin(ptAtT);
+        #else  // !!! experiment with making frame intersection as accurate as possible for float
+            ptTs.push_back(ptAtT);
+        #endif
         }
     };
-    addPin(OpPtT(c.data->start, 0));
-    auto crossRoots = [&curve](Axis axis, float xy) {
-        if (!OpMath::Between(curve.firstPt().choice(axis), xy, curve.lastPt().choice(axis)))
-            return OpRoots();
-        return curve.axisRayHit(axis, xy);
+    OpPtT startPtT = curve.ptTAtT(tStart);
+    OpPtT endPtT = curve.ptTAtT(tEnd);
+    addPin(startPtT);
+    auto crossRoots = [&curve, &startPtT, &endPtT](Axis axis, float xy) {
+        if (!OpMath::Between(startPtT.pt.choice(axis), xy, endPtT.pt.choice(axis)))
+            return OpRoots();  // does not cross focus bounds
+        return curve.axisRayHit(axis, xy, startPtT.t, endPtT.t);
     };
-    addSects(crossRoots(Axis::vertical, window->focus.left), window->focus.left,
-            Axis::vertical);
-    addSects(crossRoots(Axis::horizontal, window->focus.top), window->focus.top,
-            Axis::horizontal);
-    addSects(crossRoots(Axis::vertical, window->focus.right), window->focus.right,
-            Axis::vertical);
-    addSects(crossRoots(Axis::horizontal, window->focus.bottom), window->focus.bottom,
-            Axis::horizontal);
-    addPin(OpPtT(c.data->end, 1));
+    addSects(crossRoots(Axis::vertical, focus.left), focus.left, Axis::vertical);
+    addSects(crossRoots(Axis::horizontal, focus.top), focus.top, Axis::horizontal);
+    addSects(crossRoots(Axis::vertical, focus.right), focus.right, Axis::vertical);
+    addSects(crossRoots(Axis::horizontal, focus.bottom), focus.bottom, Axis::horizontal);
+    addPin(endPtT);
     // for each span : if middle is inside focus, keep ends of span
-    std::sort(sects.begin(), sects.end(), [](const auto& s1, const auto& s2) {
-			return s1.sect.t < s2.sect.t; } );
-    DebugSect* last = &sects.front();
-    for (DebugSect& sect : sects) {
-        if (last->sect.t == sect.sect.t)
-            sect.pin &= last->pin;
-        last = &sect;
-    }
-    last = &sects.front();
-    for (DebugSect& sect : sects) {
-        if (last->sect.t == sect.sect.t || last->sect.pt == sect.sect.pt)
+    std::sort(ptTs.begin(), ptTs.end(), [](const auto& s1, const auto& s2) {
+			return s1.t < s2.t; } );
+    auto matchSides = [focus](const OpPtT& ptT) {
+        int sides = 0;
+        sides |= (focus.left >= ptT.pt.x) << 0;
+        sides |= (focus.top >= ptT.pt.y) << 1;
+        sides |= (focus.right <= ptT.pt.x) << 2;
+        sides |= (focus.bottom <= ptT.pt.y) << 3;
+        return sides;
+    };
+    const OpPtT* lastPtT = &ptTs.front();
+    int lastSide = matchSides(*lastPtT);
+    for (size_t index = 1; index < ptTs.size(); ++index) {
+        const OpPtT& ptT = ptTs[index];
+        if (lastPtT->t == ptT.t || lastPtT->pt == ptT.pt)
             continue;
-        if (last->pin || sect.pin) {
-            if (addingFill)
-                window->add(last->sect.pt, sect.sect.pt, this);
-            last = &sect;
-            continue;
+        int side = matchSides(ptT);
+        if (!(lastSide & side)) {
+            window->add(curve, this, lastPtT->t, ptT.t, tStart, tEnd);
+#if DEBUG_CLIP
+            setSide(*lastPtT, ptT, lastSide, side);
+#endif
+        } else if (addingFill) {
+            OP_ASSERT(IDType::contour == opType.type);
+            window->add(this, *lastPtT, ptT  CLIP_PARAM(curve, tStart, tEnd));
+#if DEBUG_CLIP
+            setSide(*lastPtT, ptT, lastSide, side);
+#endif
         }
-        OpCurve piece = curve.debugSubDivide(last->sect.t, sect.sect.t);
-        piece.setFirstPt(last->sect.pt);
-        piece.setLastPt(sect.sect.pt);
-        window->add(piece, this);
-        DebuggerPoly& added = window->polys.back();
-        added.tStart = last->sect.t;
-        added.tEnd = sect.sect.t;
-        last = &sect;
+        lastPtT = &ptT;
+        lastSide = side;
     }
-    return true;  // !!! don't know that this is always true
 }
 
 void DebuggerAddPoly::add(const DebugOutput& debugOutput) {
-    opType = OpType(debugOutput.edge);
+    opType = OpType();
+    opType.type = IDType::output;
     addingFill = true;
-    monotonic = true;
-    auto loopAttributeSet = [debugOutput](PathOpsV0Lib::LoopAttribute attr) {
-        return !!((int) debugOutput.loopAttr & (int) attr);
-    };
-    continueCurve = !loopAttributeSet(PathOpsV0Lib::LoopAttribute::first);
-    add(debugOutput.curve.c);
+    add(debugOutput.curve, 0, 1);
 }
 
 void DebuggerAddPoly::add(const OpEdge* e) {
     opType = OpType(e);
     addingFill = false;
-    monotonic = true;
-    add(e->curve.c);
+    if (debuggerState->showEdgeCurve)
+        add(e->curve, 0, 1);
+    else
+        add(e->segment->c, e->startT, e->endT);
 }
 
 void DebuggerAddPoly::add(const OpSegment* s) {
     opType = OpType(s);
     addingFill = false;
-    monotonic = true;
-    add(s->c.c);
+    add(s->c, 0, 1);
 }
 
 void DebuggerAddPoly::add(const OpIntersection* i) {
     opType = OpType(i);
     addingFill = false;
-    pointOnly = true;
     if (window->focus.contains(i->ptT.pt))
-        window->add(i->ptT.pt, i->ptT.pt, this);
+        window->add(this, i->ptT);
 }
 
 // !!! for segments making up area; color comes from contour
 void DebuggerAddPoly::add(const OpContour* c) {
     opType = OpType(c, -1);
     addingFill = true;
-    monotonic = false;
     OpPoint last(SetToNaN::dummy);
     for (opType.curveIndex = 0; opType.curveIndex < (int) c->debugCurveData.size(); 
             ++opType.curveIndex) {
         std::vector<float> extrema;
-        OpCurve opCurve(c->debugCurve(opType.curveIndex, &extrema), Rotated::no);
-        OpRoots tValues;
+        OpCurve opCurve(c->debugCurve(opType.curveIndex, &extrema), Rotated::yes);
+        if (!opCurve.fullBounds().intersects(window->focus)) {
+            add(opCurve, 0, 1);
+            continue;
+        }
+        OpRoots tValues(0, 1);
         for (float ex : extrema) {
             tValues.add(ex);
         }
-        tValues.add(0);
-        tValues.add(1);
         tValues.sort();
         for (int index = 0; index < tValues.count() - 1; ++index) {
-            OpCurve piece = opCurve.debugSubDivide(tValues.roots[index], tValues.roots[index + 1]);
-            continueCurve = last == piece.firstPt();
-            if (add(piece.c))
-                last = piece.lastPt();
+            add(opCurve, tValues.roots[index], tValues.roots[index + 1]);
         }   
-    }
-    continueCurve = false;
+   }
+//    dmpPoly(this, 1);
+//    OP_ASSERT(0);
 }
 
 #if 0
@@ -183,7 +235,7 @@ void DebuggerAddPoly::add(const OpRect& r) {
 }
 #endif
 
-void DebuggerPoly::dump() const {
+std::string DebuggerPoly::debugDump(DebugLevel l, DebugBase b) const {
     std::string s;
     s += "local:" + STR(local.size()) + " ";
     if (IDType::edge == opType.type)
@@ -208,10 +260,16 @@ void DebuggerPoly::dump() const {
         s += "isPrimary ";
     s.pop_back();
     s += "\n";
-    for (OpPoint pt : local) {
+    for (OpDPoint pt : local) {
          s += pt.debugDump(defaultLevel, defaultBase) + "\n";
     }
-    OpDebugOut(s);
+    s.pop_back();
+    return s;
+}
+
+void DebuggerPoly::dump() const {
+    std::string s = debugDump(defaultLevel, defaultBase);
+    OpDebugOut(s + "\n");
 }
 
 #if OP_DEBUG_VALIDATE
@@ -224,3 +282,116 @@ void DebuggerPoly::validate() const {
 }
 #endif
 
+#if DEBUG_CLIP
+std::string OpType::debugDump(DebugLevel, DebugBase) const {
+    static std::array<std::string, 13> idNames { 
+        "none", 
+        "contour" ,
+        "segment",
+        "edge",
+        "intersection",
+        "coincident",
+        "unsectable",  // intersection
+        "unsectID",  // edge
+        "distance",
+        "pal",
+        "tree",
+        "limb",
+        "output" 
+    };
+    std::string s;
+    s += idNames[(int) type] + " ";
+    s += "id:" + STR(id) + " ";
+    if (IDType::contour == type)
+        s += "(" + STR(curveIndex) + " of " + STR(contour->debugCurveData.size()) + ") ";
+    if (inCcStorage)
+        s += "inCcStorage ";
+    if (drawn)
+        s += "drawn ";
+    s.pop_back();
+    return s;
+}
+
+static void dumpOne(DebugClip& clip) {
+    std::string s;
+    s += "start:" + clip.start.debugDump(defaultLevel, defaultBase) + " ";
+    if (clip.start != clip.clipStart && !clip.clipStart.debugIsUninitialized())
+        s += "clip.start:" + clip.clipStart.debugDump(defaultLevel, defaultBase) + " ";
+    s += "end:" + clip.end.debugDump(defaultLevel, defaultBase) + " ";
+    if (clip.end != clip.clipEnd && !clip.clipEnd.debugIsUninitialized())
+        s += "clip.end:" + clip.clipEnd.debugDump(defaultLevel, defaultBase) + " ";
+    static std::array<std::string, 4> cornerNames { "topLeft", "topRight" ,
+        "bottomLeft", "bottomRight" };
+    if (ClipCorner::none != clip.clipCorner)
+        s += "clipCorner:" + cornerNames[(int) clip.clipCorner - (int) ClipCorner::topLeft] + " ";
+    static std::array<std::string, 4> edgeNames { "left", "top" ,
+        "right", "bottom" };
+    if (ClipEdge::none != clip.clipEdge)
+        s += "clipEdge:" + edgeNames[(int) clip.clipEdge - (int) ClipEdge::left] + " ";
+    auto sideNames = [](int side) {
+        std::string s;
+        for (int bit = 0; bit < 4; ++bit) {
+            if ((1 << bit) & side) {
+                s += edgeNames[bit] + " ";
+            }
+        }
+        return s;
+    };
+    if (clip.lastSide > 0)
+        s += "start side:" + sideNames(clip.lastSide);
+    if (clip.side > 0)
+        s += "start side:" + sideNames(clip.side);
+    s.pop_back();
+    OpDebugOut(s + "\n");
+}
+
+void dmpPoly(DebuggerWindow* window, int id) {
+    OpDebugOut("focus: " + window->focus.debugDump(defaultLevel, defaultBase) + "\n");
+    OpType opType;
+    bool dumped = false;
+    for (OpType& oType : window->debuggerState->ids) {
+        if (oType.id != id)
+            continue;
+        dumped = true;
+        opType = oType;
+    }
+    if (!dumped) {
+        OpDebugOut("no match for:" + STR(id) + "\n");
+        return;
+    }
+    int curveCount = IDType::contour == opType.type ? opType.contour->debugCurveData.size() : 1;
+    for (opType.curveIndex = 0; opType.curveIndex < curveCount; ++opType.curveIndex) {
+        std::vector<DebugClip*> debugClips;
+        window->findDebugClips(opType, 0, 0, &debugClips);
+        std::sort(debugClips.begin(), debugClips.end(), [](auto s1, auto s2) {
+                return s1->clipStart.t < s2->clipStart.t; } );
+        if (debugClips.empty()) {
+            std::string s = "no debug clip for:" + STR(id);
+            if (IDType::contour == opType.type)
+                s +=  "/" + STR(opType.curveIndex);
+            OpDebugOut(s + "\n");
+        } else
+            OpDebugOut(opType.debugDump(defaultLevel, defaultBase) + "\n");
+        float t = 0;
+        for (DebugClip* clip : debugClips) {
+            if (clip->clipStart.t > t)
+                OpDebugOut("gap: " + STR(t) + " to " + STR(clip->clipStart.t) + "\n");
+            else if (clip->clipStart.t < t)
+                OpDebugOut("overlap: " + STR(clip->clipStart.t) + " to " + STR(t) + "\n");
+            dumpOne(*clip);
+            t = clip->end.t;
+        }
+        if (1 != t)
+            OpDebugOut("gap: " + STR(t) + " to 1\n");
+    }
+}
+
+void dmpPoly(DebuggerAddPoly* addPoly, int id) {
+    dmpPoly(addPoly->window, id);
+}
+
+void dmpPoly(DebuggerState* state, int id) {
+    dmpPoly(&state->pictureWindow, id);
+}
+
+#endif

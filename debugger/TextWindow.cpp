@@ -73,8 +73,12 @@ DrawLevel TextWindow::doType(TextAction eventAction, const DebuggerEvent* event)
             doOneType(id);
         }
     } else {
-        for (DebuggerPoly& poly : debuggerState->pictureWindow.polys) {
-            doOneType(poly.opType);
+        PictureWindow& p = debuggerState->pictureWindow;
+        for (const std::vector<DebuggerPoly>* polys : p.polyIDs ) {
+            for (const DebuggerPoly& poly : *polys) {
+                if (poly.isPrimary)
+                    doOneType(const_cast<OpType&>(poly.opType));
+            }
         }
     }
     return result;
@@ -95,7 +99,7 @@ static DrawLevel DragType(const DebuggerEvent* , TextWindow* textWindow, OpType&
 }
 
 static DrawLevel HoverType(const DebuggerEvent* event, TextWindow* textWindow, OpType& opType) {
-    DebuggerPoly* poly = textWindow->findPolyByID(opType.id);
+    DebuggerPoly* poly = textWindow->findRectByID(opType.id);
     if (!poly)
         return DrawLevel::none;
     bool mouseOverButton = opType.bounds.contains(event->mouse);
@@ -242,8 +246,11 @@ void TextWindow::innerUpdate(int& safetyCheck) {
             doID(id);
         }
     } else {
-        for (DebuggerPoly& poly : debuggerState->pictureWindow.polys) {
-            doID(poly.opType);
+    PictureWindow& p = debuggerState->pictureWindow;
+        for (const std::vector<DebuggerPoly>* polys : p.polyIDs ) {
+            for (const DebuggerPoly& poly : *polys) {
+                doID(const_cast<OpType&>(poly.opType));
+            }
         }
     }
     if (OpCurveCurve* cc = debuggerState->context->debugCurveCurve; cc && showCurveCurve) {

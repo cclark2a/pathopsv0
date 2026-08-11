@@ -126,6 +126,8 @@ struct OpRoots {
 		add(root);
 	}
 
+	float average() const;
+
 	bool contains(float check) const {
 		for (float f : roots) {
 			if (check == f)
@@ -569,6 +571,100 @@ struct OpPoint {
 	float y;
 };
 
+struct OpDVector {
+	void operator+=(OpDVector v) {
+		dx += v.dx;
+		dy += v.dy;
+	}
+
+	void operator*=(float s) {
+		dx *= s;
+		dy *= s;
+	}
+
+	OpDVector operator+(OpDVector v) {
+		OpDVector result = *this;
+		result += v;
+		return result;
+	}
+
+	OpDVector operator*(float s) {
+		OpDVector result = *this;
+		result *= s;
+		return result;
+	}
+
+	double cross(OpDVector a) const {
+		return dx * a.dy - dy * a.dx;
+	}
+
+    double length() const {
+		return sqrt(lengthSquared());
+	}
+
+	double lengthSquared() const {
+		return dx * dx + dy * dy;
+	}
+
+    DUMP_DECLARATIONS
+
+    double dx;
+    double dy;
+};
+
+struct OpDPoint {
+    OpDPoint(double _x, double _y) :
+        x(_x),
+        y(_y) {
+    }
+
+    OpDPoint(OpPoint pt) :
+        x(pt.x),
+        y(pt.y) {
+    }
+
+    OpDPoint() : 
+        x(OpNaN), 
+        y(OpNaN) {
+    }
+
+	void operator+=(OpDVector v) {
+		x += v.dx;
+		y += v.dy;
+	}
+
+    friend bool operator==(OpDPoint a, OpDPoint b) {
+		return a.x == b.x && a.y == b.y;
+	}
+
+	friend bool operator!=(OpDPoint a, OpDPoint b) {
+		return a.x != b.x || a.y != b.y;
+	}
+
+	friend OpDVector operator-(OpDPoint a, OpDPoint b) {
+		return { a.x - b.x, a.y - b.y };
+	}
+
+    double choice(Axis axis) {
+        return Axis::vertical == axis ? x : y;
+    }
+
+    double choice(XyChoice xyChoice) {
+        return XyChoice::inX == xyChoice ? x : y;
+    }
+
+    void pin(const OpDPoint a, const OpDPoint b);
+
+    OpPoint point() const {
+        return { (float) x, (float) y };
+    }
+
+    DUMP_DECLARATIONS
+
+    double x;
+    double y;
+};
+
 #if OP_DEBUG_DUMP
 struct OpHexPoint : OpPoint {
 	OpHexPoint(int32_t xIn, int32_t yIn) {
@@ -690,6 +786,7 @@ struct OpRect {
 		return *(&left + +choice); }
 
 	bool nearlyContains(OpPoint pt, OpVector threshold) const;
+	bool nearlyContains(const OpRect& r, OpVector threshold) const;
 
 	OpRect offset(OpVector off) const {
 		return { left + off.dx, top + off.dy, right + off.dx, bottom + off.dy }; }
@@ -907,6 +1004,10 @@ struct OpMath {
 		return (a - b) * (c - b) <= 0;
 	}
 
+#if OP_DEBUGGER
+    static bool BetweenD(double a, double b, double c);
+#endif
+
 //    static float CubeRoot(float);
 	static OpRoots CubicRootsReal(OpCubicFloatType A, OpCubicFloatType B, OpCubicFloatType C,
 			OpCubicFloatType D, MatchEnds );
@@ -1075,12 +1176,8 @@ struct OpCubicCoefficients {
 };
 
 struct LinePts {
-//	OpRoots axisTanHit(Axis axis, float axisIntercept) const;
-//	bool isPoint() const;
-//	OpPoint ptAtT(float t) const;
 	bool ptNearLine(OpPoint pt, OpVector threshold) const;
 	bool ptOnLine(OpPoint pt, float threshold = OpNaN) const;
-//	OpRoots tangentIntersect(const LinePts& line) const;
 	DUMP_DECLARATIONS
 
 	std::array<OpPoint, 2> pts;

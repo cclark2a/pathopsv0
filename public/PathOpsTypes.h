@@ -184,8 +184,7 @@ struct CurveCallbacks {
 	CurvePin curvePinFuncPtr = nullptr;
 	CurveTangent curveTangentFuncPtr = nullptr;
 	CurvesEqual curvesEqualFuncPtr = nullptr;
-	PtAtT  ptAtTFuncPtr = nullptr;
-	PtAtT  ptDAtTFuncPtr = nullptr;
+	PtAtT ptAtTFuncPtr = nullptr;
 	HullPtCount ptCountFuncPtr = nullptr;
 	Rotate rotateFuncPtr = nullptr;
 	SubDivide subDivideFuncPtr = nullptr;
@@ -197,6 +196,7 @@ struct CurveCallbacks {
 	CurveConst maxAlternateEndFuncPtr = nullptr;
 	CurveConst smallTFuncPtr = nullptr;
 	CurveConst maxCutFuncPtr = nullptr;
+	CurveConst closeEndFuncPtr = nullptr;
 };
 
 // winding callbacks

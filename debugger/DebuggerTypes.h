@@ -2,19 +2,11 @@
 #ifndef DebuggerTypes_DEFINED
 #define DebuggerTypes_DEFINED
 
-#include "OpMath.h"
+#include "OpCurve.h"
 #include "OpDebugColor.h"
-#if 0
-#include "OpDebugDouble.h"
-#else
-enum class DebugSprite {
-    circle,
-    diamond,
-    square,
-    triangle,
-};
-#endif
 #include "PathOpsTypes.h"
+
+#define DEBUG_CLIP 1
 
 struct DebugOutput;
 struct DebuggerState;
@@ -36,6 +28,13 @@ extern DebugLevel defaultLevel;
 #define TEXT_FONT_SIZE 18
 #define TEXT_DETAIL_FONT_SIZE 18
 #endif 
+
+enum class DebugSprite {
+    circle,
+    diamond,
+    square,
+    triangle,
+};
 
 enum class DrawLevel {
     none,  // do nothing
@@ -63,6 +62,7 @@ enum class IDType {
     pal,
     tree,
     limb,
+    output
 };
 
 struct NativeTextCache {
@@ -87,6 +87,9 @@ struct OpType {
     OpType(const struct EdgePal* p);
     OpType(const struct OpTree* t);
     OpType(const struct OpLimb* l);
+#if DEBUG_CLIP
+    std::string debugDump(DebugLevel, DebugBase) const;
+#endif
     OP_DEBUG_VALIDATE_CODE(void validate() const;)
 
     OpRect bounds;
@@ -118,7 +121,7 @@ struct OpDebugPoint {
 };
 
 struct DebuggerAddPoly {
-    bool add(const PathOpsV0Lib::Curve& );
+    void add(const OpCurve& , float tStart, float tEnd);
     void add(const DebugOutput& );
     bool add(OpPoint );
     void add(const OpEdge* );
@@ -129,22 +132,63 @@ struct DebuggerAddPoly {
     DebuggerState* debuggerState = nullptr;
     DebuggerWindow* window = nullptr;
     OpType opType;
-    bool continueCurve = false;  // true if contour extends loop
     bool addingFill = false;  // true if added is fill, false if added is frame
-    bool monotonic = false;
-    bool pointOnly = false;
 };
 
+#if DEBUG_CLIP
+
+#define CLIP_PARAM(...) , __VA_ARGS__
+
+enum class ClipCorner {
+    none,
+    topLeft,
+    topRight,
+    bottomLeft,
+    bottomRight
+};
+
+enum class ClipEdge {
+    none,
+    left,
+    top,
+    right,
+    bottom
+};
+
+struct DebugClip {
+    OpType opType;
+    OpPtT start;
+    OpPtT end;
+    OpPtT clipStart;
+    OpPtT clipEnd;
+    int lastSide = -1;
+    int side = -1;
+    ClipCorner clipCorner = ClipCorner::none; 
+    ClipEdge clipEdge = ClipEdge::none;
+    bool clippedOut = false;
+};
+
+extern void dmpPoly(DebuggerWindow* window, int id);
+extern void dmpPoly(DebuggerAddPoly* addPoly, int id);
+extern void dmpPoly(DebuggerState* state, int id);
+
+#else
+
+#define CLIP_CODE(x)
+
+#endif
+
 struct DebuggerPoly {
+    std::string debugDump(DebugLevel, DebugBase ) const;
     void dump() const;
     OP_DEBUG_VALIDATE_CODE(void validate() const;)
 
-    PathOpsV0Lib::Curve c;
+    OpCurve c;
     PathOpsV0Lib::CurveData cData;  // used by construction lines
     static constexpr float fill_thickness = 0;
-    std::vector<OpPoint> local;    // lines used to draw, in local coordinates
-    std::vector<OpPoint> device;    // lines used to draw, in device coordinates
     std::vector<size_t> contours;  // index for each device contour
+    std::vector<OpDPoint> local;    // lines used to draw, in local coordinates
+    std::vector<OpPoint> device;    // lines used to draw, in device coordinates
     OpType opType;
     float thickness = 1;    // special value for fill
     uint32_t color = black;
@@ -155,6 +199,7 @@ struct DebuggerPoly {
 
 struct OpDebugText {
 #if OP_DEBUG_DUMP
+    std::string debugDump(DebugLevel, DebugBase ) const;    
     void dump(DebuggerWindow& ) const;
 #endif
     OpType opType;

@@ -263,7 +263,6 @@ void OpLimb::set(OpEdge* test, OpLimb* p, EdgeMatch m, OpContour* contour,
 
 OpLimb* OpLimb::tryAdd(OpEdge* test, EdgeMatch m, OpContour* limbContour, size_t limbIndex, 
 			OpEdge* otherEnd) {
-//	OpBreak2(edge, test, 172, 184);
 	OP_ASSERT(!test->disabled || test->hasPals() || !test->isSortable()
 			|| LimbPass::coinPals <= tree->limbPass);
 	OP_ASSERT(!test->hasLinkTo(m) || !test->isSortable() || test->disabled 
@@ -325,9 +324,13 @@ OpLimb* OpLimb::tryAdd(OpEdge* test, EdgeMatch m, OpContour* limbContour, size_t
 	if (LimbPass::disabledCenterless == limbPass) 
 		test->setWhich(m);
 #endif
-	if (LimbPass::unlinked == tree->limbPass || LimbPass::disabledBackwards == tree->limbPass 
-			|| LimbPass::disabledCenterless == tree->limbPass || LimbPass::smallEdge == tree->limbPass
-			|| LimbPass::disabledPals == tree->limbPass)
+	if (LimbPass::unlinked == tree->limbPass 
+			|| LimbPass::coinPals == tree->limbPass 
+			|| LimbPass::disabledCenterless == tree->limbPass 
+			|| LimbPass::disabledPals == tree->limbPass
+			|| LimbPass::smallEdge == tree->limbPass
+			|| LimbPass::disabledBackwards == tree->limbPass 
+			)
 		(EdgeMatch::start == m ? test->startSeen : test->endSeen) = true;
 	OpLimb* branch = tree->makeLimb();
 	branch->set(test, this, m, limbContour, limbIndex, otherEnd, &childBounds);
@@ -516,18 +519,12 @@ bool OpTree::join(OpJoiner& join) {
 	OP_DEBUG_DUMP_CODE(context->debugErasures = &linkupsErasures);
 	const OpLimb* bestL = bestLimb;
 	OpEdge* best = bestL->edge;
-#if OP_DEBUG
-	const OpLimb* debugL = bestLimb;
-	do {
-//		OpBreak(debugL->edge, 41435);
-		debugL = debugL->parent;
-	} while (debugL);
-#endif
 	if (EdgeMatch::end == bestL->match) {
         OP_ASSERT(EdgeMatch::none != best->which()  // !!! assert may be unnecessary; make sure disabled is correct choice
                 || (best->disabled && (LimbPass::disabledBackwards == bestL->treePass
 				|| LimbPass::disabledCenterless == bestL->treePass
-				|| LimbPass::coinPals == bestL->treePass))
+				|| LimbPass::coinPals == bestL->treePass
+				|| LimbPass::disabled == bestL->treePass))
 				|| (best->smallTRange && LimbPass::smallEdge == bestL->treePass)
 			);
         EdgeMatch which = EdgeMatch::none != best->which() ? best->which() : bestL->match;
@@ -578,7 +575,7 @@ bool OpTree::join(OpJoiner& join) {
 	// close path unless caller allows disjoint results (by allowing context error missing) 
 	bool allowGaps = context->allowError(PathOpsV0Lib::ContextError::missing, &join.edge->curve.c);
 	EdgeOutput edgeOutput(context, join.edge, !allowGaps);
-	OP_DEBUG_DUMP_CODE(context->dumpFile("tree"));
+	OP_DEBUG_DUMP_CODE(context->dumpFile("treeJoined"));
 	for (OpEdge* edge : linkupsErasures) {
         if (!edge->inOutput) {
             edge->updateLastEdge();
@@ -599,7 +596,8 @@ bool OpTree::join(OpJoiner& join) {
 	OP_DEBUG_VALIDATE_CODE(join.debugValidate());
 	context->resetLimbs();
 	// in dump mode, this does not release filler which is in output, for raster debugging
-	context->resetFiller();  // may delete edge that another edge references in prior/next
+	// !!! defer until after link remaining checks for filler matching unlinked linkable
+//	context->resetFiller();  // may delete edge that another edge references in prior/next
 	return true;
 }
 
@@ -660,7 +658,7 @@ bool OpTree::makeTrunk(OpEdge* edge) {
 		if (LimbPass::linked != limbPass && totalUsed > baseUsed)
 			limbPass = LimbPass::linked;
 		else {
-			if (LimbPass::disabledBackwards <= limbPass)
+			if (LimbPass::disabled <= limbPass)
 				return false;
 			if ((int) ++limbPass >= (int) passIndex.size())
 				passIndex.push_back(0);
@@ -896,6 +894,44 @@ bool OpJoiner::linkRemaining(OpContour* contour) {
 		OP_DEBUG_VALIDATE_CODE(debugValidate());
 		if (!matchLinks(contour, true))
 			return false;
+		// Match links may have generated new filler edges. Check if remaining edge in linkups
+		// is nearly the same as a generated edge; if so, mark it unlinked so joiner can exit 
+		// without using it.
+		// !!! Not sure how well this scales. Start out only allowing unlinked linkable edges.
+		if (context->fillerStorage) {
+			std::vector<OpEdge*> erasures;
+			std::vector<OpEdge*> singleLinks;
+			for (OpContour* member : contour->members()) {
+				for (size_t index = 0; index < member->linkups.l.size(); ++index) {
+					OpEdge* linkup = member->linkups.l[index];
+					OP_ASSERT(!linkup->priorEdge);
+					if (linkup->nextEdge)
+						continue;
+					singleLinks.push_back(linkup);
+				}
+			}
+			for (;;) {  // assume there are possibly many fillers, but few unlinked linkables
+				OpEdge* fillerEdge = context->fillerStorage->edgeIndex(fillerIndex);
+				if (!fillerEdge)
+					break;
+				OpRect fillerBounds = fillerEdge->curve.callerBounds();
+				for (OpEdge* linkup : singleLinks) {
+					OpRect linkupBounds = linkup->curve.callerBounds();
+					if (!fillerBounds.nearlyContains(linkupBounds, context->threshold))
+						continue;
+					if (!linkupBounds.nearlyContains(fillerBounds, context->threshold))
+						continue;
+					erasures.push_back(linkup);  // filler and linkup are nearly the same
+				}
+				++fillerIndex;
+			}
+			if (!erasures.empty()) {
+				contour->eraseLinks(erasures);
+				std::vector<OpEdge*>& unsortables = contour->unsortables;
+				unsortables.insert(unsortables.end(), erasures.begin(), erasures.end());
+			}
+			context->resetFiller();  // (doesn't delete while dump debugging)
+		}
 		// contour generated by match links may allow for link up edges to now have a single link
 		RelinkJoins relink = RelinkJoins::uninitialized;
 		do {
@@ -1037,7 +1073,9 @@ bool OpJoiner::matchLinks(OpContour* contour, bool popLast) {
 //	found.clear();
 //	matchPt = lastLink->whichSect(EdgeMatch::end).pt;
 	OpTree tree(edge);
-	if (!tree.makeTrunk(edge) && tree.exhausted())
+	bool treeFailed = !tree.makeTrunk(edge) && tree.exhausted();
+	OP_DEBUG_DUMP_CODE(context->dumpFile("treeMade"));
+	if (treeFailed)
 		return false;
 	if (PathOpsV0Lib::ContextError::none != context->error)
 		return false;

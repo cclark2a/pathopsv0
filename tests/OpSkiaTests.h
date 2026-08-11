@@ -7,16 +7,17 @@
 #endif
 
 #define SKIP_TO_V0 0  // set to 1 to ignore file, test first and run first test in v0
-#define SKIP_TO_FILE "tiger" // e.g.,  "tiger"   one file
+#define SKIP_TO_FILE "chalkboard" // e.g.,  "tiger"   one file
 #define TEST_SUITE_FIRST ""  // e.g., "simplifyFail" skip suites prior to this one
 #if !OP_DEBUG_ALT
-#define TEST_FIRST "tiger8b_h_1"   // e.g.,  "tiger8b_h_1"   if file, one test
+#define TEST_FIRST "chalkboard_test_one"   // e.g.,  "tiger8b_h_1"   if file, one test (can be skipped test)
                         // !!! "loop8478" fails sometimes (san/valgrind found no error)
                         // cubic9092  cubic454498  cubic327361 troublesome unsectables
+                        // only single tested files get full debugger dumps
 #else
 #define TEST_FIRST ""  // for debugging two different tests simultaneously (test first & test alt)
 #endif
-#define TEST_EXTENDED 0
+#define TEST_EXTENDED 1
 
 /*
 single
@@ -44,13 +45,13 @@ count:1 0.111898132
 
 // loop191404 missing -0.078, 1.5323 t=0.281543255 oppT=0.290549636; 
 //                    -0.3563 2.0153 t=0.139774203 oppT=0.113169670
-#define CURVE_CURVE_1 4  // id of segment 1 to break in divide and conquer
-#define CURVE_CURVE_2 18  // id of segment 2 to break in divide and conquer
+#define CURVE_CURVE_1 8  // id of segment 1 to break in divide and conquer
+#define CURVE_CURVE_2 20  // id of segment 2 to break in divide and conquer
 #define CURVE_CURVE_DEPTH -1  // minimum recursion depth for curve curve break (-1 to disable)
-#define CURVE_CURVE_DUMP 1  // 1: dump all ccs; 0: only dump matching curve (for very large tests)
-#define UNAMBIGUOUS_DUMP 1  // 1: dump all ccs; 0: only dump matching curve (for very large tests)
+#define CURVE_CURVE_DUMP 0  // 1: dump all ccs; 0: only dump matching curve (for very large tests)
+#define UNAMBIGUOUS_DUMP 0  // 1: dump all unamibiguous joins; 0: no dumps (for very large tests)
 
-#define TEST_PATH_SKIP_TESTS { "grshapearc", "grshapearcs1" }  /* , "release_13", "pentrek10" */
+#define TEST_PATH_SKIP_TESTS { "grshapearcs1" }  /* , "release_13", "pentrek10" */
 // when these tests are encountered, it and the remaining tests in the file are skipped
 #define TEST_PATH_OP_SKIP_REST
 #define TEST_PATH_OP_SKIP_FILES  /* e.g., "battle", "circleOp" */

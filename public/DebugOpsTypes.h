@@ -35,6 +35,9 @@ struct DebugContextData {
 typedef void (*DebugScale)(Curve , double scaleX, double scaleY, double offsetX, double offsetY);
 
 #if OP_DEBUG_SERIALIZE
+// returns OpPoint at parameter t, where: t=0 is start, t=1 is end
+typedef OpDPoint (*DebugPtAtDT)(Curve , double t);
+
 // returns string name of curve type
 typedef std::string (*DebugDumpCurveName)();
 
@@ -47,6 +50,7 @@ typedef void (*DebugSubDivide)(Curve , float t1, float t2, Curve* result);
 struct DebugCurveCallbacks {
 	DebugScale scaleFuncPtr;
 #if OP_DEBUG_SERIALIZE
+	DebugPtAtDT ptAtDTFuncPtr = nullptr;
 	DebugDumpCurveName curveNameFuncPtr;
 	DebugDumpCurveExtra curveExtraFuncPtr = nullptr;
     DebugSubDivide debugSubDivideFuncPtr = nullptr;

@@ -93,6 +93,32 @@ OpRect OpCurve::closeBounds() const {
 	return callerBounds().outset(context().threshold); 
 }
 
+float OpCurve::closest(OpPoint pt, OpVector threshold) const {
+	OpPoint topLeft = pt - threshold / 2;
+	OpPoint bottomRight = topLeft + threshold;
+	OpRect bounds { topLeft, bottomRight };
+	if (!callerBounds().intersects(bounds))
+		return OpNaN;
+	if (bounds.contains(c.data->start) || bounds.contains(start))
+		return 0;
+	if (bounds.contains(c.data->end) || bounds.contains(end))
+		return 1;
+	OpRoots roots;
+	auto addRoot = [&roots, bounds, this](Axis axis, float value) {
+		OpRoots test = axisRayHit(axis, value);
+		for (float root : test.roots) {
+			OpPoint testPt = ptAtT(root);
+			if (bounds.contains(testPt))
+				roots.addEnd(root);
+		}
+	};
+	addRoot(Axis::horizontal, topLeft.y);
+	addRoot(Axis::horizontal, bottomRight.y);
+	addRoot(Axis::vertical, topLeft.x);
+	addRoot(Axis::vertical, bottomRight.x);
+	return roots.average();
+}
+
 #if 0
 // cut range minimum should be double the distance between ptT pt and opp pt
 CutRangeT OpCurve::cutRange(const OpPtT& ptT, OpPoint oppPt, float loEnd, float hiEnd) const {
@@ -565,19 +591,6 @@ OpPoint OpCurve::ptAtT(float t) const {
 	return result;
 }
 
-OpPoint OpCurve::ptDAtT(float t) const {
-	if (0 == t)
-		return firstPt();
-	if (1 == t)
-		return lastPt();
-	PathOpsV0Lib::PtAtT funcPtr = context().callback(c.type).ptDAtTFuncPtr;
-	OpPoint result = funcPtr ? (*funcPtr)(c, t) : (1 - t) * c.data->start + t * c.data->end;
-	// !!! required by release_13: but, should caller's point at T function do the pinning?
-	// !!! counterpoint: loop8846 requires pinning on horizontal line (there's no function to call)
-//	result.pin(firstPt(), lastPt());
-	return result;
-}
-
 OpCurve OpCurve::subDivide(float t1, float t2) const {
 	if (0 == t1 && 1 == t2)
 		return *this;
@@ -602,7 +615,7 @@ OpVector OpCurve::normal(float t) const {
 OpVector OpCurve::tangent(float t) const {
 	PathOpsV0Lib::CurveTangent funcPtr = context().callback(c.type).curveTangentFuncPtr;
 	if (!funcPtr)
-		return lastPt() - firstPt();
+		return c.data->end - c.data->start;
 	return (*funcPtr)(c, t);
 }
 
@@ -688,6 +701,15 @@ bool OpCurve::debugIsLine() const {
 #endif
 
 #if OP_DEBUGGER
+bool OpCurve::debugIsLine(float t1, float t2) const {
+	if (c.type == lineType())
+		return true;
+	if (isLineSet && 0 == t1 && 1 == t2)
+		return isLineResult;
+	// !!! could check if linear between t's
+	return false;
+}
+
 OpCurve OpCurve::debugSubDivide(float t1, float t2) const {
 	if (0 == t1 && 1 == t2)
 		return *this;

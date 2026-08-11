@@ -84,13 +84,19 @@ std::string NativeTextCache::debugDump() const {
 }
 
 void OpDebugText::dump(DebuggerWindow& picture) const {
+    std::string s = debugDump(defaultLevel, defaultBase);
+    s += picture.debugTextDump(cacheIndex);
+    OpDebugOut(s + "\n");
+}
+
+std::string OpDebugText::debugDump(DebugLevel l, DebugBase b) const {
     std::string s;
     s += "pt:" + pt.debugDump(defaultLevel, defaultBase) + " ";
     s += "debugLocal:" + debugLocal.debugDump(defaultLevel, defaultBase) + " ";
     s += "cacheIndex:" + STR(cacheIndex) + " ";
     if (vertical) s += "vertical ";
-    s += picture.debugTextDump(cacheIndex);
-    OpDebugOut(s + "\n");
+    return s;
 }
+
 #endif
 

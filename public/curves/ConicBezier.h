@@ -44,7 +44,22 @@ inline float ConicDenom(float weight, float t) {
     return (A * t + B) * t + C;
 }
 
+inline double ConicDDenom(float weight, double t) {
+    double B = 2 * (weight - 1);
+    double C = 1;
+    double A = -B;
+    return (A * t + B) * t + C;
+}
+
 inline OpPoint ConicNumer(OpPoint start, PointWeight control, OpPoint end, float t) {
+    OpPoint pt1w = control.pt * control.weight;
+    OpPoint C = start;
+    OpPoint A = C + (end - 2 * pt1w);
+    OpVector B = 2 * (pt1w - C);
+    return (A * t + B) * t + C;
+}
+
+inline OpDPoint ConicDNumer(OpPoint start, PointWeight control, OpPoint end, double t) {
     OpPoint pt1w = control.pt * control.weight;
     OpPoint C = start;
     OpPoint A = C + (end - 2 * pt1w);
@@ -58,6 +73,16 @@ inline OpPoint ConicPointAtT(OpPoint start, PointWeight control, OpPoint end, fl
     if (1 == t)
         return end;
     return ConicNumer(start, control, end, t) / ConicDenom(control.weight, t);
+}
+
+inline OpDPoint ConicPointAtDT(OpPoint start, PointWeight control, OpPoint end, double t) {
+    if (0 == t)
+        return start;
+    if (1 == t)
+        return end;
+    OpDPoint numer = ConicDNumer(start, control, end, t);
+    double denom = ConicDDenom(control.weight, t);
+    return { numer.x / denom, numer.y / denom };
 }
 
 // given a pair of t values, return a pair of x values
@@ -252,6 +277,11 @@ inline OpPoint conicPtAtT(Curve c, float t) {
     return ConicPointAtT(c.data->start, control, c.data->end, t);
 }
 
+inline OpDPoint conicPtAtDT(Curve c, double t) {
+    PointWeight control(c);
+    return ConicPointAtDT(c.data->start, control, c.data->end, t);
+}
+
 inline OpPair conicXYAtT(Curve c, OpPair t, XyChoice xyChoice) {
     PointWeight control(c);
     return ConicXYAtT(c.data->start, control, c.data->end, t, xyChoice);
@@ -350,6 +380,7 @@ inline std::string conicDebugDumpName() {
     OP_TAGGED_FUNCTION(conicTangent), \
     OP_TAGGED_FUNCTION(conicsEqual), \
     OP_TAGGED_FUNCTION(conicPtAtT), \
+    OP_TAGGED_FUNCTION(conicPtAtDT), \
     OP_TAGGED_FUNCTION(conicHullPtCount), \
 	OP_TAGGED_FUNCTION(conicRotate), \
     OP_TAGGED_FUNCTION(conicSubDivide), \
@@ -361,11 +392,11 @@ inline std::string conicDebugDumpName() {
 inline void conicCallbacks(Context* context, int nativeCurveType) {
     SetCurveCallbacks(context, nativeCurveType, { conicAxisT,
 			conicRotatedT, conicHull, conicIsFinite, conicIsLine, conicSetBounds, conicPin,
-			conicTangent, conicsEqual, conicPtAtT, nullptr, conicHullPtCount, conicRotate, 
+			conicTangent, conicsEqual, conicPtAtT, conicHullPtCount, conicRotate, 
 			conicSubDivide, conicXYAtT });
 #if OP_TEST
 	SetDebugCurveCallbacks(context, nativeCurveType, { debugConicScale
-            OP_DEBUG_DUMP_PARAMS(conicDebugDumpName, conicDebugDumpExtra, debugConicSubDivide)
+            OP_DEBUG_DUMP_PARAMS(conicPtAtDT, conicDebugDumpName, conicDebugDumpExtra, debugConicSubDivide)
 //            OP_DEBUG_RASTER_PARAMS(debugRasterAdd)
             });
 #endif

@@ -26,9 +26,10 @@ void OpContour::addMerge(OpContour* opp) {
 void OpContour::addEdges() {
 	for (auto& segment : segments) {
 		for (auto& edge : segment.edges) {
-			if (edge.disabled)
+			if (edge.disabled && edge.coinPals.empty() 
+                    && (!edge.centerless || !edge.winding.visible()))
 				continue;
-			OpRect edgeBounds = edge.bounds();
+			const OpRect& edgeBounds = edge.curve.callerBounds();
 			if (edgeBounds.height())
 				inX.push_back(&edge);
 			if (edgeBounds.width())
@@ -36,9 +37,9 @@ void OpContour::addEdges() {
 		}
 	}
 	std::sort(inX.begin(), inX.end(), [](const OpEdge* s1, const OpEdge* s2) {
-			return s1->curve.left() < s2->curve.left(); });
+			return s1->curve.callerLeft() < s2->curve.callerLeft(); });
 	std::sort(inY.begin(), inY.end(), [](const OpEdge* s1, const OpEdge* s2) {
-			return s1->curve.top() < s2->curve.top(); });
+			return s1->curve.callerTop() < s2->curve.callerTop(); });
 }
 
 #if 0  // !!! disabled (see above)
@@ -413,6 +414,28 @@ bool OpContour::disabledPal(OpPoint a, OpPoint b) const {
 	return false;
 }
 
+bool OpContour::eraseLinks(std::vector<OpEdge*>& linkupsErasures) {
+	bool somethingWasErased = false;
+	for (OpEdge* entry : linkupsErasures) {
+		if (!entry->linkHead)
+			continue;
+		std::vector<OpEdge*>& links = entry->segment->contour->linkups.l;
+#if OP_DEBUG_VALIDATE
+		OP_ASSERT(entry->debugScheduledForErasure);
+		entry->debugScheduledForErasure = false;
+#endif
+		entry->linkHead = false;
+		for (size_t index = 0; index < links.size(); ++index) {
+			if (links[index] == entry) {
+				links.erase(links.begin() + index);
+				somethingWasErased = true;
+				break;
+			}
+		}
+	}
+	return somethingWasErased;
+}
+
 // !!! reverse return bool : now true if no edges to join (reverse caller also)
 bool OpContour::joinSetup() {
 	if (!byArea.size() && !unsectByArea.size() && !linkups.l.size())
@@ -635,27 +658,8 @@ RelinkJoins OpContour::relinkUnambiguous(OpJoiner* joiner, size_t link) {
 		mergeLinks(lastLink, EdgeMatch::end, tContour, tIndex);
 	}
 	context->linkErased = false;
-	bool somethingWasErased = false;
 	detachIfLoop(joiner, edge->advanceToEnd(EdgeMatch::start), &linkupsErasures, EdgeMatch::end);
-	if (linkupsErasures.size()) {
-		for (OpEdge* entry : linkupsErasures) {
-			if (!entry->linkHead)
-				continue;
-			std::vector<OpEdge*>& links = entry->segment->contour->linkups.l;
-	#if OP_DEBUG_VALIDATE
-			OP_ASSERT(entry->debugScheduledForErasure);
-			entry->debugScheduledForErasure = false;
-	#endif
-			entry->linkHead = false;
-			for (size_t index = 0; index < links.size(); ++index) {
-				if (links[index] == entry) {
-					links.erase(links.begin() + index);
-					somethingWasErased = true;
-					break;
-				}
-			}
-		}
-	}
+	bool somethingWasErased = eraseLinks(linkupsErasures);
 	if (!somethingWasErased && !context->linkErased)
 		return RelinkJoins::unchanged;
 	return RelinkJoins::again;
@@ -796,10 +800,11 @@ int OpContour::nextID() const {
 
 void OpContour::setSeen(int tree_id) {
 	treeID = tree_id;
-	for (auto& testArray : {linkups.l, smallEdges, unsortables, unsectByArea, disabledCenterless,
+	for (auto& testArray : {linkups.l, smallEdges, unsortables, unsectByArea, coinPals, disabledCenterless,
 			disabledPals } ) {
 		for (OpEdge* test : testArray) {
 			test->startSeen = false;
+			test->endSeen = false;
 		}
 	}
 	for (OpEdge* test : endLinks.l) {

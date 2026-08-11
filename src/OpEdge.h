@@ -95,7 +95,6 @@ struct Distance {
 #endif
 	DUMP_DECLARATIONS
 
-
 	OpEdge* edge;
 	RayOrder rayOrder = RayOrder::uninitialized;  // note if computed sum can't be used because distance entries are unordered
 	float cept;  // where normal intersects edge (e.g. for home, axis horz: center.x)
@@ -165,30 +164,32 @@ enum class AllowTooManyRetries {
 struct SectRay {
 	bool add(OpWinder* , OpEdge* , float xy, float root, bool reversed);  // add to distances
 //	bool addCoinContours(OpWinder* );
-	bool addContainers(OpEdge* add, OpEdge* home);
+	bool addContainers(OpEdge* add);
 	bool addDependentContours(OpWinder* );
 	void addDistance(OpEdge* , float xy, float root, bool reversed  
 			OP_DEBUG_PARAMS(OpEdge* debugParent));
-	void addPals(OpEdge* );
+	void addPals();
 	bool checkAdd(OpEdge* toAdd);
-	RayOrder checkClose(const OpEdge* ) const;
-	void checkOrder(const OpEdge* );
-	void markDependents(OpEdge* edge);
+	RayOrder checkClose() const;
+	void checkOrder();
+	bool contains(OpPoint );  // checks if point is in inside bounds
 	bool cull();  // remove distances further from home than first dependent
 	const Distance* end(DistEnd e) const {
 		return DistEnd::front == e ? &distances.front() : &distances.back(); }
-	FindCept findCept(OpEdge* , OpEdge* test, AllowTooManyRetries );
-	FindCept findIntercept(OpWinder* , OpEdge* test);
 	const Distance* find(const OpEdge* ) const;  // returns edge in distances
+	FindCept findCept(OpEdge* test, AllowTooManyRetries );
+	FindCept findIntercept(OpWinder* , OpEdge* test);
 //	bool incomplete() const;
 	bool isOrdered(size_t index) const;  // false if dist edge and neighbors are reversed elsewhere
+	void markDependents();
 //	bool missingContour(OpWinder* , OpEdge* ) const;
 //	bool missingContour(OpWinder* , OpSegment* ) const;
 	const Distance* next(const Distance* dist, DistEnd e) const {
 		return dist + (int) e; }
 //	bool sectsAllPals(const OpEdge* ) const;  // returns if edge + all of its pals are in distances
+//	void setInsideBounds(const OpEdge* );
 	void sort();
-	bool tryADifferentCenter(OpEdge* );
+	bool tryADifferentCenter();
 	DUMP_DECLARATIONS
 #if OP_DEBUG_SERIALIZE
 	std::string debugDumpHeader(DebugLevel l, DebugBase b) const;
@@ -201,10 +202,11 @@ struct SectRay {
 #endif
 	OpRect insideBounds;  // intersection of curve bounds and alias bounds
 	OpVector homeTangent;  // used to determine if unsectable edge is reversed
+	OpEdge* home = nullptr;
 	float normal = OpNaN;  // ray used to find windings on home edge (e.g., axis: h, center.y)
 	float homeCept = OpNaN;  // intersection of normal on home edge (e.g., axis: h, center.x)
 	float homeT = OpNaN;  // value from 0 to 1 within edge range (akin to edgeInsideT)
-	float interceptLimit = OpNaN;
+//	float interceptLimit = OpNaN;
 	float mid = .5;
 	float midEnd = .5;
 	Axis axis = Axis::neither;
@@ -631,14 +633,16 @@ struct OpEdgeStorage {
 	bool contains(OpIntersection* start, OpIntersection* end) const;
 	bool containsPts(OpPoint start, OpPoint end) const;
 	bool contains(int ccUnsectableID) const;
+	int edgeCount() const;
+	OpEdge* edgeIndex(int index) const;
 	void reuse();
 #if OP_DEBUG_DUMP
 	static void DumpSet(const char*& str, OpContext* , DumpStorage );
 #endif
 #if OP_DEBUG_SERIALIZE
-	int debugCount() const;
+//	int debugCount() const;
 	OpEdge* debugFind(int id);
-	OpEdge* debugIndex(int index) const;
+//	OpEdge* debugIndex(int index) const;
 #endif
 	DUMP_DECLARATIONS
 #if OP_DEBUG_DUMP  // keep deleted edges so raster sample can reference them

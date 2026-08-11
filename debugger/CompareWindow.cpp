@@ -172,8 +172,9 @@ SDL_AppResult CompareWindow::draw() {
             uint32_t* destPtr = destLine;
             OP_ASSERT(pixels + rowWidth * dstV <= destPtr);
             float srcHPos = (float) srcH;
-            auto to32 = [&srcLine, &srcHPos, filter]() {
-                uint8_t c = 0xFF - srcLine[(int) srcHPos];
+            auto to32 = [srcRight, &srcLine, &srcHPos, filter]() {
+                int srcIndex = std::min((int) srcHPos, srcRight - 1);
+                uint8_t c = 0xFF - srcLine[srcIndex];
                 uint32_t color = (0xFF << 24) | (c << 0) | (c << 8) | (c << 16);
                 color |= filter;
                 return color;

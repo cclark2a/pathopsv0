@@ -58,24 +58,27 @@ std::vector<OpIntersection*> OpSegments::addEndMatches(OpSegment* seg, OpSegment
 	// check seg and opp ends against each other
 	float startSegT = checkEnds(OpPtT(opp->c.start, 0)  OP_LINE_FILE_PARGS());
 	float endSegT = checkEnds(OpPtT(opp->c.end, 1)  OP_LINE_FILE_PARGS());	
-	auto checkOpp = [add, seg, opp](const OpPtT& segPtT, OpVector tangent  OP_LINE_FILE_ARGS()) {
-		float oppT = opp->c.matchVector(segPtT.pt, tangent);
+	auto checkOpp = [add, seg, opp, this](const OpPtT& segPtT  OP_LINE_FILE_ARGS()) {
+		PathOpsV0Lib::CurveConst closeFun = context.callbacks[opp->c.c.type].closeEndFuncPtr;
+		OpVector threshold = context.threshold * (closeFun ? (*closeFun)(opp->c.c) : 2.f);
+		float oppT = opp->c.closest(segPtT.pt, threshold);
 		if (!OpMath::IsNaN(oppT)) {
 			OpPtT oppPtT = opp->c.ptTAtT(oppT);
 			add(seg, opp, segPtT, oppPtT  OP_LINE_FILE_CARGS());
 		}
 		return oppT;
 	};
-	// if ends do not match, check if seg end touches opp curve
 	float startOppT = OpNaN;
 	float endOppT = OpNaN;
-	if (0 != startSegT && 0 != endSegT) 
-		startOppT = checkOpp(OpPtT(seg->c.start, 0), seg->c.tangent(0)
-				OP_LINE_FILE_PARGS());  // see if start pt is on opp curve
+	// check if seg end touches opp curve
+	if (0 != startSegT && 0 != endSegT)  
+		startOppT = checkOpp(OpPtT(seg->c.start, 0)  OP_LINE_FILE_PARGS());  
 	if (1 != startSegT && 1 != endSegT) 
-		endOppT = checkOpp(OpPtT(seg->c.end, 1), seg->c.tangent(1)  OP_LINE_FILE_PARGS());
-	auto checkSeg = [add, seg, opp](const OpPtT& oppPtT, OpVector tangent  OP_LINE_FILE_ARGS()) {
-		float segT = seg->c.matchVector(oppPtT.pt, tangent);
+		endOppT = checkOpp(OpPtT(seg->c.end, 1)  OP_LINE_FILE_PARGS());
+	auto checkSeg = [add, seg, opp, this](const OpPtT& oppPtT  OP_LINE_FILE_ARGS()) {
+		PathOpsV0Lib::CurveConst closeFun = context.callbacks[seg->c.c.type].closeEndFuncPtr;
+		OpVector threshold = context.threshold * (closeFun ? (*closeFun)(seg->c.c) : 2.f);
+		float segT = seg->c.closest(oppPtT.pt, threshold);
 		if (OpMath::IsNaN(segT)) 
             return;
 		OpPtT segPtT = seg->c.ptTAtT(segT);
@@ -83,9 +86,9 @@ std::vector<OpIntersection*> OpSegments::addEndMatches(OpSegment* seg, OpSegment
 	};
 	// check if opp end touches seg curve
 	if (OpMath::IsNaN(startSegT) && 0 != startOppT && 0 != endOppT)
-		checkSeg(OpPtT(opp->c.start, 0), opp->c.tangent(0)  OP_LINE_FILE_PARGS());
+		checkSeg(OpPtT(opp->c.start, 0)  OP_LINE_FILE_PARGS());
 	if (OpMath::IsNaN(endSegT) && 1 != startOppT && 1 != endOppT)
-		checkSeg(OpPtT(opp->c.end, 1), opp->c.tangent(1)  OP_LINE_FILE_PARGS());
+		checkSeg(OpPtT(opp->c.end, 1)  OP_LINE_FILE_PARGS());
     return result;
 }
 

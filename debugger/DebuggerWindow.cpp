@@ -20,97 +20,197 @@ DebuggerWindow::DebuggerWindow(DebuggerState* state, WheelTarget target)
     addPoly.window = this;
 }
 
-/*
-struct OpContextSaveThreshold {
-    OpContextSaveThreshold(OpContext* c, OpVector threshold) {
-        context = c;
-        save = context->aliases.threshold;
-        context->aliases.threshold = threshold;
-        context->aliases.thresholdLength = context->aliases.threshold.length();
+
+#define STRD(x) OpDebugDStr(x, debugPrecision)
+
+std::string OpDebugDStr(double value, int precision) {
+    if (OpMath::IsNaN(value))
+        return "NaN";
+    if (!OpMath::IsFinite(value))
+        return value > 0 ? "Inf" : "-Inf";
+    if (0 == value)
+        return "0";
+    if (-1 == precision) {  // special hack for device 1/4 pixel measures
+        int dev = (int) (value * 8);
+        int frac = dev - dev / 8 * 8;
+        if (frac < 0)
+            frac = 8 - frac;
+        std::string s = STR(dev / 8);
+        int quarter = (frac + 1) / 2;
+        s += 1 == quarter ? ".25" : 2 == quarter ? ".5" : 3 == quarter ? ".75" : "";
+        if (dev != value * 8)
+            s += frac & 1 ? "-" : "+";
+        return s;
+    }
+    if (fabs(value) >= 0.001)
+        return std::to_string(value);
+    std::string s(16, '\0');
+    auto written = std::snprintf(&s[0], s.size(), "%.*g", precision, value);
+    s.resize(written);
+    return s;
+}
+
+std::string OpDVector::debugDump(DebugLevel , DebugBase) const {
+    return "{"  + STRD(dx) + ", " + STRD(dy) + "}";
+}
+
+void OpDVector::dump() const {
+    OpDebugOut(debugDump(defaultLevel, defaultBase) + "\n");
+}
+
+std::string OpDPoint::debugDump(DebugLevel , DebugBase) const {
+    return "{"  + STRD(x) + ", " + STRD(y) + "}";
+}
+
+void OpDPoint::dump() const {
+    OpDebugOut(debugDump(defaultLevel, defaultBase) + "\n");
+}
+
+#if 0
+
+struct OpPtDT {
+    OpPoint pt() const {
+        return dPt.point();
     }
 
-    ~OpContextSaveThreshold() {
-        context->aliases.threshold = save;
-        context->aliases.thresholdLength = context->aliases.threshold.length();
+    std::string debugDump(DebugLevel l, DebugBase b) const {
+        return dPt.debugDump(l, b) + " t:" + STRD(dT);
     }
 
-    OpContext* context;
-    OpVector save;
+    void dump() const {
+        OpDebugOut(debugDump(defaultLevel, defaultBase) + "\n");
+    }
+
+    OpDPoint dPt;
+    double dT;
 };
-*/
+
+bool OpMath::BetweenD(double a, double b, double c) {
+    OP_DEBUG_CODE(bool classicResult = (a <= b && b <= c) || (a >= b && b >= c));
+    OP_DEBUG_CODE(bool cleverResult = (a - b) * (c - b) <= 0);
+    OP_ASSERT(classicResult == cleverResult || fabs(b) < OpEpsilon);
+    return (a - b) * (c - b) <= 0;
+}
+
+struct LineDPts {
+	bool ptOnLine(OpDPoint ctrlPt, double threshold, bool debugOut) const {
+        if (!OpMath::BetweenD(pts[0].x, ctrlPt.x, pts[1].x))
+            return false;
+        if (!OpMath::BetweenD(pts[0].y, ctrlPt.y, pts[1].y))
+            return false;
+        OpDVector dxy = pts[1] - pts[0];
+        if (OpMath::IsNaN(threshold))
+            threshold = OpEpsilon;
+        threshold *= dxy.length();
+        OpDVector sxy = ctrlPt - pts[0];
+        double nearStart = dxy.cross(sxy);
+        OpDVector exy = pts[1] - ctrlPt;
+        double nearEnd = dxy.cross(exy);
+        if (debugOut) {
+            OpDebugOut("threshold:" + STRD(threshold) 
+                    + " nearStart:" + STRD(nearStart)
+                    + " nearEnd:" + STRD(nearEnd) + "\n");
+        }
+        if (fabs(nearStart) > threshold)
+            return false;
+        if (fabs(nearEnd) > threshold)
+            return false;
+        return true;
+    }
+
+    void debugDevice(const DebuggerWindow& w, OpDPoint midPt) {
+        OpDVector v = pts[1] - pts[0];
+        OpDVector midV = midPt - pts[0];
+        OpDPoint ctr;
+        if (v.dx > v.dy)
+            ctr = { midPt.x, pts[0].y + midV.dx / v.dx * v.dy };
+        else
+            ctr = { pts[0].x + midV.dy / v.dy * v.dx, midPt.y };
+        auto DevStr = [w](OpDPoint p){
+            OpDPoint dPt = w.toDevice(p);
+            std::string s = "{" + OpDebugDStr(dPt.x, -1) + ", " + OpDebugDStr(dPt.y, -1) + "}";
+            return s;
+        };
+        std::string s = "dev[0]" + DevStr(pts[0]) + " dev[1]" + DevStr(pts[1]);
+        s += " mid" + DevStr(midPt) + " ctr" + DevStr(ctr);
+        OpDebugOut(s + "\n");
+    }
+
+
+    std::string debugDump(DebugLevel l, DebugBase b) const {
+        return "pts[0]" + pts[0].debugDump(l, b) + " pts[1]" + pts[1].debugDump(l, b);
+    }
+
+	std::array<OpDPoint, 2> pts;
+};
+#endif
 
 // !!! usable, but needs work
 // consecutive lines need to overlap; as is, next line is not close to tangent with previous...
-bool DebuggerWindow::add(const OpCurve& curve, DebuggerAddPoly* polyAdder) {
+void DebuggerWindow::add(const OpCurve& curve, DebuggerAddPoly* polyAdder,
+        float tStart, float tEnd, float cStart, float cEnd) {
     // if adding a contour lengthen existing poly it it matches and close the contour as well...
     OP_ASSERT(curve.c.context);
-    if (!polyAdder->continueCurve) {
-        polys.emplace_back();
-        DebuggerPoly& poly = polys.back();
-        poly.c = curve.c;
-        if (IDType::contour == polyAdder->opType.type)
-            poly.color = polyAdder->opType.contour->debugColor;
-    }
-    if (!polys.empty()) {
-        DebuggerPoly& poly = polys.back();
-        poly.opType = polyAdder->opType;
-        poly.isPrimary = true;
-        if (!poly.c.context) {
-            poly.c = curve.c;        
-            if (IDType::contour == polyAdder->opType.type)
-                poly.color = polyAdder->opType.contour->debugColor;
-        }
-        if (polyAdder->addingFill)
-            poly.thickness = DebuggerPoly::fill_thickness;
-    }
+    std::vector<DebuggerPoly>& polys = findPolys(polyAdder->opType);
+    bool primary = polys.empty() || polys.back().opType.id != polyAdder->opType.id;
+    polys.emplace_back();
+    DebuggerPoly& poly = polys.back();
+    poly.c = curve;
+    poly.opType = polyAdder->opType;
+    poly.isPrimary = primary;
+    poly.tStart = tStart;
+    poly.tEnd = tEnd;
+#if DEBUG_CLIP
+    debugClips.push_back({ poly.opType, curve.ptTAtT(cStart), curve.ptTAtT(cEnd) });
+#endif
+    OpDPoint cStartPt = curve.debugPtAtDT(cStart);
+    OpDPoint cEndPt = curve.debugPtAtDT(cEnd);
+    OpDPoint fStartPt = curve.ptAtT(cStart);
+    OpDPoint fEndPt = curve.ptAtT(cEnd);
+    OpDVector cStartV = fStartPt - cStartPt;
+    OpDVector cEndV = fEndPt - cEndPt;
     // curve is fully inside focus; split it into lines
-    // lengthen curve while longer is linear
-    OpPtT start { curve.c.data->start, 0 };
-    OpPtT end { curve.c.data->end, 1 };
+    auto biasDPt = [curve, tStart, tEnd, &cStartV, &cEndV](float dT) {
+        double tRange = tEnd - tStart;
+        OpDPoint pt = curve.debugPtAtDT(dT);
+        double startBias = (tEnd - dT) / tRange;
+        double endBias = (dT - tStart) / tRange;
+        pt += cStartV * startBias + cEndV * endBias;
+        return pt;
+    };
+    OpDPoint start = tStart == cStart ? curve.ptAtT(tStart) : biasDPt(tStart);
+    OpDPoint end = tEnd == cEnd ?  curve.ptAtT(tEnd) : biasDPt(tEnd);
+ //   start here;
+    // make cStart, cEnd regular non-debug params
+    // calc delta from float curve w/cStart, cEnd and double curve
+    // find delta to apply to double vals from tStart to tEnd
+    // pass if tStart or tEnd was computed from focus side intersection
+            // if so, and start pt is inside focus, back up tStart until equal or outside
+
     // split curve until a piece is linear
-    append(start.pt);
-    if (curve.debugIsLine()) {
-        append(end.pt);
-        return true;
+    append(polys, start);
+    if (curve.debugIsLine(tStart, tEnd)) {
+        append(polys, end);
+        return;
     }
-    float thresLen = threshold.length();
-    OpPoint lastAppend = start.pt;
-    for (;;) {
-        LinePts ends { start.pt, end.pt };
-        for (;;) {
-            float midT = OpMath::Average(start.t, end.t);
-            if (start.t >= midT || midT >= end.t)
-                goto giveUp;
-            OpPoint midPt = curve.ptAtT(midT);
-            if (ends.ptOnLine(midPt, thresLen))
-                break;
-            end = { midPt, midT };
-            ends.pts[1] = end.pt;
-        }
-        float spanT = end.t - start.t;
-        OP_ASSERT(spanT > 0);
-        // lengthen the curve while a piece is linear (and while it can be longer)
-        while (end.t < 1) {
-            float longerT = std::min(1.f, end.t + spanT);
-            ends.pts[1] = curve.ptAtT(longerT);
-            if (!ends.ptOnLine(end.pt, thresLen)) {
-                append(end.pt);
-                lastAppend = end.pt;
-                break;
-            }
-            end = { ends.pts[1], longerT };
-            spanT *= 2;
-        }
-        if (end.t >= 1)
-            break;
-        start = end;
-        float endT = std::min(1.f, start.t + spanT);
-        end = curve.ptTAtT(endT); 
+// use device bounds to find t step
+    OpDPoint devStart = toDevice(start);
+    OpDPoint devEnd = toDevice(end);
+    OpDVector devV = devEnd - devStart;
+    int devSteps = std::min((int) fabs(devV.dx), (int) fabs(devV.dy));
+    devSteps = std::max(1, devSteps);
+// but limit steps to number of descernable t values
+    int tLo = (int) (tStart / OpEpsilon);
+    int tHi = (int) (tEnd / OpEpsilon);
+    int tSteps = tHi - tLo;
+    tSteps = std::max(1, tSteps);
+    int steps = std::min(devSteps, tSteps);
+    for (int step = 0; step <= steps; ++step) {
+        double fStep = (double) step / (double) steps;
+        double dT = tStart * (1 - fStep) + tEnd * fStep;
+        OpDPoint pt = biasDPt(dT);
+        append(polys, pt);
     }
-giveUp:
-    if (lastAppend != curve.c.data->end)
-        append(curve.c.data->end);
-    return true;  // !!! don't know that this is always right
 }
 
 // span is between first and last points, but does not extend last point (unless, see below)
@@ -121,60 +221,91 @@ void DebuggerWindow::add(std::vector<OpPoint>& pts ) {
     for (OpPoint pt : pts) {
         if (last == pt)
             continue;
-        polys.emplace_back();
-        DebuggerPoly& back = polys.back();
+#if 0
+        polyPoints.emplace_back();
+        DebuggerPoly& back = polyPoints.back();
         back.cData.start = last;
         back.cData.end = pt;
         back.c = { (ContextPtr) context(), &back.cData, sizeof(back.cData), 0 }; 
         OP_ASSERT(back.c.context);
         OpCurve curve(back.c, Rotated::no);
         add(curve, nullptr);
+#else
+        addLine(last, pt);
+#endif
         last = pt;
     }
     OP_DEBUG_VALIDATE_CODE(validate());
 }
 
+void DebuggerWindow::add(DebuggerAddPoly* polyAdder, const OpPtT& ptT) {
+    OP_ASSERT(IDType::intersection == polyAdder->opType.type);
+    intersections.emplace_back();
+    DebuggerPoly& poly = intersections.back();
+    poly.opType = polyAdder->opType;
+    poly.tStart = ptT.t;
+    poly.tEnd = ptT.t;
+#if DEBUG_CLIP
+    debugClips.push_back({polyAdder->opType});
+    DebugClip& debugClip = debugClips.back();
+    debugClip.clipStart = ptT;
+#endif
+}
+
 // for fill only
 // span is between points, but does not extend last point unless last point equals first point
-bool DebuggerWindow::add(OpPoint pt1, OpPoint pt2, DebuggerAddPoly* polyAdder) {
-    if (pt1 == pt2 && !polyAdder->pointOnly)
-        return false;
-    std::vector<OpPoint>* lines = nullptr;
+void DebuggerWindow::add(DebuggerAddPoly* polyAdder, const OpPtT& ptT1, const OpPtT& ptT2
+        CLIP_PARAM(const OpCurve& curve, float cStart, float cEnd)) {
+    OP_ASSERT(IDType::contour == polyAdder->opType.type);
+    if (ptT1.pt == ptT2.pt)
+        return;
+    std::vector<OpDPoint>* lines = nullptr;
     auto getLines = [this, polyAdder, &lines]() {
-        OP_ASSERT(polyAdder->opType.id != 70 || std::none_of(polys.begin(), polys.end(),
-            [](const DebuggerPoly& test) { return test.opType.id == 70; }));
-        polys.emplace_back();
-        DebuggerPoly& poly = polys.back();
+        contours.emplace_back();
+        DebuggerPoly& poly = contours.back();
         poly.opType = polyAdder->opType;
         lines = &poly.local;
     };
-    if (polys.empty()) {
+    bool isAligned = false;
+    bool collapsedAligned = false;
+    if (contours.empty()) {
         getLines();
     } else {
-        DebuggerPoly& last = polys.back();
-        if ((!last.local.empty() && last.local.back() != pt1)
-                || last.opType.edge != polyAdder->opType.edge) {  // compare any union pointer...
+        DebuggerPoly& last = contours.back();
+        OpDPoint dPt1(ptT1.pt);
+        if ((!last.local.empty() && last.local.back() != dPt1)
+                || last.opType.id != polyAdder->opType.id) {
             getLines();
         } else {
             lines = &last.local;
-            OP_ASSERT(lines->size() > 1);
-            auto aligned = [](OpPoint p0, OpPoint p1, OpPoint p2) {
+            auto aligned = [](OpDPoint p0, OpDPoint p1, OpDPoint p2) {
                 return (p0.x == p1.x && p1.x == p2.x) || (p0.y == p1.y && p1.y == p2.y);
             };
-            if (aligned((&lines->back())[-1], pt1, pt2))
-                lines->pop_back();
+            if (lines->size() > 1) {
+                OpDPoint dPt2(ptT2.pt);
+                isAligned = aligned((&lines->back())[-1], dPt1, dPt2);
+                if (isAligned) {
+                    lines->pop_back();
+                    collapsedAligned = !lines->empty() && lines->back() == dPt2;
+                    if (collapsedAligned)
+                        lines->pop_back();
+                }
+            }
         }
     }
-    if (lines->empty() || lines->back() != pt1)
-        lines->push_back(pt1);
-    lines->push_back(pt2);
+#if DEBUG_CLIP
+    debugClips.push_back({ polyAdder->opType, curve.ptTAtT(cStart), curve.ptTAtT(cEnd) });
+#endif
+    if (!isAligned && (lines->empty() || lines->back() != ptT1.pt))
+        lines->push_back(ptT1.pt);
+    if (!collapsedAligned)
+        lines->push_back(ptT2.pt);
     OP_DEBUG_VALIDATE_CODE(validate());
-    return true;
 }
 
 DebuggerPoly& DebuggerWindow::add(const OpRect& r, uint32_t color, float thickness) {
-    polys.emplace_back();
-    DebuggerPoly& poly = polys.back();
+    rects.emplace_back();
+    DebuggerPoly& poly = rects.back();
     std::vector<OpPoint> points { 
         { r.left, r.top }, { r.left, r.bottom }, { r.right, r.bottom }, { r.right, r.top } };
     std::vector<OpPoint>& lines = poly.device;
@@ -189,10 +320,10 @@ DebuggerPoly& DebuggerWindow::add(const OpRect& r, uint32_t color, float thickne
 }
 
 void DebuggerWindow::addLine(OpPoint pt1, OpPoint pt2) {
-    DebuggerPoly& poly = polys.back();
-    std::vector<OpPoint>& lines = poly.device;
-    lines.push_back(pt1);
-    lines.push_back(pt2);
+    DebuggerPoly& poly = lines.back();
+    std::vector<OpPoint>& line = poly.device;
+    line.push_back(pt1);
+    line.push_back(pt2);
     poly.contours.push_back(2);
 }
 
@@ -213,7 +344,7 @@ OpDebugText& DebuggerWindow::addText(std::string s, OpPoint device, uint32_t col
 }
 
 // span is between this point and last point, if any
-void DebuggerWindow::append(OpPoint pt) {
+void DebuggerWindow::append(std::vector<DebuggerPoly>& polys, OpDPoint pt) {
     if (polys.empty())
         polys.emplace_back();
     polys.back().local.push_back(pt);
@@ -223,22 +354,84 @@ void DebuggerWindow::append(OpPoint pt) {
 void DebuggerWindow::clearWindow() {
     allocateBuffers();
     focus = OpRect();
-    polys.clear();
+    edges.clear();
+    contours.clear();
+    intersections.clear();
+    segments.clear();
+    output.clear();
+    rects.clear();
+    polyPoints.clear();
+    lines.clear();
     deleteTextCache();
     texts.clear();
     points.clear();
+#if DEBUG_CLIP
+    debugClips.clear();
+#endif
 }
 
 OpContext* DebuggerWindow::context() {
     return debuggerState->context;
 }
 
+std::string DebuggerWindow::debugDump(DebugLevel l, DebugBase b) const{
+    std::string s;
+    auto addToDump = [&s, l, b](std::string name, const std::vector<DebuggerPoly>& polys) {
+        for (const DebuggerPoly& poly : polys) {
+            s += poly.debugDump(l, b);
+        }
+    };
+    addToDump("contours", contours);
+    addToDump("edges", edges);
+    addToDump("intersections", intersections);
+    addToDump("segments", segments);
+    addToDump("rects", rects);
+    addToDump("polyPoints", polyPoints);
+    addToDump("lines", lines);
+    s += "texts:\n";
+    for (const OpDebugText& text : texts)
+        s += text.debugDump(l, b);
+    return s;
+}
+
 DebuggerPoly* DebuggerWindow::findPolyByID(int id) {
-    for (DebuggerPoly& poly : polys) {
+    DebuggerPoly* result = nullptr;
+    auto findPoly = [id, &result](std::vector<DebuggerPoly>* polys) {
+        for (DebuggerPoly& poly : *polys) {
+            if (poly.opType.id == id)
+                result = &poly;
+        }
+    };
+    for (std::vector<DebuggerPoly>* polys : polyIDs)
+        findPoly(polys);
+    return result;
+}
+
+DebuggerPoly* DebuggerWindow::findRectByID(int id) {
+    DebuggerPoly* result = nullptr;
+    for (DebuggerPoly& poly : rects) {
         if (poly.opType.id == id)
-            return &poly;
+            result = &poly;
     }
-    return nullptr;
+    return result;
+}
+
+std::vector<DebuggerPoly>& DebuggerWindow::findPolys(OpType opType) {
+    switch (opType.type) {
+        case IDType::edge:
+            return edges;
+       case IDType::contour:
+           return contours;
+       case IDType::segment:
+           return segments;
+       case IDType::intersection:
+            return intersections;
+       case IDType::output:
+           return output;
+       default:
+           OP_ASSERT(0);
+    }
+    return edges;
 }
 
 const NativeTextCache& DebuggerWindow::getCache(size_t index) const {
@@ -262,6 +455,7 @@ void DebuggerWindow::playbackCommon(const char*& str) {
     }
     if (OpDebugOptional(str, "windowVisible"))
         SDL_ShowWindow(window);
+    scale = OpDebugReadNamedFloat(str, "scale");  // factor to go from local to device (zero is uninitialized)
     OpDebugRequired(str, "fontSize");
     fontSize = (int) OpDebugReadSizeT(str);
 }
@@ -284,6 +478,8 @@ std::string DebuggerWindow::recordCommon() {
     }
     if (0 == (SDL_GetWindowFlags(window) & SDL_WINDOW_HIDDEN))
         s += "windowVisible ";
+    if (!OpMath::IsDebugNaN((float) scale))
+        s += debugValue(DebugLevel::error, b, "scale", (float) scale) + " ";
     s += "fontSize:" + STR(fontSize) + " ";
     return s;
 }
@@ -300,6 +496,34 @@ void DebuggerWindow::setSize() {
     allocateBuffers();
 }
 
+std::vector<std::vector<DebuggerPoly>*> DebuggerWindow::tangentPolys() {
+    std::vector<std::vector<DebuggerPoly>*> result;
+    if (!debuggerState->hideEdges)
+        result.push_back(&edges);
+    if (debuggerState->showSegments)
+        result.push_back(&segments);
+    if (debuggerState->showContours)
+        result.push_back(&contours);
+    return result;
+}
+
+OpPoint DebuggerWindow::toLocal(OpPoint pt) const {
+    return { (float) (pt.x / scale + focus.left), (float) (pt.y / scale + focus.top) };
+}
+
+OpDPoint DebuggerWindow::toLocal(OpDPoint pt) const {
+    return { pt.x / scale + focus.left, pt.y / scale + focus.top };
+}
+
+// return local space point in device space
+OpPoint DebuggerWindow::toDevice(OpPoint pt) const {
+    return { (float) ((pt.x - focus.left) * scale), (float) ((pt.y - focus.top) * scale) };
+}
+
+OpDPoint DebuggerWindow::toDevice(OpDPoint pt) const {
+    return { (pt.x - focus.left) * scale, (pt.y - focus.top) * scale };
+}
+
 #if OP_DEBUG
 std::string DebuggerWindow::debugTextDump(size_t index) {
     OP_ASSERT(index < textCache.size());
@@ -309,9 +533,42 @@ std::string DebuggerWindow::debugTextDump(size_t index) {
 
 #if OP_DEBUG_VALIDATE
 void DebuggerWindow::validate() const {
-    for (const DebuggerPoly& poly : polys) {
-        poly.validate();
+for (std::vector<DebuggerPoly>& polys : polyIDs) {
+        for (const DebuggerPoly& poly : polys) {
+            poly.validate();
+        }
     }
+}
+#endif
+
+#if DEBUG_CLIP
+void DebuggerWindow::findDebugClips(OpType& opType, float tStart, float tEnd,
+            std::vector<DebugClip*>* result) {
+    for (DebugClip& debugClip : debugClips) {
+        if (debugClip.opType.type != opType.type)
+            continue;
+        if (debugClip.opType.id != opType.id)
+            continue;
+        if (debugClip.opType.curveIndex != opType.curveIndex)
+            continue;
+        if (tStart != tEnd && (debugClip.start.t != tStart || debugClip.end.t != tEnd))
+            continue;
+        result->push_back(&debugClip);
+    }
+}
+
+DebugClip* DebuggerWindow::createDebugClip(OpType& opType,
+        const OpCurve& curve, float tStart, float tEnd) {
+    std::vector<DebugClip*> result;
+    findDebugClips(opType, tStart, tEnd, &result);
+    for (DebugClip* debugClip : result) {
+        if (debugClip->start.t == tStart && debugClip->end.t == tEnd)
+            return debugClip;
+    }
+    debugClips.push_back({ opType, curve.ptTAtT(tStart), curve.ptTAtT(tEnd) });
+    DebugClip* debugClip = &debugClips.back();
+    debugClip->clippedOut = true;
+    return debugClip;
 }
 #endif
 

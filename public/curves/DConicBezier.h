@@ -9,39 +9,6 @@
 
 namespace PathOpsV0Lib {
 
-struct OpDPoint {
-    OpDPoint(double _x, double _y) :
-        x(_x),
-        y(_y) {
-    }
-
-    OpDPoint(OpPoint pt) :
-        x(pt.x),
-        y(pt.y) {
-    }
-
-    OpDPoint() : 
-        x(OpNaN), 
-        y(OpNaN) {
-    }
-
-    double choice(Axis axis) {
-        return Axis::vertical == axis ? x : y;
-    }
-
-    double choice(XyChoice xyChoice) {
-        return XyChoice::inX == xyChoice ? x : y;
-    }
-
-    void pin(const OpDPoint a, const OpDPoint b) {
-        x = OpMath::PinUnsorted(a.x, x, b.x);
-        y = OpMath::PinUnsorted(a.y, y, b.y);
-    }
-
-    double x;
-    double y;
-};
-
 // used in curves
 struct SPointWeight {
     SPointWeight() {
@@ -432,11 +399,11 @@ inline std::string dConicDebugDumpName() {
 inline void dConicCallbacks(Context* context, int nativeCurveType) {
     SetCurveCallbacks(context, nativeCurveType, { dConicAxisT,
 			dConicRotatedT, dConicHull, dConicIsFinite, dConicIsLine, dConicSetBounds, dConicPin,
-			dConicTangent, dConicsEqual, dConicPtAtT, nullptr, dConicHullPtCount, dConicRotate, 
+			dConicTangent, dConicsEqual, dConicPtAtT, dConicHullPtCount, dConicRotate, 
 			dConicSubDivide, dConicXYAtT });
 #if OP_TEST
 	SetDebugCurveCallbacks(context, nativeCurveType, { debugDConicScale
-            OP_DEBUG_DUMP_PARAMS(dConicDebugDumpName, dConicDebugDumpExtra, debugDConicSubDivide)
+            OP_DEBUG_DUMP_PARAMS(nullptr, dConicDebugDumpName, dConicDebugDumpExtra, debugDConicSubDivide)
 //            OP_DEBUG_RASTER_PARAMS(debugRasterAdd)
             });
 #endif

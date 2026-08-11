@@ -58,9 +58,12 @@ struct Bumper {
 
 struct DebuggerWindow {
     DebuggerWindow(DebuggerState* state, WheelTarget);
-    bool add(const OpCurve& , DebuggerAddPoly* );
+    void add(const OpCurve& , DebuggerAddPoly* , float tStart, float tEnd,
+            float cStart, float cEnd);
     DebuggerPoly& add(const OpRect& , uint32_t color, float thickness);
-    bool add(OpPoint , OpPoint , DebuggerAddPoly* );
+    void add(DebuggerAddPoly* , const OpPtT& );
+    void add(DebuggerAddPoly* , const OpPtT& , const OpPtT&  
+            CLIP_PARAM(const OpCurve& ,float cStart, float cEnd));
     void add(std::vector<OpPoint>& points );
     void addLine(OpPoint pt1, OpPoint pt2);
     SDL_AppResult addFont(float fontSize, TTF_Font** result = nullptr);
@@ -69,7 +72,7 @@ struct DebuggerWindow {
     OpDebugText& addText(std::string , OpPoint , uint32_t color, TTF_Font* = nullptr, 
             bool rotated = false);
     SDL_AppResult allocateBuffers();
-    void append(OpPoint );
+    void append(std::vector<DebuggerPoly>& , OpDPoint );
     void clearWindow();
     OpContext* context();
     void deleteTextCache();
@@ -82,6 +85,8 @@ struct DebuggerWindow {
     DebuggerPoly* findPoly(const OpEdge* );
     DebuggerPoly* findPoly(const OpSegment* );
     DebuggerPoly* findPolyByID(int );
+    DebuggerPoly* findRectByID(int );
+    std::vector<DebuggerPoly>& findPolys(OpType );
     const NativeTextCache& getCache(size_t index) const;
     SDL_AppResult init(std::string name, OpVector offset);
     void pentrek_draw(char*, int width, int height, int pitch);
@@ -90,10 +95,20 @@ struct DebuggerWindow {
     virtual std::string record() { return recordCommon(); };
     std::string recordCommon();
     void setSize();
+    std::vector<std::vector<DebuggerPoly>*> tangentPolys();
+    OpPoint toLocal(OpPoint p) const;
+    OpDPoint toLocal(OpDPoint p) const;
+    OpPoint toDevice(OpPoint p) const;
+    OpDPoint toDevice(OpDPoint p) const;
+
 #if OP_DEBUG
     // self-debugging:
     std::string debugTextDump(size_t index);
-    void dumpWindow();
+    std::string debugDump(DebugLevel, DebugBase) const;
+#endif
+#if DEBUG_CLIP
+    DebugClip* createDebugClip(OpType& , const OpCurve& , float tStart, float tEnd);
+    void findDebugClips(OpType& , float tStart, float tEnd, std::vector<DebugClip*>* );
 #endif
 #if OP_DEBUG_VALIDATE
     void validate() const;
@@ -101,7 +116,18 @@ struct DebuggerWindow {
 
     DebuggerState* debuggerState;
     DebuggerAddPoly addPoly;
-    std::vector<DebuggerPoly> polys;
+    std::array<std::vector<DebuggerPoly>*, 7> allPolys { &edges, &contours, &intersections, &segments,
+            &rects, &polyPoints, &lines };
+    std::array<std::vector<DebuggerPoly>*, 4> polyIDs { &edges, &contours, &intersections, &segments };
+    std::array<std::vector<DebuggerPoly>*, 2> touchIDs { &edges, &segments };
+    std::vector<DebuggerPoly> edges;
+    std::vector<DebuggerPoly> contours;
+    std::vector<DebuggerPoly> intersections;
+    std::vector<DebuggerPoly> segments;
+    std::vector<DebuggerPoly> output;
+    std::vector<DebuggerPoly> rects;
+    std::vector<DebuggerPoly> polyPoints;
+    std::vector<DebuggerPoly> lines;
     std::vector<OpDebugText> texts;
     std::vector<OpDebugPoint> points;
     std::vector<NativeTextCache> textCache;
@@ -113,12 +139,16 @@ struct DebuggerWindow {
     TTF_Font* font = nullptr;
     int* buffer = nullptr;
     std::string name;
-    OpVector threshold;
+    OpDVector threshold;
+    double scale = 1; // factor to go from local to device
     float pixelScale = 1;  // if this is non-square, much work will need to be done...
     float topClip = 0;  // if non-zero, clip text above this vertical offset
     int fontSize = TEXT_FONT_SIZE;
     int windowID = 0;
     WheelTarget wheelTarget; 
+#if DEBUG_CLIP
+    std::vector<DebugClip> debugClips;
+#endif
 };
 
 #endif

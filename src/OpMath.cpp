@@ -8,6 +8,18 @@ void OpRoots::add(const OpRoots& toAdd) {
 	}
 }
 
+float OpRoots::average() const {
+	if (empty())
+		return OpNaN;
+	if (1 == count())
+		return roots[0];
+	float sum = 0;
+	for (float root : roots) {
+		sum += root;
+	}
+	return sum / count();
+}
+
 // if t is nearly end of range, make it end of range
 // motivation for this is test cubics_d, which generates yExtrema very nearly equal to 1.
 // 'interior' is only used for extrema and inflections
@@ -168,6 +180,11 @@ bool OpPoint::soClose(OpPoint test) const {
 }
 #endif
 
+void OpDPoint::pin(const OpDPoint a, const OpDPoint b) {
+    x = OpMath::PinUnsorted(a.x, x, b.x);
+    y = OpMath::PinUnsorted(a.y, y, b.y);
+}
+
 OpPoint OpRect::center() const { 
 	return { OpMath::Average(left, right), OpMath::Average(top, bottom) }; 
 }
@@ -207,6 +224,11 @@ bool OpRect::nearlyContains(OpPoint pt, OpVector threshold) const {
 	OP_ASSERT(pt.isFinite());
 	return OpMath::InSorted(left, pt.x, right, threshold.dx)
 			&& OpMath::InSorted(top, pt.y, bottom, threshold.dy);
+}
+
+bool OpRect::nearlyContains(const OpRect& r, OpVector threshold) const {
+	return OpRect::nearlyContains(OpPoint(r.left, r.top), threshold)
+			&& OpRect::nearlyContains(OpPoint(r.right, r.bottom), threshold);
 }
 
 void OpRect::pin(OpPoint* pt) {

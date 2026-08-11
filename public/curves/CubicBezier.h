@@ -46,7 +46,7 @@ inline OpPoint CubicPtAtT(OpPoint start, CubicControls controls, OpPoint end, fl
     return result;
 }
 
-inline OpPoint CubicDPtAtT(OpPoint start, CubicControls controls, OpPoint end, float t) {
+inline OpDPoint CubicPtAtDT(OpPoint start, CubicControls controls, OpPoint end, double t) {
     if (0 == t)
         return start;
     if (1 == t)
@@ -58,9 +58,9 @@ inline OpPoint CubicDPtAtT(OpPoint start, CubicControls controls, OpPoint end, f
     double t2 = t * t;
     double c = 3 * one_t * t2;
     double d = t2 * t;
-    OpPoint result = 
-		{ (float) (a * start.x + b * controls.pts[0].x + c * controls.pts[1].x + d * end.x),
-		  (float) (a * start.y + b * controls.pts[0].y + c * controls.pts[1].y + d * end.y) };
+    OpDPoint result = 
+		{ a * start.x + b * controls.pts[0].x + c * controls.pts[1].x + d * end.x,
+		  a * start.y + b * controls.pts[0].y + c * controls.pts[1].y + d * end.y };
     return result;
 }
 
@@ -468,15 +468,17 @@ inline OpRoots cubicRotatedT(Curve c, Axis axis, float intercept
         OpPoint curveData[4] { ptTs[index].pt, ptTs[index + 1].pt };
 		float startT = ptTs[index].t;
 		float endT = ptTs[index + 1].t;
-		if (OpMath::Equal(intercept, curveData[0].choice(axis))) {
+        float startXY = curveData[0].choice(axis);
+		if (OpMath::Equal(intercept, startXY)) {
 			result.add(startT);
 			continue;
 		}
-		if (OpMath::Equal(intercept, curveData[1].choice(axis))) {
+        float endXY = curveData[1].choice(axis);
+		if (OpMath::Equal(intercept, endXY)) {
 			result.add(endT);
 			continue;
 		}
-		if (curveData[0].choice(axis) * curveData[1].choice(axis) > 0)
+		if ((startXY - intercept) * (endXY - intercept) > 0)
 			continue;
         OP_ASSERT(curveData[0] != curveData[1]);
         *(CubicControls*)&curveData[2] = CubicControlPt(start, controls, end, startT, endT);
@@ -493,9 +495,9 @@ inline OpPoint cubicPtAtT(Curve c, float t) {
     return CubicPtAtT(c.data->start, controls, c.data->end, t);
 }
 
-inline OpPoint cubicDPtAtT(Curve c, float t) {
+inline OpDPoint cubicPtAtDT(Curve c, double t) {
     CubicControls controls(c);
-    return CubicDPtAtT(c.data->start, controls, c.data->end, t);
+    return CubicPtAtDT(c.data->start, controls, c.data->end, t);
 }
 
 inline OpPair cubicXYAtT(Curve c, OpPair t, XyChoice xyChoice) {
@@ -617,7 +619,7 @@ inline std::string cubicDebugDumpName() {
     OP_TAGGED_FUNCTION(cubicTangent), \
     OP_TAGGED_FUNCTION(cubicsEqual), \
     OP_TAGGED_FUNCTION(cubicPtAtT), \
-    OP_TAGGED_FUNCTION(cubicDPtAtT), \
+    OP_TAGGED_FUNCTION(cubicPtAtDT), \
     OP_TAGGED_FUNCTION(cubicHullPtCount), \
 	OP_TAGGED_FUNCTION(cubicRotate), \
     OP_TAGGED_FUNCTION(cubicSubDivide), \
@@ -630,11 +632,11 @@ inline std::string cubicDebugDumpName() {
 inline void cubicCallbacks(Context* context, int nativeCurveType) {
     SetCurveCallbacks(context, nativeCurveType, { cubicAxisT,
 			cubicRotatedT, cubicHull, cubicIsFinite, cubicIsLine, cubicSetBounds, cubicPin,
-			cubicTangent, cubicsEqual, cubicPtAtT, cubicDPtAtT, cubicHullPtCount, cubicRotate, 
+			cubicTangent, cubicsEqual, cubicPtAtT, cubicHullPtCount, cubicRotate, 
 			cubicSubDivide, cubicXYAtT, cubicReverse });
 #if OP_TEST
 	SetDebugCurveCallbacks(context, nativeCurveType, { debugCubicScale
-            OP_DEBUG_DUMP_PARAMS(cubicDebugDumpName, nullptr, debugCubicSubDivide)
+            OP_DEBUG_DUMP_PARAMS(cubicPtAtDT, cubicDebugDumpName, nullptr, debugCubicSubDivide)
 //            OP_DEBUG_RASTER_PARAMS(debugRasterAdd)
             });
 #endif

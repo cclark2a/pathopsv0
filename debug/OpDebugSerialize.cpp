@@ -650,7 +650,8 @@ static std::string debugCallbacksDump(const std::vector<PathOpsV0Lib::DebugCurve
     for (auto& debugCallback : debugCallbacks) {
         static_assert(0 == offsetof(PathOpsV0Lib::DebugCurveCallbacks, scaleFuncPtr));
         s += debugFindTag(reinterpret_cast<DebugFunction>(debugCallback.scaleFuncPtr));
-	    DEBUG_FIND_TAG(debugCallback, scaleFuncPtr,      curveNameFuncPtr);
+	    DEBUG_FIND_TAG(debugCallback, scaleFuncPtr,  ptAtDTFuncPtr);    
+        DEBUG_FIND_TAG(debugCallback, ptAtDTFuncPtr,  curveNameFuncPtr);
 	    DEBUG_FIND_TAG(debugCallback, curveNameFuncPtr,  curveExtraFuncPtr);
         DEBUG_FIND_TAG(debugCallback, curveExtraFuncPtr, debugSubDivideFuncPtr);
 #if 0 && OP_TEST_RASTER
@@ -1170,8 +1171,7 @@ std::string OpContext::debugDump(DebugLevel l, DebugBase b, DumpRaster dumpRaste
 	    DEBUG_FIND_TAG(callback, curvePinFuncPtr,       curveTangentFuncPtr);
 	    DEBUG_FIND_TAG(callback, curveTangentFuncPtr,   curvesEqualFuncPtr);
 	    DEBUG_FIND_TAG(callback, curvesEqualFuncPtr,    ptAtTFuncPtr);
-	    DEBUG_FIND_TAG(callback, ptAtTFuncPtr,          ptDAtTFuncPtr);
-	    DEBUG_FIND_TAG(callback, ptDAtTFuncPtr,         ptCountFuncPtr);
+	    DEBUG_FIND_TAG(callback, ptAtTFuncPtr,          ptCountFuncPtr);
 	    DEBUG_FIND_TAG(callback, ptCountFuncPtr,        rotateFuncPtr);
 	    DEBUG_FIND_TAG(callback, rotateFuncPtr,         subDivideFuncPtr);
 	    DEBUG_FIND_TAG(callback, subDivideFuncPtr,      xyAtTFuncPtr);
@@ -1182,8 +1182,9 @@ std::string OpContext::debugDump(DebugLevel l, DebugBase b, DumpRaster dumpRaste
 	    DEBUG_FIND_TAG(callback, normalLimitFuncPtr,    maxAlternateEndFuncPtr);
 	    DEBUG_FIND_TAG(callback, maxAlternateEndFuncPtr, smallTFuncPtr);
 	    DEBUG_FIND_TAG(callback, smallTFuncPtr,         maxCutFuncPtr);
-        static_assert(offsetof(PathOpsV0Lib::CurveCallbacks, maxCutFuncPtr) 
-                + sizeof(callback.maxCutFuncPtr) == sizeof(callback));
+	    DEBUG_FIND_TAG(callback, maxCutFuncPtr,         closeEndFuncPtr);
+        static_assert(offsetof(PathOpsV0Lib::CurveCallbacks, closeEndFuncPtr) 
+                + sizeof(callback.closeEndFuncPtr) == sizeof(callback));
     }
     ASSERT_ORDERED(callbacks, userData);
 #if 0  // don't serialize user data
@@ -1407,14 +1408,14 @@ const OpEdge* OpContext::debugFindEdge(int id) const {
     }
 	if (fillerStorage) {
         int index = 0;
-        while (OpEdge* edge = fillerStorage->debugIndex(index++)) {
+        while (OpEdge* edge = fillerStorage->edgeIndex(index++)) {
             if (edge->id == id)
                 return edge;
         }
 	}
 	if (ccStorage) {
         int index = 0;
-        while (OpEdge* edge = ccStorage->debugIndex(index++)) {
+        while (OpEdge* edge = ccStorage->edgeIndex(index++)) {
             if (edge->id == id)
                 return edge;
         }
@@ -2122,6 +2123,7 @@ std::string OpEdge::debugDumpWinding() const {
     return s;
 }
 
+#if 0
 // don't count curve that hasn't been built
 int OpEdgeStorage::debugCount() const {
 	const OpEdge* last = debugIndex(used - 1);
@@ -2133,6 +2135,7 @@ int OpEdgeStorage::debugCount() const {
     }
     return result;
 }
+#endif
 
 OpEdge* OpEdgeStorage::debugFind(int ID) {
 	for (int index = 0; index < used; index++) {
@@ -2145,6 +2148,7 @@ OpEdge* OpEdgeStorage::debugFind(int ID) {
     return next->debugFind(ID);
 }
 
+#if 0
 // this walks 'backwards', from oldest to newest
 OpEdge* OpEdgeStorage::debugIndex(int edgeIndex) const {
     const OpEdgeStorage* block = this;
@@ -2163,24 +2167,25 @@ OpEdge* OpEdgeStorage::debugIndex(int edgeIndex) const {
     }
     return nullptr;
 }
+#endif
 
 std::string OpEdgeStorage::debugDump(DebugLevel l, DebugBase b) const {
     std::string s;
-    int count = debugCount();
-    if (!count)
+    int cnt = edgeCount();
+    if (!cnt)
         return s;
 #if OP_DEBUG_DUMP
-    s = debugName + ":" + STR(count) + "\n";
+    s = debugName + ":" + STR(cnt) + "\n";
 #endif
     if (DebugLevel::brief == l) {
         s += "[";
-        for (int index = 0; index < count; ++index)
-            s += STR(debugIndex(index)->id) + " ";
+        for (int idx = 0; idx < cnt; ++idx)
+            s += STR(edgeIndex(idx)->id) + " ";
         debugPopMatching(s, ' ');
         s += "]";
     } else {
-	    for (int index = 0; index < count; index++) {
-		    const OpEdge* test = debugIndex(index);
+	    for (int idx = 0; idx < cnt; idx++) {
+		    const OpEdge* test = edgeIndex(idx);
             s += test->debugDump(l, b) + "\n";
 	    }
         debugPopMatching(s, '\n');
@@ -2756,7 +2761,10 @@ std::string SectRay::debugDumpHeader(DebugLevel l, DebugBase b) const {
     ASSERT_ORDERED(insideBounds, homeTangent);
 	if (homeTangent.isFinite())
 		s += debugLabel(l, "homeTangent") + homeTangent.debugDump(l, b) + " ";
-    ASSERT_ORDERED(homeTangent, normal);
+    ASSERT_ORDERED(homeTangent, home);
+    if (home)
+        s += "home:" + STR(home->id) + " "; 
+    ASSERT_ORDERED(home, normal);
 	if (OpMath::IsFinite(normal))
 		s += debugValue(l, b, "normal", normal) + " ";
     ASSERT_ORDERED(normal, homeCept);
@@ -2765,10 +2773,7 @@ std::string SectRay::debugDumpHeader(DebugLevel l, DebugBase b) const {
     ASSERT_ORDERED(homeCept, homeT);
 	if (OpMath::IsFinite(homeT))
 	    s += debugValue(l, b, "homeT", homeT) + " ";
-    ASSERT_ORDERED(homeT, interceptLimit);
-	if (OpMath::IsFinite(interceptLimit))
-	    s += debugValue(l, b, "interceptLimit", interceptLimit) + " ";
-    ASSERT_ORDERED(interceptLimit, mid);
+    ASSERT_ORDERED(homeT, mid);
 	if (.5 != mid)
 	    s += debugValue(l, b, "mid", mid) + " ";
     ASSERT_ORDERED(mid, midEnd);
@@ -2780,7 +2785,7 @@ std::string SectRay::debugDumpHeader(DebugLevel l, DebugBase b) const {
     ASSERT_ORDERED(axis, sorted);
 	if (sorted) s += "sorted ";
     static_assert(sizeof(SectRay) == offsetof(SectRay, sorted) 
-            + sizeof(sorted) + 6);
+            + sizeof(sorted) + 2);
 	return debugPopMatching(s, ' ');
 }
 

@@ -44,7 +44,12 @@ bool DebuggerDump::update(DebuggerState* state) {
     delete context;
     context = newContext;
     debugGlobalContext = context;   // needed for OpDebugFormat; major rework to remove dependency
-    state->update();
+    bool updateCurrent = (size_t) state->currentDump >= state->dumps.size() 
+            ||  this == &state->dumps[state->currentDump];
+    if (updateCurrent)
+        state->update();
+    else
+        state->dumpWindow.update();
     updateAttempts = 0;
     updateDelay = 1;
     updateCount = 0;
@@ -194,7 +199,8 @@ void DebuggerState::playback() {
     ASSERT_ORDERED(error, bitsToShow);  // don't restore
     ASSERT_ORDERED(bitsToShow, allowUpdate);
     DEBUG_SET_BOOL(allowUpdate, showContours);
-    DEBUG_SET_BOOL(showContours, hideEdges);
+    DEBUG_SET_BOOL(showContours, showEdgeCurve);
+    DEBUG_SET_BOOL(showEdgeCurve, hideEdges);
     DEBUG_SET_BOOL(hideEdges, showHex);
     // !!! need some way to call a custom set function ?
     defaultBase = showHex ? DebugBase::hex : DebugBase::dec;
@@ -227,7 +233,8 @@ void DebuggerState::record() {
     ASSERT_ORDERED(error, bitsToShow);  // don't save
     ASSERT_ORDERED(bitsToShow, allowUpdate);
     DEBUG_DUMP_BOOL(allowUpdate, showContours);
-    DEBUG_DUMP_BOOL(showContours, hideEdges);
+    DEBUG_DUMP_BOOL(showContours, showEdgeCurve);
+    DEBUG_DUMP_BOOL(showEdgeCurve, hideEdges);
     DEBUG_DUMP_BOOL(hideEdges, showHex);
     DEBUG_DUMP_BOOL(showHex, showIntersections);
     DEBUG_DUMP_BOOL(showIntersections, showOutput);
@@ -291,7 +298,7 @@ void DebuggerState::setDepth(int ) {
     depth = std::max(-1, std::min(maxDepth, depth));
     if (depth == 0)  // draw all
         return;
-	for (auto& id : ids) {
+    for (auto& id : ids) {
         if (IDType::edge != id.type)
             continue;
 		id.drawn = id.edge->debugDepth < depth && id.edge->debugCC >= depth;
@@ -317,14 +324,14 @@ void DebuggerState::setIDTypes() {
         }
     };
 	if (context->fillerStorage) {
-        int index = 0;
-        while (OpEdge* edge = context->fillerStorage->debugIndex(index++)) {
+        int idx = 0;
+        while (OpEdge* edge = context->fillerStorage->edgeIndex(idx++)) {
             pushEdge(edge);
         }
 	}
 	if (context->ccStorage) {
-        int index = 0;
-        while (OpEdge* edge = context->ccStorage->debugIndex(index++)) {
+        int idx = 0;
+        while (OpEdge* edge = context->ccStorage->edgeIndex(idx++)) {
             pushEdge(edge);
         }
 	}

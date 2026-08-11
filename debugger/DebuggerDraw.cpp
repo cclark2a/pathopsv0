@@ -3,10 +3,6 @@
 #include "include/core/path_builder.h"
 #include "src/raster/raster_canvas.h"
 
-#if 1  // !!! debugging
-#include "OpSegment.h"
-#endif
-
 using namespace pentrek;
 
 void DebuggerWindow::pentrek_draw(char* bits, int width, int height, int scan) {
@@ -21,23 +17,32 @@ void DebuggerWindow::pentrek_draw(char* bits, int width, int height, int scan) {
 #else
     memset(bits, 0xff, scan * height);
 #endif
-    int debugCount = 0;
     Paint paint;
-    for (DebuggerPoly& poly : polys) {
-        if (!drawOne(poly))
-            continue;
-        size_t index = 0;
-        for (size_t count : poly.contours) {
-            Span<Point> points((Point*) (&poly.device.front() + index), count);
-            index += count;
-            auto component = [poly](int bit) { return ((poly.color >> bit) & 0xFF) / 255.f; };
-            paint.color({ component(16), component(8), component(0), component(24) });
-            paint.stroke(!!poly.thickness);
-            if (poly.thickness)
-                paint.width(poly.thickness * 2);
-            canvas.drawPoly(points, false, paint);
-            ++debugCount;
+    int debugCount = 0;
+    auto drawPolys = [this, &paint, &canvas, &debugCount](std::vector<DebuggerPoly>& polys) {
+        for (DebuggerPoly& poly : polys) {
+            if (!drawOne(poly))
+                continue;
+            size_t index = 0;
+            for (size_t count : poly.contours) {
+                Span<Point> points((Point*) (&poly.device.front() + index), count);
+                index += count;
+                auto component = [poly](int bit) { return ((poly.color >> bit) & 0xFF) / 255.f; };
+                paint.color({ component(16), component(8), component(0), component(24) });
+                paint.stroke(!!poly.thickness);
+                if (poly.thickness)
+                    paint.width(poly.thickness * 2);
+                canvas.drawPoly(points, false, paint);
+                ++debugCount;
+            }
         }
-    }
+    };
     OP_ASSERT(debugCount || bits);  // nonsense alert to suppress unused var warning
+    drawPolys(contours);
+    drawPolys(output);
+    drawPolys(edges);
+    drawPolys(segments);
+    drawPolys(rects);
+    drawPolys(polyPoints);
+    drawPolys(lines);
 }

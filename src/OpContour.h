@@ -92,6 +92,7 @@ struct OpContour {
     void clearSegments();
 	bool detachIfLoop(OpJoiner* , OpEdge* , std::vector<OpEdge*>* erasures, EdgeMatch loopEnd);
 	bool disabledPal(OpPoint, OpPoint) const;  // !!! bare minimum to fix cubic129075 (experiment)
+	bool eraseLinks(std::vector<OpEdge*>& );
 	bool fixCCSects();
     void init(OpContext* , PathOpsV0Lib::WindingData winding, size_t size);
     void init();

@@ -233,7 +233,7 @@ struct SnipPtTs {
 struct FoundLimits {
 	FoundLimits(OpCurveCurve* c_c) {
 		cc = c_c; }
-	bool addSnip(const OpPtT& s, const OpPtT& o);
+	bool addSnip(const OpPtT& s, const OpPtT& o, float scale);
 	bool addSnipCommon(SnipPtTs& snipLo, SnipPtTs& snipHi);
 	bool addSnipRange(size_t oldCount);
 	bool alreadyIn(const OpPtT& edgePtT, const OpPtT& oppPtT) const;

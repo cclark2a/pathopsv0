@@ -119,7 +119,6 @@ struct DebuggerState {
 
     std::vector<DebuggerDump> dumps;
     std::vector<OpType> ids;
-    std::vector<OpType> polyIds;
     std::vector<int> selectedIDs;
     OpContext* context = nullptr;
     DebuggerWindow* lastFocus = nullptr;  // never help window
@@ -136,6 +135,7 @@ struct DebuggerState {
     bool bitsToShow = true;
     bool allowUpdate = true;
     bool showContours = false;
+    bool showEdgeCurve = true;
     bool hideEdges = false;
     bool showHex = false;
     bool showIntersections = false;

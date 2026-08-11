@@ -41,7 +41,7 @@ inline void lineCallbacks(Context* context, CurveType nativeCurveType) {
     SetCurveCallbacks(context, nativeCurveType, { } );
 #if OP_TEST
     SetDebugCurveCallbacks(context, nativeCurveType, { debugLineScale
-            OP_DEBUG_DUMP_PARAMS(lineDebugDumpName, nullptr) });
+            OP_DEBUG_DUMP_PARAMS(nullptr, lineDebugDumpName, nullptr) });
 #endif
 }
 

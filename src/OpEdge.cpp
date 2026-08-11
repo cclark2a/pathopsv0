@@ -353,7 +353,7 @@ CalcFail OpEdge::addSub(Axis axis, float edgeInsideT, OpWinding* sumWinding) con
 	else if (NormalDirection::downLeft == NdotR)
 		sumWinding->subtract(winding);
 	else
-		OP_DEBUG_FAIL(*this, CalcFail::fail);
+		return CalcFail::fail;
 	return CalcFail::none;
 }
 
@@ -515,6 +515,7 @@ void OpEdge::complete(OpPoint startPoint, OpPoint endPoint) {
 	OP_DEBUG_VALIDATE_CODE(OP_ASSERT(!segment->contour->context->debugJoiner));
 	OP_ASSERT(startT < endT);
 	subDivide(startPoint, endPoint);	// uses already computed points stored in edge
+	ray.home = this;
 	winding.setWind(segment->winding);
     PathOpsV0Lib::CurveConst smallFuncPtr = context()->callback(curve.c.type).smallTFuncPtr;
     float smallT = (smallFuncPtr ? (*smallFuncPtr)(curve.c) : 32.f) * OpEpsilon;
@@ -590,14 +591,16 @@ bool OpEdge::isKept() const {
 	while (++summedIndex < firstPal) {
 		const Distance& priorDist = ray.distances[summedIndex];
 		OpEdge* priorEdge = priorDist.edge;
-		priorEdge->addSub(ray.axis, priorDist.edgeInsideT, &priorWinding);
+		if (CalcFail::fail == priorEdge->addSub(ray.axis, priorDist.edgeInsideT, &priorWinding))
+			return true;
 	}
 	OpWinding sumWinding(this, WindingSum::dummy);
 	sumWinding.w = priorWinding.copyData();
 	bool discardAll = true;
 	for (int palIndex = firstPal; palIndex <= lastPal; ++palIndex) {
 		const Distance& dist = ray.distances[palIndex];
-		dist.edge->addSub(ray.axis, dist.edgeInsideT, &sumWinding);
+		if (CalcFail::fail == dist.edge->addSub(ray.axis, dist.edgeInsideT, &sumWinding))
+			return true;
 		discardAll &= PathOpsV0Lib::WindKeep::Discard == priorWinding.keep(sumWinding);
 	}
 	return !discardAll;
@@ -1029,6 +1032,38 @@ bool OpEdgeStorage::contains(int ccUnsectableID) const {
 		return false;
 	return next->contains(ccUnsectableID);
 }
+
+// don't count curve that hasn't been built
+int OpEdgeStorage::edgeCount() const {
+	const OpEdge* last = edgeIndex(used - 1);
+    int result = used - (PathOpsV0Lib::degenerateLine == last->curve.c.type);
+    OpEdgeStorage* block = next;
+    while (block) {
+        result += block->used;
+        block = block->next;
+    }
+    return result;
+}
+
+// this walks 'backwards', from oldest to newest
+OpEdge* OpEdgeStorage::edgeIndex(int edgeIndex) const {
+    const OpEdgeStorage* block = this;
+    // build an array from that can be walked from back to front
+    std::vector<const OpEdgeStorage*> blocks;
+    do {
+	    blocks.push_back(block);
+        block = block->next;
+    } while (block);
+    // walk the array of blocks in the order they were allocated (back to front)
+    for (size_t index = blocks.size(); index-- != 0; ) {
+        block = blocks[index];
+        if (edgeIndex < block->used)
+            return const_cast<OpEdge*>(&block->storage[edgeIndex]);
+        edgeIndex -= block->used;
+    }
+    return nullptr;
+}
+
 
 #if OP_DEBUG_DUMP
 void OpEdgeStorage::debugRelease() {

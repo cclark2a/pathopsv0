@@ -57,8 +57,13 @@ struct OpCurve {
 			bool firstPt, bool lastPt  OP_DEBUG_PARAMS(int parentID));
 	OpRect callerBounds() const {
 		return OpRect(c.data->start, c.data->end); }
+	float callerLeft() const {
+		return std::min(c.data->start.x, c.data->end.x); }
+	float callerTop() const {
+		return std::min(c.data->start.y, c.data->end.y); }
 	float center(Axis offset, float axisIntercept) const;
 	OpRect closeBounds() const;
+	float closest(OpPoint , OpVector thresh) const;   // (a) t value of curve closest to point
     OpContext& context() {
         return *(OpContext*) c.context; }
     const OpContext& context() const {
@@ -107,7 +112,6 @@ struct OpCurve {
 			OP_DEBUG_RASTER_PARAMS(OpEdge* ));
 	void pinCtrl();
 	OpPoint ptAtT(float t) const;
-	OpPoint ptDAtT(float t) const;
 	OpPtT ptTAtT(float t) const {
 		return { ptAtT(t), t }; }
 	OpPointBounds fullBounds() const;  // if curve is rotated, may need to consider control points
@@ -144,12 +148,15 @@ struct OpCurve {
 	bool zeroSmall(OpContour& , bool zeroStart);
 #if OP_DEBUG || OP_DEBUGGER
 	bool debugIsLine() const;
+	bool debugIsLine(float tStart, float tEnd) const;
 #endif
 #if OP_TEST_RASTER
 	void debugScale(double scaleX, double scaleY, double offsetX, double offsetY);
 	OpPoint debugPtAtTPinY(float );
 #endif
 #if OP_DEBUGGER
+	OpRect debugBounds(float t1, float t2) const;
+    OpDPoint debugPtAtDT(double ) const;
 	OpCurve debugSubDivide(float t1, float t2) const;
 #endif
 	DUMP_DECLARATIONS

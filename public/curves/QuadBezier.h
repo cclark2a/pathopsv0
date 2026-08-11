@@ -23,6 +23,19 @@ inline OpPoint QuadPointAtT(OpPoint start, OpPoint control, OpPoint end, float t
     return result;
 }
 
+inline OpDPoint QuadPointAtDT(OpPoint start, OpPoint control, OpPoint end, double t) {
+    if (0 == t)
+        return start;
+    if (1 == t)
+        return end;
+    double one_t = 1 - t;
+    double a = one_t * one_t;
+    double b = 2 * one_t * t;
+    double c = t * t;
+    OpDPoint result = a * start + b * control + c * end;
+    return result;
+}
+
 inline OpPair QuadXYAtT(OpPoint start, OpPoint control, OpPoint end, OpPair t, XyChoice xy) {
     OpPair one_t = 1 - t;
     OpPair a = one_t * one_t;
@@ -246,6 +259,10 @@ inline OpPoint quadPtAtT(Curve c, float t) {
     return QuadPointAtT(c.data->start, quadControlPt(c), c.data->end, t);
 }
 
+inline OpDPoint quadPtAtDT(Curve c, double t) {
+    return QuadPointAtDT(c.data->start, quadControlPt(c), c.data->end, t);
+}
+
 inline OpPair quadXYAtT(Curve c, OpPair t, XyChoice xyChoice) {
     return QuadXYAtT(c.data->start, quadControlPt(c), c.data->end, t, xyChoice);
 }
@@ -328,6 +345,7 @@ inline std::string quadDebugDumpName() {
     OP_TAGGED_FUNCTION(quadTangent), \
     OP_TAGGED_FUNCTION(quadsEqual), \
     OP_TAGGED_FUNCTION(quadPtAtT), \
+    OP_TAGGED_FUNCTION(quadPtAtDT), \
     OP_TAGGED_FUNCTION(quadHullPtCount), \
 	OP_TAGGED_FUNCTION(quadRotate), \
     OP_TAGGED_FUNCTION(quadSubDivide), \
@@ -339,11 +357,11 @@ inline std::string quadDebugDumpName() {
 inline void quadCallbacks(Context* context, int nativeCurveType) {
     SetCurveCallbacks(context, nativeCurveType, { quadAxisT, 
             quadRotatedT, quadHull, quadIsFinite, quadIsLine, quadSetBounds, quadPin, 
-            quadTangent, quadsEqual, quadPtAtT, nullptr, quadHullPtCount, quadRotate, 
+            quadTangent, quadsEqual, quadPtAtT, quadHullPtCount, quadRotate, 
             quadSubDivide, quadXYAtT });
 #if OP_TEST
     SetDebugCurveCallbacks(context, nativeCurveType, { debugQuadScale
-        OP_DEBUG_DUMP_PARAMS(quadDebugDumpName, nullptr, quadDebugSubDivide)
+        OP_DEBUG_DUMP_PARAMS(quadPtAtDT, quadDebugDumpName, nullptr, quadDebugSubDivide)
 //        OP_DEBUG_RASTER_PARAMS(debugRasterAdd) 
         });
 #endif

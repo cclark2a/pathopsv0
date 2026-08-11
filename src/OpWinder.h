@@ -12,6 +12,7 @@ enum class ChainFail {
 	noNormal,
 	normalizeOverflow,
 	normalizeUnderflow,
+	outsideBounds,
 	recurse
 };
 

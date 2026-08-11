@@ -234,17 +234,17 @@ void dmpEdges() {
     }
 	if (debugGlobalContext->fillerStorage) {
 		s += "fillerStorage:\n";
-		int count = debugGlobalContext->fillerStorage->debugCount();
+		int count = debugGlobalContext->fillerStorage->edgeCount();
 		for (int index = 0; index < count; ++index) {
-			s += debugGlobalContext->fillerStorage->debugIndex(index)
+			s += debugGlobalContext->fillerStorage->edgeIndex(index)
 					->debugDump(defaultLevel, defaultBase) + "\n";
 		}
 	}
 	if (debugGlobalContext->ccStorage) {
 		s += "ccStorage:\n";
-		int count = debugGlobalContext->ccStorage->debugCount();
+		int count = debugGlobalContext->ccStorage->edgeCount();
 		for (int index = 0; index < count; ++index) {
-			s += debugGlobalContext->ccStorage->debugIndex(index)
+			s += debugGlobalContext->ccStorage->edgeIndex(index)
 					->debugDump(defaultLevel, defaultBase) + "\n";
 		}
 	}
@@ -581,7 +581,8 @@ static void debugCallbacksDumpSet(std::vector<PathOpsV0Lib::DebugCurveCallbacks>
         for (auto& debugCallback : debugCallbacks) {
             static_assert(0 == offsetof(PathOpsV0Lib::DebugCurveCallbacks, scaleFuncPtr));
             debugCallback.scaleFuncPtr = (PathOpsV0Lib::DebugScale) debugFindFunction(str);
-	        DEBUG_FIND_FUNCTION(debugCallback, scaleFuncPtr,      curveNameFuncPtr);
+	        DEBUG_FIND_FUNCTION(debugCallback, scaleFuncPtr, ptAtDTFuncPtr);
+	        DEBUG_FIND_FUNCTION(debugCallback, ptAtDTFuncPtr, curveNameFuncPtr);
 	        DEBUG_FIND_FUNCTION(debugCallback, curveNameFuncPtr, curveExtraFuncPtr);
             DEBUG_FIND_FUNCTION(debugCallback, curveExtraFuncPtr, debugSubDivideFuncPtr);
 #if 0 && OP_TEST_RASTER
@@ -641,8 +642,7 @@ void OpContext::dumpSet(const char*& str) {
 	    DEBUG_FIND_FUNCTION(callback, curvePinFuncPtr,       curveTangentFuncPtr);
 	    DEBUG_FIND_FUNCTION(callback, curveTangentFuncPtr,   curvesEqualFuncPtr);
 	    DEBUG_FIND_FUNCTION(callback, curvesEqualFuncPtr,    ptAtTFuncPtr);
-	    DEBUG_FIND_FUNCTION(callback, ptAtTFuncPtr,          ptDAtTFuncPtr);
-	    DEBUG_FIND_FUNCTION(callback, ptDAtTFuncPtr,         ptCountFuncPtr);
+	    DEBUG_FIND_FUNCTION(callback, ptAtTFuncPtr,          ptCountFuncPtr);
 	    DEBUG_FIND_FUNCTION(callback, ptCountFuncPtr,        rotateFuncPtr);
 	    DEBUG_FIND_FUNCTION(callback, rotateFuncPtr,         subDivideFuncPtr);
 	    DEBUG_FIND_FUNCTION(callback, subDivideFuncPtr,      xyAtTFuncPtr);
@@ -653,8 +653,9 @@ void OpContext::dumpSet(const char*& str) {
 	    DEBUG_FIND_FUNCTION(callback, normalLimitFuncPtr,    maxAlternateEndFuncPtr);
 	    DEBUG_FIND_FUNCTION(callback, maxAlternateEndFuncPtr, smallTFuncPtr);
 	    DEBUG_FIND_FUNCTION(callback, smallTFuncPtr,         maxCutFuncPtr);
-        static_assert(offsetof(PathOpsV0Lib::CurveCallbacks, maxCutFuncPtr) 
-                + sizeof(callback.maxCutFuncPtr) == sizeof(callback));
+	    DEBUG_FIND_FUNCTION(callback, maxCutFuncPtr,         closeEndFuncPtr);
+        static_assert(offsetof(PathOpsV0Lib::CurveCallbacks, closeEndFuncPtr) 
+                + sizeof(callback.closeEndFuncPtr) == sizeof(callback));
     }
     ASSERT_ORDERED(callbacks, userData);
 #if 0  // don't serialize user data
@@ -1210,6 +1211,7 @@ void OpContour::dumpResolveAll(OpContext* c) {
 	DUMP_RESOLVE_ARRAY(inY);
 	DUMP_RESOLVE_ARRAY(byArea);
 	DUMP_RESOLVE_ARRAY(unsectByArea);
+	DUMP_RESOLVE_ARRAY(coinPals);
 	DUMP_RESOLVE_ARRAY(disabledBackwards);
 	DUMP_RESOLVE_ARRAY(disabledCenterless);
 	DUMP_RESOLVE_ARRAY(disabledPals);
@@ -2423,9 +2425,9 @@ void OpEdgeStorage::DumpSet(const char*& str, OpContext* dumpContext, DumpStorag
 }
 
 void OpEdgeStorage::dumpResolveAll(OpContext* c) {
-    int count = debugCount();
-    for (int index = 0; index < count; ++index)
-        ((OpEdge*) debugIndex(index))->dumpResolveAll(c);
+    int cnt = edgeCount();
+    for (int idx = 0; idx < cnt; ++idx)
+        ((OpEdge*) edgeIndex(idx))->dumpResolveAll(c);
 }
 
 void OpLimbStorage::DumpSet(const char*& str, OpContext* dumpContext) {
@@ -2806,7 +2808,10 @@ void SectRay::dumpSet(const char*& str) {
     ASSERT_ORDERED(insideBounds, homeTangent);
     if (OpDebugOptional(str, "homeTangent"))
         homeTangent.dumpSet(str);
-    ASSERT_ORDERED(homeTangent, normal);
+    ASSERT_ORDERED(homeTangent, home);
+    if (OpDebugOptional(str, "home"))
+        home = (OpEdge*) OpDebugReadSizeT(str);
+    ASSERT_ORDERED(home, normal);
     if (OpDebugOptional(str, "normal"))
         normal = OpDebugHexToFloat(str);
     ASSERT_ORDERED(normal, homeCept);
@@ -2815,10 +2820,7 @@ void SectRay::dumpSet(const char*& str) {
     ASSERT_ORDERED(homeCept, homeT);
     if (OpDebugOptional(str, "homeT"))
         homeT = OpDebugHexToFloat(str);
-    ASSERT_ORDERED(homeT, interceptLimit);
-    if (OpDebugOptional(str, "interceptLimit"))
-        interceptLimit = OpDebugHexToFloat(str);
-    ASSERT_ORDERED(interceptLimit, mid);
+    ASSERT_ORDERED(homeT, mid);
     if (OpDebugOptional(str, "mid"))
         mid = OpDebugHexToFloat(str);
     ASSERT_ORDERED(mid, midEnd);
@@ -2829,7 +2831,7 @@ void SectRay::dumpSet(const char*& str) {
     ASSERT_ORDERED(axis, sorted);
     sorted = OpDebugOptional(str, "sorted");
     static_assert(sizeof(SectRay) == offsetof(SectRay, sorted) 
-            + sizeof(sorted) + 6);
+            + sizeof(sorted) + 2);
 }
 
 void SectRay::dumpResolveAll(OpContext* context) {
@@ -2838,6 +2840,7 @@ void SectRay::dumpResolveAll(OpContext* context) {
         dist.dumpResolveAll(context);
     for (Distance& erase : debugErased)
         erase.dumpResolveAll(context);
+    context->dumpResolve(home);
 }
 
 #undef OP_ENUM_MEMBER
@@ -2995,9 +2998,9 @@ std::string OpCurveCurve::debugDumpDepth(int level) {
         return s;
     }
     if (context->ccStorage) {
-		int count = context->ccStorage->debugCount();
-		for (int index = 0; index < count; ++index) {
-            const OpEdge* edge = context->ccStorage->debugIndex(index);
+		int cnt = context->ccStorage->edgeCount();
+		for (int idx = 0; idx < cnt; ++idx) {
+            const OpEdge* edge = context->ccStorage->edgeIndex(idx);
             if (edge->debugDepth == level)
 			    s += edge->debugDump(defaultLevel, defaultBase) + "\n";
 		}

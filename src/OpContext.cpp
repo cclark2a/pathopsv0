@@ -205,6 +205,7 @@ bool OpContext::assemble() {
 		// sort contours so that first edge is on the outside
 		for (auto contour : sortedContours) {
 			remaining |= !joiner.linkRemaining(contour);
+			resetFiller();
 			if (fatalError)
 				return false;
 		}

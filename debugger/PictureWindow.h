@@ -35,7 +35,7 @@ struct PictureWindow : public DebuggerWindow {
     void addHulls();
     void addIDs();
     void addIntersections();
-    void addLabel(std::string , OpPoint , uint32_t color);
+    void addLabel(std::string , OpType , OpPoint , uint32_t color);
     void addOutput();
     void addPointLabel(OpPoint , OpType& );
     void addPoints();
@@ -64,8 +64,6 @@ struct PictureWindow : public DebuggerWindow {
  //   void restoreSelected();
  //   void saveSelected();
     void setDevice();
-    OpPoint toLocal(OpPoint p) const;
-    OpPoint toDevice(OpPoint p) const;
     bool touches(const OpRect& bounds) const;
     void update();
     void zoom(int factor);
@@ -75,7 +73,6 @@ struct PictureWindow : public DebuggerWindow {
 //    std::vector<int> selectedIDs;
     GridLabel gridLabel;
     OpVector zoomOffset {0, 0};
-    double scale = 0; // factor to go from local to device (zero is uninitialized)
     float thresholdMultiplier = 1;
     float zoomFactor = 1;
     int thresholdWheel = 0;
@@ -93,6 +90,7 @@ struct PictureWindow : public DebuggerWindow {
     bool drawTs = false;
     bool drawValues = true;
     bool drawWindings = true;
+
 };
 
 #endif

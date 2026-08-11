@@ -229,9 +229,9 @@ OpDebugEdgeIter::OpDebugEdgeIter(bool start)
 			edgeIndex += (int) s.edges.size();
 	}
 	if (debugGlobalContext->fillerStorage)
-		edgeIndex += debugGlobalContext->fillerStorage->debugCount();
+		edgeIndex += debugGlobalContext->fillerStorage->edgeCount();
 	if (debugGlobalContext->ccStorage)
-		edgeIndex += debugGlobalContext->ccStorage->debugCount();
+		edgeIndex += debugGlobalContext->ccStorage->edgeCount();
 }
 
 OpEdge* OpDebugEdgeIter::operator*() {
@@ -250,24 +250,24 @@ OpEdge* OpDebugEdgeIter::operator*() {
 		}
 	}
 	if (debugGlobalContext->fillerStorage) {
-		OpEdge* filler = debugGlobalContext->fillerStorage->debugIndex(edgeIndex - index);
+		OpEdge* filler = debugGlobalContext->fillerStorage->edgeIndex(edgeIndex - index);
 		if (filler) {
 			isCurveCurve = false;
 			isFiller = true;
 			isLine = true;
 			return filler;
 		}
-		index += debugGlobalContext->fillerStorage->debugCount();
+		index += debugGlobalContext->fillerStorage->edgeCount();
 	}
 	if (debugGlobalContext->ccStorage) {
-		OpEdge* ccEdge = debugGlobalContext->ccStorage->debugIndex(edgeIndex - index);
+		OpEdge* ccEdge = debugGlobalContext->ccStorage->edgeIndex(edgeIndex - index);
 		if (ccEdge) {
 			isCurveCurve = true;
 			isFiller = false;
 			isLine = false;
 			return ccEdge;
 		}
-		index += debugGlobalContext->ccStorage->debugCount();
+		index += debugGlobalContext->ccStorage->edgeCount();
 	}
 	OpDebugOut("iterator out of bounds! edgeIndex: " + STR(edgeIndex) + 
 			"; max index: " + STR(index) + "\n");
@@ -624,6 +624,24 @@ OpCurve OpCurve::toVerticalDouble(const LinePts& line) const {
 	rotated.weight = weight;
 	rotated.c.type = c.type;
 	return rotated;
+}
+#endif
+
+#if OP_DEBUGGER
+OpDPoint OpCurve::debugPtAtDT(double t) const {
+	if (0 == t)
+		return firstPt();
+	if (1 == t)
+		return lastPt();
+	PathOpsV0Lib::DebugPtAtDT funcPtr = context().debugCallback(c).ptAtDTFuncPtr;
+	OpDPoint result;
+    if (funcPtr)
+        result = (*funcPtr)(c, t);
+    else {
+        result.x = (1 - t) * c.data->start.x + t * c.data->end.x;
+        result.y = (1 - t) * c.data->start.y + t * c.data->end.y;
+    }
+	return result;
 }
 #endif
 

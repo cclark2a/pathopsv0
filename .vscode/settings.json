@@ -58,4 +58,10 @@
         "iterator": "cpp",
         "tuple": "cpp"
     },
+    "cmake.options.statusBarVisibility": "visible",
+    "cmake.options.advanced": {
+        "variant": {
+            "statusBarVisibility": "visible"
+        }
+    }
 }
