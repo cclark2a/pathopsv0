@@ -7,10 +7,10 @@
 #endif
 
 #define SKIP_TO_V0 0  // set to 1 to ignore file, test first and run first test in v0
-#define SKIP_TO_FILE "chalkboard" // e.g.,  "tiger"   one file
+#define SKIP_TO_FILE "opRect" // e.g.,  "tiger"   one file
 #define TEST_SUITE_FIRST ""  // e.g., "simplifyFail" skip suites prior to this one
 #if !OP_DEBUG_ALT
-#define TEST_FIRST "chalkboard_test_one"   // e.g.,  "tiger8b_h_1"   if file, one test (can be skipped test)
+#define TEST_FIRST "rects3457"   // e.g.,  "chalkboard_1"   if file, one test (can be skipped test)
                         // !!! "loop8478" fails sometimes (san/valgrind found no error)
                         // cubic9092  cubic454498  cubic327361 troublesome unsectables
                         // only single tested files get full debugger dumps
@@ -18,19 +18,6 @@
 #define TEST_FIRST ""  // for debugging two different tests simultaneously (test first & test alt)
 #endif
 #define TEST_EXTENDED 1
-
-/*
-single
-conic{{492.451324, 225.216217}, {497.456268, 217.308929}, {497.509460, 217.304092}} weight:0.998576224 isLineSet}
-0:{492.423584, 225.115952}, 1:{493.399994, 224.899994}
-conic{{0.103891000, 0.00543297734}, {-6.5360074, 6.59994888}, {-6.52924299, 6.65293074}} weight:0.998576224 rotated:yes}
-count:1 0.00786512438
-double
-dconic{{492.451324, 225.216217}, {497.456268, 217.308929}, {497.509460, 217.304092}} weight:0.998576224 isLineSet}
-0:{492.423584, 225.115952}, 1:{493.399994, 224.899994}
-dconic{{0.103891000, 0.00543297734}, {-6.5360074, 6.59994888}, {-6.52924299, 6.65293074}} weight:0.998576224 rotated:yes}
-count:1 0.111898132
-*/
 
 // switches that decide which tests to run and how to run them
 // these may be moved to command line parameters at some point
@@ -43,8 +30,6 @@ count:1 0.111898132
 #define TEST_DEFEAT_BREAK 0  // set to one to disallow debug breakpoints
 #define TEST_DEFEAT_DUMPS 0  // set to one to disallow rewriting dumps
 
-// loop191404 missing -0.078, 1.5323 t=0.281543255 oppT=0.290549636; 
-//                    -0.3563 2.0153 t=0.139774203 oppT=0.113169670
 #define CURVE_CURVE_1 8  // id of segment 1 to break in divide and conquer
 #define CURVE_CURVE_2 20  // id of segment 2 to break in divide and conquer
 #define CURVE_CURVE_DEPTH -1  // minimum recursion depth for curve curve break (-1 to disable)
@@ -60,16 +45,6 @@ count:1 0.111898132
 #define TEST_ANALYZE 0  // set to one to limit bounds and contours of very large tests
 #define LIMIT_CONTOURS 165  // when limited, maximum number of contours to check
 #define LIMIT_BOUNDS { 48.0237312, 24.2018681, 50.9992294, 32.9181442 }  // when limited, contours must start in bounds to be checked
-
-/*
-trunk:4923 bestGapLimb:[4927 e:823e..870 closeD:0] bestLimb:[4927 e:823e..870 closeD:0] bestDistance:0 bestPerimeter:0.00341796875 maxLimbs:1000 totalUsed:6 limbPass:unsectPair debugAddEach231
-[4923 e:826s..869e closeD:0.007055833] parent:- children:[4924 e:870s..823e closeD:0.00461451616] [4925 e:823s..870 closeD:0.00461451616] treePass:linked
-[4924 e:870s..823e closeD:0.00461451616] parent:[4923 e:826s..869e closeD:0.007055833] children:[4926 e:824s closeD:0.00261241873] [4927 e:823e..870 closeD:0] treePass:unlinked
-[4925 e:823s..870 closeD:0.00461451616] parent:[4923 e:826s..869e closeD:0.007055833] children:[4928 e:870e..823s closeD:0] treePass:unlinked
-[4926 e:824s closeD:0.00261241873] parent:[4924 e:870s..823e closeD:0.00461451616] treePass:linked
-[4927 e:823e..870 closeD:0] parent:[4924 e:870s..823e closeD:0.00461451616] treePass:unlinked
-[4928 e:870e..823s closeD:0] parent:[4925 e:823s..870 closeD:0.00461451616] treePass:unlinked
-*/
 
 /* 
 testsRun:30046753 testsSkipped:0  avg pixelError:0.00014783004 maxError:0.110236213 largestError:simplifyQuads19830731

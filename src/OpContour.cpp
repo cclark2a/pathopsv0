@@ -26,8 +26,7 @@ void OpContour::addMerge(OpContour* opp) {
 void OpContour::addEdges() {
 	for (auto& segment : segments) {
 		for (auto& edge : segment.edges) {
-			if (edge.disabled && edge.coinPals.empty() 
-                    && (!edge.centerless || !edge.winding.visible()))
+			if (edge.disabled && (!edge.centerless || !edge.winding.visible()))
 				continue;
 			const OpRect& edgeBounds = edge.curve.callerBounds();
 			if (edgeBounds.height())

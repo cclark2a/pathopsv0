@@ -197,6 +197,7 @@ struct CurveCallbacks {
 	CurveConst smallTFuncPtr = nullptr;
 	CurveConst maxCutFuncPtr = nullptr;
 	CurveConst closeEndFuncPtr = nullptr;
+    CurveConst rayEndFuncPtr = nullptr;  // threshold scale disallows winding ray close to curve end
 };
 
 // winding callbacks

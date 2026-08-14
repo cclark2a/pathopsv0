@@ -85,6 +85,10 @@ inline std::string OpDebugStr(double value) { return OpDebugStr((float) value); 
 #define OpNop() \
 	OpDebugOut("")
 
+#else
+
+#define OpNop()
+
 #endif
 
 enum class OpDebugIntersect {

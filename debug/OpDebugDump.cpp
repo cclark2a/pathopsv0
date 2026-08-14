@@ -654,8 +654,9 @@ void OpContext::dumpSet(const char*& str) {
 	    DEBUG_FIND_FUNCTION(callback, maxAlternateEndFuncPtr, smallTFuncPtr);
 	    DEBUG_FIND_FUNCTION(callback, smallTFuncPtr,         maxCutFuncPtr);
 	    DEBUG_FIND_FUNCTION(callback, maxCutFuncPtr,         closeEndFuncPtr);
-        static_assert(offsetof(PathOpsV0Lib::CurveCallbacks, closeEndFuncPtr) 
-                + sizeof(callback.closeEndFuncPtr) == sizeof(callback));
+	    DEBUG_FIND_FUNCTION(callback, closeEndFuncPtr,       rayEndFuncPtr);
+        static_assert(offsetof(PathOpsV0Lib::CurveCallbacks, rayEndFuncPtr) 
+                + sizeof(callback.rayEndFuncPtr) == sizeof(callback));
     }
     ASSERT_ORDERED(callbacks, userData);
 #if 0  // don't serialize user data

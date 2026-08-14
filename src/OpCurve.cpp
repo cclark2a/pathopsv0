@@ -94,6 +94,10 @@ OpRect OpCurve::closeBounds() const {
 }
 
 float OpCurve::closest(OpPoint pt, OpVector threshold) const {
+#if 0
+    // fails if axis ray hit test point is just outside bounds; that is, it doesn't account
+    // for error introduced when inperfect root is fed back into point at t, generating a tiny
+    // error, which causes that computed point to be just outside the threshold bounds
 	OpPoint topLeft = pt - threshold / 2;
 	OpPoint bottomRight = topLeft + threshold;
 	OpRect bounds { topLeft, bottomRight };
@@ -116,6 +120,29 @@ float OpCurve::closest(OpPoint pt, OpVector threshold) const {
 	addRoot(Axis::horizontal, bottomRight.y);
 	addRoot(Axis::vertical, topLeft.x);
 	addRoot(Axis::vertical, bottomRight.x);
+#else
+    // try putting the error term in the bounds test instead
+    OpRect bounds = callerBounds();
+    if (!bounds.contains(pt, threshold / 2))
+        return OpNaN;
+    if (pt.isNearly(c.data->start, threshold) 
+            || (start != c.data->start && pt.isNearly(start, threshold)))
+        return 0;
+    if (pt.isNearly(c.data->end, threshold) 
+            || (end != c.data->end && pt.isNearly(end, threshold)))
+        return 1;
+    OpRoots roots;
+	auto addRoot = [&roots, pt, threshold, this](Axis axis, float value) {
+        OpRoots testRoots = axisRayHit(axis, value);
+        for (float testRoot : testRoots.roots) {
+            OpPoint testPt = ptAtT(testRoot);
+            if (pt.isNearly(testPt, threshold))
+                roots.addEnd(testRoot);
+        }
+    };
+    addRoot(Axis::horizontal, pt.y);
+    addRoot(Axis::vertical, pt.x);
+#endif
 	return roots.average();
 }
 

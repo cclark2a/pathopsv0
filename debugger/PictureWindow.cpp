@@ -262,7 +262,7 @@ void PictureWindow::addGrid() {
 bool PictureWindow::touches(const OpRect& bounds) const {
     for (const std::vector<DebuggerPoly>* polys : touchIDs ) {
         for (const DebuggerPoly& poly : *polys) {
-            OpRect polyBounds(toDevice(poly.c.c.data->start), toDevice(poly.c.c.data->end));
+            OpRect polyBounds(toDevice(poly.callerStart()), toDevice(poly.callerEnd()));
             if (!bounds.intersects(polyBounds))
                 continue;
             const size_t* contourCounts = &poly.contours.front();
@@ -352,7 +352,7 @@ void PictureWindow::addTangent(DebuggerPoly& poly) {
     OpVector span = poly.device[poly.contours[0] - 1] - poly.device.front();
     if (span.length() < 15)
         return;
-    OpVector tan = poly.c.tangent(.33f).normalize() * 15;
+    OpVector tan = poly.tangent(.33f).normalize() * 15;
     if (IDType::edge == poly.opType.type && EdgeMatch::end == poly.opType.edge->which()) {
         tan = -tan;
         poly.color = red;
@@ -364,7 +364,7 @@ void PictureWindow::addTangent(DebuggerPoly& poly) {
 		OpDebugOut(curveStr + " " + STR(id) + " overflow\n");
 		return;
 	}
-    OpPoint midTPt = toDevice(poly.c.ptAtT(.33f));
+    OpPoint midTPt = toDevice(poly.ptAtT(.33f));
 	LinePts tangent { midTPt, midTPt + tan };
 	if (!tangent.pts[1].isFinite()) {
 		OpDebugOut(curveStr + " "  + STR(id) + " tangent not finite\n");
@@ -394,10 +394,10 @@ void PictureWindow::addWinding(DebuggerPoly& poly) {
         const NativeTextCache& cache = getCache(cacheIndex);
 		for (float normLength : { 4.f, 15.f } ) {
 			for (float normT : { .58f, .38f, .78f, .18f, .98f } ) {
-				OpVector norm = poly.c.normal(normT).normalize() * normLength;
+				OpVector norm = poly.normal(normT).normalize() * normLength;
 				if (!norm.isFinite() || norm == OpVector{ 0, 0 })
 					continue;
-                OpPoint local = poly.c.ptAtT(normT);
+                OpPoint local = poly.ptAtT(normT);
 				OpPoint midTPt = toDevice(local);
                 norm *= normSign;
 				midTPt += norm;
@@ -452,7 +452,7 @@ void PictureWindow::addIDs() {
     auto addIDText = [this](DebuggerPoly& poly) {
         if (!poly.isPrimary)
             return;
-        OpPoint midTPt = poly.c.ptAtT(OpMath::Average(poly.tStart, poly.tEnd));
+        OpPoint midTPt = poly.ptAtT(.5);
         addLabel(STR(poly.opType.id), poly.opType, midTPt, poly.color); 
     };
     if (!debuggerState->hideEdges) {

@@ -249,7 +249,8 @@ void TextWindow::innerUpdate(int& safetyCheck) {
     PictureWindow& p = debuggerState->pictureWindow;
         for (const std::vector<DebuggerPoly>* polys : p.polyIDs ) {
             for (const DebuggerPoly& poly : *polys) {
-                doID(const_cast<OpType&>(poly.opType));
+                if (poly.isPrimary)
+                    doID(const_cast<OpType&>(poly.opType));
             }
         }
     }

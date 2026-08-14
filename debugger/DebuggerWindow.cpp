@@ -145,21 +145,37 @@ struct LineDPts {
 };
 #endif
 
-// !!! usable, but needs work
-// consecutive lines need to overlap; as is, next line is not close to tangent with previous...
+// primary is chosen as center of start/end pt closest to focus center
 void DebuggerWindow::add(const OpCurve& curve, DebuggerAddPoly* polyAdder,
-        float tStart, float tEnd, float cStart, float cEnd) {
+        const OpPtT& ptTS, const OpPtT& ptTE, float cStart, float cEnd) {
     // if adding a contour lengthen existing poly it it matches and close the contour as well...
     OP_ASSERT(curve.c.context);
     std::vector<DebuggerPoly>& polys = findPolys(polyAdder->opType);
-    bool primary = polys.empty() || polys.back().opType.id != polyAdder->opType.id;
+    DebuggerPoly* bestFocusDist = nullptr;
     polys.emplace_back();
+    for (int index = (int) polys.size() - 2; index >= 0; --index) {
+        DebuggerPoly* test = &polys[index];
+        if (test->opType.id != polyAdder->opType.id)
+            break;
+        if (test->isPrimary) {
+            bestFocusDist = test;
+            break;
+        }
+    }
     DebuggerPoly& poly = polys.back();
     poly.c = curve;
     poly.opType = polyAdder->opType;
-    poly.isPrimary = primary;
-    poly.tStart = tStart;
-    poly.tEnd = tEnd;
+    OpRect bounds { ptTS.pt, ptTE.pt };
+    bounds = bounds.offset(OpPoint(0, 0) - focus.center()); // orthogonal from edge bounds to focus center
+    poly.focusDist = std::max(std::min(fabsf(bounds.left), fabsf(bounds.right)),
+            std::min(fabsf(bounds.top), fabsf(bounds.bottom)));
+    if (!bestFocusDist || poly.focusDist < bestFocusDist->focusDist) {
+        if (bestFocusDist)
+            bestFocusDist->isPrimary = false;
+        poly.isPrimary = true;
+    }
+    poly.tStart = ptTS.t;
+    poly.tEnd = ptTE.t;
 #if DEBUG_CLIP
     debugClips.push_back({ poly.opType, curve.ptTAtT(cStart), curve.ptTAtT(cEnd) });
 #endif
@@ -170,16 +186,16 @@ void DebuggerWindow::add(const OpCurve& curve, DebuggerAddPoly* polyAdder,
     OpDVector cStartV = fStartPt - cStartPt;
     OpDVector cEndV = fEndPt - cEndPt;
     // curve is fully inside focus; split it into lines
-    auto biasDPt = [curve, tStart, tEnd, &cStartV, &cEndV](float dT) {
-        double tRange = tEnd - tStart;
+    auto biasDPt = [curve, &ptTS, &ptTE, &cStartV, &cEndV](float dT) {
+        double tRange = ptTE.t - ptTS.t;
         OpDPoint pt = curve.debugPtAtDT(dT);
-        double startBias = (tEnd - dT) / tRange;
-        double endBias = (dT - tStart) / tRange;
+        double startBias = (ptTE.t - dT) / tRange;
+        double endBias = (dT - ptTS.t) / tRange;
         pt += cStartV * startBias + cEndV * endBias;
         return pt;
     };
-    OpDPoint start = tStart == cStart ? curve.ptAtT(tStart) : biasDPt(tStart);
-    OpDPoint end = tEnd == cEnd ?  curve.ptAtT(tEnd) : biasDPt(tEnd);
+    OpDPoint start = ptTS.t == cStart ? curve.ptAtT(ptTS.t) : biasDPt(ptTS.t);
+    OpDPoint end = ptTE.t == cEnd ?  curve.ptAtT(ptTE.t) : biasDPt(ptTE.t);
  //   start here;
     // make cStart, cEnd regular non-debug params
     // calc delta from float curve w/cStart, cEnd and double curve
@@ -189,7 +205,7 @@ void DebuggerWindow::add(const OpCurve& curve, DebuggerAddPoly* polyAdder,
 
     // split curve until a piece is linear
     append(polys, start);
-    if (curve.debugIsLine(tStart, tEnd)) {
+    if (curve.debugIsLine(ptTS.t, ptTE.t)) {
         append(polys, end);
         return;
     }
@@ -200,14 +216,14 @@ void DebuggerWindow::add(const OpCurve& curve, DebuggerAddPoly* polyAdder,
     int devSteps = std::min((int) fabs(devV.dx), (int) fabs(devV.dy));
     devSteps = std::max(1, devSteps);
 // but limit steps to number of descernable t values
-    int tLo = (int) (tStart / OpEpsilon);
-    int tHi = (int) (tEnd / OpEpsilon);
+    int tLo = (int) (ptTS.t / OpEpsilon);
+    int tHi = (int) (ptTE.t / OpEpsilon);
     int tSteps = tHi - tLo;
     tSteps = std::max(1, tSteps);
     int steps = std::min(devSteps, tSteps);
     for (int step = 0; step <= steps; ++step) {
         double fStep = (double) step / (double) steps;
-        double dT = tStart * (1 - fStep) + tEnd * fStep;
+        double dT = ptTS.t * (1 - fStep) + ptTE.t * fStep;
         OpDPoint pt = biasDPt(dT);
         append(polys, pt);
     }

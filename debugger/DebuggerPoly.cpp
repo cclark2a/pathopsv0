@@ -96,8 +96,10 @@ void DebuggerAddPoly::add(const OpCurve& curve, float tStart, float tEnd) {
         return addHorizontal(focus.top);
     if (bounds.top >= focus.bottom)
         return addHorizontal(focus.bottom);
+    OpPtT startPtT = curve.ptTAtT(tStart);
+    OpPtT endPtT = curve.ptTAtT(tEnd);
     if (focus.contains(bounds)) {
-        window->add(curve, this, tStart, tEnd, tStart, tEnd);
+        window->add(curve, this, startPtT, endPtT, tStart, tEnd);
         return;
     }
     std::vector<OpPtT> ptTs;
@@ -119,8 +121,6 @@ void DebuggerAddPoly::add(const OpCurve& curve, float tStart, float tEnd) {
         #endif
         }
     };
-    OpPtT startPtT = curve.ptTAtT(tStart);
-    OpPtT endPtT = curve.ptTAtT(tEnd);
     addPin(startPtT);
     auto crossRoots = [&curve, &startPtT, &endPtT](Axis axis, float xy) {
         if (!OpMath::Between(startPtT.pt.choice(axis), xy, endPtT.pt.choice(axis)))
@@ -151,7 +151,7 @@ void DebuggerAddPoly::add(const OpCurve& curve, float tStart, float tEnd) {
             continue;
         int side = matchSides(ptT);
         if (!(lastSide & side)) {
-            window->add(curve, this, lastPtT->t, ptT.t, tStart, tEnd);
+            window->add(curve, this, *lastPtT, ptT, tStart, tEnd);
 #if DEBUG_CLIP
             setSide(*lastPtT, ptT, lastSide, side);
 #endif
@@ -235,6 +235,14 @@ void DebuggerAddPoly::add(const OpRect& r) {
 }
 #endif
 
+OpPoint DebuggerPoly::callerEnd() const {
+    return c.ptAtT(tEnd);
+}
+
+OpPoint DebuggerPoly::callerStart() const {
+    return c.ptAtT(tStart);
+}
+
 std::string DebuggerPoly::debugDump(DebugLevel l, DebugBase b) const {
     std::string s;
     s += "local:" + STR(local.size()) + " ";
@@ -270,6 +278,18 @@ std::string DebuggerPoly::debugDump(DebugLevel l, DebugBase b) const {
 void DebuggerPoly::dump() const {
     std::string s = debugDump(defaultLevel, defaultBase);
     OpDebugOut(s + "\n");
+}
+
+OpVector DebuggerPoly::normal(float t) const {
+    return c.normal(tStart * (1 - t) + tEnd * t);
+}
+
+OpPoint DebuggerPoly::ptAtT(float t) const {
+    return c.ptAtT(tStart * (1 - t) + tEnd * t);
+}
+
+OpVector DebuggerPoly::tangent(float t) const {
+    return c.tangent(tStart * (1 - t) + tEnd * t);
 }
 
 #if OP_DEBUG_VALIDATE

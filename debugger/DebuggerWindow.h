@@ -58,7 +58,7 @@ struct Bumper {
 
 struct DebuggerWindow {
     DebuggerWindow(DebuggerState* state, WheelTarget);
-    void add(const OpCurve& , DebuggerAddPoly* , float tStart, float tEnd,
+    void add(const OpCurve& , DebuggerAddPoly* , const OpPtT& ptTS, const OpPtT& ptTE,
             float cStart, float cEnd);
     DebuggerPoly& add(const OpRect& , uint32_t color, float thickness);
     void add(DebuggerAddPoly* , const OpPtT& );

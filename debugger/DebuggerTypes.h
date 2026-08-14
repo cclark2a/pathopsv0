@@ -179,8 +179,13 @@ extern void dmpPoly(DebuggerState* state, int id);
 #endif
 
 struct DebuggerPoly {
+    OpPoint callerEnd() const;
+    OpPoint callerStart() const;
     std::string debugDump(DebugLevel, DebugBase ) const;
     void dump() const;
+    OpPoint ptAtT(float ) const;
+    OpVector normal(float ) const;
+    OpVector tangent(float ) const;
     OP_DEBUG_VALIDATE_CODE(void validate() const;)
 
     OpCurve c;
@@ -194,6 +199,7 @@ struct DebuggerPoly {
     uint32_t color = black;
     float tStart = 0;
     float tEnd = 1;
+    float focusDist = OpNaN;
     bool isPrimary = false;
 };
 

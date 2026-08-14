@@ -162,7 +162,7 @@ enum class AllowTooManyRetries {
 
 // captures ray info from edge that intersects other edges, horizontally or vertically
 struct SectRay {
-	bool add(OpWinder* , OpEdge* , float xy, float root, bool reversed);  // add to distances
+//	bool add(OpWinder* , OpEdge* , float xy, float root, bool reversed);  // add to distances
 //	bool addCoinContours(OpWinder* );
 	bool addContainers(OpEdge* add);
 	bool addDependentContours(OpWinder* );

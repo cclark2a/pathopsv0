@@ -449,6 +449,7 @@ FindCept SectRay::findCept(OpEdge* test, AllowTooManyRetries allow) {
 	auto pushUsectDist = [this, test, &testXY, &root, uSectPair]() {
 		if (uSectPair) {
 			addDistance(test, testXY, root, false  OP_DEBUG_PARAMS(home));
+            sorted = false;
 	//		addContainers(winder, test);	// do this in next pass
 			return FindCept::addPal;
 		}
@@ -470,10 +471,15 @@ FindCept SectRay::findCept(OpEdge* test, AllowTooManyRetries allow) {
 	OpPoint pt = test->curve.ptAtT(root);
 	Axis perpendicular = !axis;
 	testXY = pt.choice(perpendicular);
-	float threshXY = home->context()->threshold.choice(perpendicular);
-	if (OpMath::Equal(testXY, test->curve.c.data->start.choice(perpendicular), threshXY))
+    // If intersection of ray with test edge is very close to edge end, it may produce a false 
+    // result. The ray may slip between the actual end and miss another edge with an end very close
+    // by.  There needs to be a multipler on threshold (ex. chalkboard 16634438230468487913)
+    OpContext* context = test->context();
+    PathOpsV0Lib::CurveConst rayEndFun = context->callbacks[test->curve.c.type].rayEndFuncPtr;
+	OpVector threshold = context->threshold * (rayEndFun ? rayEndFun(test->curve.c) : 4.f);
+	if (pt.isNearly(test->curve.c.data->start, threshold))
 		return pushUsectDist();
-	if (OpMath::Equal(testXY, test->curve.c.data->end.choice(perpendicular), threshXY))
+	if (pt.isNearly(test->curve.c.data->end, threshold))
 		return pushUsectDist();
 	bool reversed = tangent.dot(homeTangent) < 0;
 	addDistance(test, testXY, root, reversed  OP_DEBUG_PARAMS(home));
@@ -887,7 +893,7 @@ FoundIntercept OpWinder::FindACept(OpEdge* edge, AllowTooManyRetries allow) {
 			return FoundIntercept::yes;
 		}
 tryADifferentCenter:
-		;
+		OpNop();
 	} while (ray.tryADifferentCenter());
 	return FoundIntercept::fail;	// nonfatal error (!!! give it a different name!)
 }
@@ -1020,7 +1026,7 @@ ResolveWinding OpWinder::SetWindingByDistance(OpEdge* edge) {
 	// find edge; then walk backwards to first known sum 
 	// if previous edge is dependent, it cannot use this distance list -- other contours required
 	//  recursively evaluate the sum of the dependent edge before proceeding    
-	OP_ASSERT(!edge->debugSumSet || !edge->isSortable());
+	OP_ASSERT(!edge->debugSumSet || !edge->isSortable() || edge->unsummable);
 	OP_DEBUG_CODE(edge->debugSumSet = true);
 	SectRay& ray = edge->ray;
 	OP_ASSERT(ray.distances.size());
