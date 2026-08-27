@@ -147,20 +147,20 @@ void DebuggerAddPoly::add(const OpCurve& curve, float tStart, float tEnd) {
     int lastSide = matchSides(*lastPtT);
     for (size_t index = 1; index < ptTs.size(); ++index) {
         const OpPtT& ptT = ptTs[index];
-        if (lastPtT->t == ptT.t || lastPtT->pt == ptT.pt)
-            continue;
         int side = matchSides(ptT);
-        if (!(lastSide & side)) {
-            window->add(curve, this, *lastPtT, ptT, tStart, tEnd);
-#if DEBUG_CLIP
-            setSide(*lastPtT, ptT, lastSide, side);
-#endif
-        } else if (addingFill) {
-            OP_ASSERT(IDType::contour == opType.type);
-            window->add(this, *lastPtT, ptT  CLIP_PARAM(curve, tStart, tEnd));
-#if DEBUG_CLIP
-            setSide(*lastPtT, ptT, lastSide, side);
-#endif
+        if (lastPtT->t != ptT.t && lastPtT->pt != ptT.pt) {
+            if (!(lastSide & side)) {
+                window->add(curve, this, *lastPtT, ptT, tStart, tEnd);
+    #if DEBUG_CLIP
+                setSide(*lastPtT, ptT, lastSide, side);
+    #endif
+            } else if (addingFill) {
+                OP_ASSERT(IDType::contour == opType.type || IDType::output == opType.type);
+                window->add(this, *lastPtT, ptT  CLIP_PARAM(curve, tStart, tEnd));
+    #if DEBUG_CLIP
+                setSide(*lastPtT, ptT, lastSide, side);
+    #endif
+            }
         }
         lastPtT = &ptT;
         lastSide = side;

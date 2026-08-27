@@ -39,6 +39,7 @@ struct PictureWindow : public DebuggerWindow {
     void addOutput();
     void addPointLabel(OpPoint , OpType& );
     void addPoints();
+    void addPtAtT();
     void addRays();
     void addTangents();
     void addTs();
@@ -86,6 +87,7 @@ struct PictureWindow : public DebuggerWindow {
     bool drawHulls = false;
     bool drawIDs = true;
     bool drawPoints = true;
+    bool drawPtAtT = false;
     bool drawTangents = false;
     bool drawTs = false;
     bool drawValues = true;

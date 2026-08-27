@@ -71,6 +71,8 @@ KeyResult DebuggerState::keyEvent(const DebuggerEvent& debuggerEvent, KeyAction 
             case KeyAction::show:
                 if ("update" == postfix)  // !!! add way to choose verbs (hardcode for now)
                     result.s += (bit ? "defeat " : "allow ") + postfix;
+                else if (postfix.starts_with("edges"))
+                    result.s += (bit ? "show " : "hide ") + postfix;
                 else
                     result.s += (bit ? "hide " : "show ") + postfix;
             break;
@@ -286,30 +288,13 @@ KeyResult DebuggerState::keyEvent(const DebuggerEvent& debuggerEvent, KeyAction 
             } else if ('0' == debuggerEvent.key)
                 result.s = "0-9  precision: " + STR(debugPrecision);
             break;
+        case '@': if (picTop) flip(pictureWindow.drawPtAtT, "pt@t"); break;
         case '-':
             if (KeyAction::act == action) {
                 debugPrecision = -1;
                 result.l = DrawLevel::update;
             } else
                 result.s += "show epsilon";
-            break;
-        case '[':
-            if (!currentDump) 
-                break;
-            if (KeyAction::act == action) {
-                setDump(currentDump - 1);
-                result.l = DrawLevel::file;
-            } else
-                result.s += "show dump " + STR(currentDump - 1);
-            break;
-        case ']':
-            if (currentDump + 1 >= dumps.size())
-                break;
-            if (KeyAction::act == action) {
-                setDump(currentDump + 1);
-                result.l = DrawLevel::file;
-            } else
-                result.s += "show dump " + STR(currentDump + 1);
             break;
          case '?':
             flip(showHelp, "help");

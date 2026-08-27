@@ -39,9 +39,27 @@ static void simplifyQuadralaterals(TestOptions* options) {
                         path.lineTo(hx, hy);
                         path.close();
                         path.setFillType(SkPathFillType::kWinding);
+                #if THREAD_DEBUG_VERBOSE
+                        auto checkFirst = [options, a, b, c, d, e, f, g, h]() {
+                            if (0 < options->testTrack.skip)
+                                return;
+                            if (!options->firstRun)
+                                return;
+                            OpDebugOut("a:" + STR(a) + " b:" + STR(b) + " c:" + STR(c) 
+                                    + " d:" + STR(d) + " e:" + STR(e) + " f:" + STR(f)
+                                    + " g:" + STR(g) + " h:" + STR(h) 
+                                    + " runIndex:" + STR(options->testTrack.runIndex)
+                                    + "\n");
+                            options->firstRun = false;
+                        };
+                        checkFirst();
+                #endif
                         if (TestDone::yes == options->testOne(path))
                             return TestDone::yes;
                         path.setFillType(SkPathFillType::kEvenOdd);
+                #if THREAD_DEBUG_VERBOSE
+                        checkFirst();
+                #endif
                         if (TestDone::yes == options->testOne(path))
                             return TestDone::yes;
                     }
@@ -53,8 +71,11 @@ static void simplifyQuadralaterals(TestOptions* options) {
     // 4 axis triangular number (pentatope number) is 3876 for 16
     // since each path is evaluated twice (winding, even odd) skip by 7752
     const int testCount = 16 * 17 * 18 * 19 * 2 / 24;
-    options->buggySkiaNumbering(testCount);  // skia test framework bug skips first set of tests
+    // options->buggySkiaNumbering(testCount);  // skia test framework bug skips first set of tests
                                              // ... so number those tests negative for compatibility
+#if THREAD_DEBUG_VERBOSE
+    int tests = 0;
+#endif
     for (int a = 0; a < 16; ++a) {
         for (int b = a ; b < 16; ++b) {
             for (int c = b ; c < 16; ++c) {
@@ -62,6 +83,9 @@ static void simplifyQuadralaterals(TestOptions* options) {
                     if (!options->skipTests(testCount) && TestDone::yes == test(a, b, c, d))
                         return;
                     options->checkTestCount(testCount);
+#if THREAD_DEBUG_VERBOSE
+                    tests += testCount;
+#endif
                 }
                 if (!options->extended()) 
                     return;

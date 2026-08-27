@@ -588,6 +588,37 @@ void PictureWindow::addPoints() {
     }
 }
 
+void PictureWindow::addPtAtT() {
+    if (!drawPtAtT)
+        return;
+    if (debuggerState->hideEdges)
+        return;
+    for (auto& poly : edges) {
+        if (!poly.isPrimary) 
+            continue;
+        int32_t hexStart = OpDebugFloatToBits(poly.tStart);
+        int32_t hexEnd = OpDebugFloatToBits(poly.tEnd);
+        std::vector<OpDebugPoint> tests;
+        for (int32_t hex = hexStart; hex <= hexEnd; ++hex) {
+            float f = OpDebugBitsToFloat(hex);
+            OpPoint local = poly.c.ptAtT(f);
+            OpPoint device = toDevice(local);
+            if (tests.end() != std::find_if(tests.begin(), tests.end(),
+                    [device](auto& test) { return device == test.device; } ))
+                continue;
+            tests.push_back({ poly.opType, local, device, 1, DebugSprite::circle });
+            if (tests.size() >= 1000)
+                return;
+        }
+        for (const OpDebugPoint& testPt : tests) {
+            if (points.end() != std::find_if(points.begin(), points.end(),
+                    [testPt](auto& test) { return testPt.device == test.device; } ))
+                continue;
+            points.push_back(testPt);
+        }
+    }
+}
+
 void PictureWindow::addRays() {
     if (!debuggerState->showRays)
         return;
@@ -801,6 +832,7 @@ void PictureWindow::update() {
     addIDs();
     addIntersections();
     addPoints();
+    addPtAtT();
     addTangents();
     addTs();
     resolvePoints();
@@ -883,7 +915,8 @@ void PictureWindow::playback(const char*& str) {
     DEBUG_SET_BOOL(drawFill, drawHulls);
     DEBUG_SET_BOOL(drawHulls, drawIDs);
     DEBUG_SET_BOOL(drawIDs, drawPoints);
-    DEBUG_SET_BOOL(drawPoints, drawTangents);
+    DEBUG_SET_BOOL(drawPoints, drawPtAtT);
+    DEBUG_SET_BOOL(drawPtAtT, drawTangents);
     DEBUG_SET_BOOL(drawTangents, drawTs);
     DEBUG_SET_BOOL(drawTs, drawValues);
     DEBUG_SET_BOOL(drawValues, drawWindings);
@@ -913,7 +946,8 @@ std::string PictureWindow::record() {
     DEBUG_DUMP_BOOL(drawFill, drawHulls);
     DEBUG_DUMP_BOOL(drawHulls, drawIDs);
     DEBUG_DUMP_BOOL(drawIDs, drawPoints);
-    DEBUG_DUMP_BOOL(drawPoints, drawTangents);
+    DEBUG_DUMP_BOOL(drawPoints, drawPtAtT);
+    DEBUG_DUMP_BOOL(drawPtAtT, drawTangents);
     DEBUG_DUMP_BOOL(drawTangents, drawTs);
     DEBUG_DUMP_BOOL(drawTs, drawValues);
     DEBUG_DUMP_BOOL(drawValues, drawWindings);

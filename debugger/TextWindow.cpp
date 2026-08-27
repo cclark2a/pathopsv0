@@ -204,8 +204,9 @@ void TextWindow::innerUpdate(int& safetyCheck) {
         else
             segment = nullptr;
         if (showFull && segment) {
-            s = segment->debugDumpFull();
+            s = segment->debugFull(showPoints ? DebugLevel::brief : DebugLevel::normal);
             shownSegment = true;
+            shownEdge = true;
         }
         if (!shownSegment && segment && debuggerState->showSegments) {
             s = segment->debugDump(DebugLevel::normal, defaultBase);
@@ -216,7 +217,7 @@ void TextWindow::innerUpdate(int& safetyCheck) {
                 s = id.segment->debugDump(DebugLevel::brief, defaultBase);
                 shownSegment = true;
             } 
-            if (IDType::edge == id.type) {
+            if (!shownEdge && IDType::edge == id.type) {
                 s = id.edge->debugDump(DebugLevel::brief, defaultBase);
                 shownEdge = true;
             } 
@@ -309,7 +310,10 @@ void TextWindow::innerUpdate(int& safetyCheck) {
                 };
                 if (loopAttributeSet(PathOpsV0Lib::LoopAttribute::first))
                     s += "[";
-                s += STR(output.edge->id) + " ";
+                if (output.edge)
+                    s += STR(output.edge->id) + " ";
+                else 
+                    s += "? ";
                 if (loopAttributeSet(PathOpsV0Lib::LoopAttribute::last)) {
                     if (' ' == s.back())
                         s.pop_back();

@@ -73,20 +73,8 @@ bool OpSegment::activeAtT(OpEdge* edge, EdgeMatch match, MatchZero matchZero,
 				zeroSide = !zeroSide;
 			return zeroSide;
 		};
-		auto isSortable = [](const OpEdge* e, OpEdge* o) {
-		#if 0
-			if (!e->isSortable())
-				return false;
-			if (e->isSummable())
-				return true;
-			if (e->isPal(o))
-				return true;
-			if (!o->ray.find(e))
-				return true;
-			return o->ray.sectsAllPals(e);
-		#else
-			return e->isSortable() && e->isSummable();
-		#endif
+		auto isSortable = [](const OpEdge* e) {
+			return e->isSortable() && e->isSummable() && !e->centerless;
 		};
 		auto saveMatch = [edge, &oppEdges, &oSect, checkZero, matchZero, isSortable](EdgeMatch testEnd) {
 			OpSegment* oSeg = oSect->segment;
@@ -95,7 +83,7 @@ bool OpSegment::activeAtT(OpEdge* edge, EdgeMatch match, MatchZero matchZero,
 				return;
 			if (test->smallTRange)
 				return; 
-			if (MatchZero::yes == matchZero && isSortable(edge, test) && isSortable(test, edge)
+			if (MatchZero::yes == matchZero && isSortable(edge) && isSortable(test)
 					&& edge->windZero != checkZero(test, edge->which(), testEnd))
 				return;
 			if (!test->hasLinkTo(EdgeMatch::start == test->which() ? testEnd : !testEnd))
@@ -115,17 +103,19 @@ bool OpSegment::activeAtT(OpEdge* edge, EdgeMatch match, MatchZero matchZero,
 // allow linked if true requires candidates to be in linked list
 bool OpSegment::activeNeighbor(const OpEdge* edge, EdgeMatch match, AllowLinked allowLinked,
 		std::vector<FoundEdge>& oppEdges) const {
-	if ((EdgeMatch::start == match && edge->startT == 0)
-			|| (EdgeMatch::end == match && edge->endT == 1))
+    EdgeMatch edgeMatch = edge->which(match);  // !!! hard to believe this was backwards
+	if ((EdgeMatch::start == edgeMatch && edge->startT == 0)
+			|| (EdgeMatch::end == edgeMatch && edge->endT == 1))
 		return false;
 	EdgeMatch neighbor = EdgeMatch::start == match ? !edge->which() : edge->which();
 	OpPtT ptT = edge->whichSect(match);
 	OpEdge* nextDoor = findEnabled(ptT, neighbor);
 	if (!nextDoor) 
 	   return false;
-	for (auto& alreadyFound : oppEdges)
+	for (auto& alreadyFound : oppEdges) {
 		if (alreadyFound.edge == nextDoor)
 			return false;
+    }
 	if (AllowLinked::no == allowLinked ? nextDoor->hasLinkTo(neighbor) : !nextDoor->priorEdge)
 		return false;
 	if (!edge->isSortable() || edge->windZero == nextDoor->windZero || !nextDoor->isSortable()) {
@@ -535,7 +525,7 @@ OpEdge* OpSegment::findEnabled(const OpPtT& ptT, EdgeMatch match) const {
 		if (ptT.pt == edge.ptT(match).pt) {
 			if (edge.smallTRange)
 				continue;
-			return edge.disabled ? nullptr : const_cast<OpEdge*>(&edge);
+			return edge.disabled && !edge.centerless ? nullptr : const_cast<OpEdge*>(&edge);
 		}
 	}
 	return nullptr;
@@ -1102,19 +1092,15 @@ PrefFound OpSegment::moveSects(OpPtT match, OpPoint destination) {
 
 // two segments are coincident so move opp's winding to this and disabled opp
 bool OpSegment::moveWinding(OpSegment* opp, bool backwards) {
-	winding.move(opp->winding, backwards);
-	opp->winding.zero();
-	opp->setDisabled(OP_LINE_FILE_NPARGS());
-	OpContour* oContour = opp->contour;
-	contour->addMerge(oContour);
-	if (winding.visible()) {
-#if 0
-		if (oContour != contour && coinContours.end() == std::find(coinContours.begin(),
-				coinContours.end(), oContour))
-			coinContours.push_back(oContour);
-#endif
-		return true;
-	}
+    if (winding.visible()) {
+        winding.move(opp->winding, backwards);
+        opp->winding.zero();
+        opp->setDisabled(OP_LINE_FILE_NPARGS());
+        OpContour* oContour = opp->contour;
+        contour->addMerge(oContour);
+        if (winding.visible())
+            return true;
+    }
 	setDisabled(OP_LINE_FILE_NPARGS());
 	return false;
 }

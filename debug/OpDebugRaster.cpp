@@ -28,6 +28,26 @@ void debugRasterAdd(DebugContextData caller, Curve curve, int parentID) {
 
 using namespace PathOpsV0Lib;
 
+void OpContext::addRasterFiller(OpPoint start, OpPoint end, OpSegment* parent) {
+    for (const OpEdgeStorage* fillers : { fillerStorage, rasterFillerStorage } ) {
+        while (fillers) {
+            for (size_t index = 0; index < fillers->used; ++index) {
+                const OpEdge& edge = fillers->storage[index];
+                if (edge.startPt() == start && edge.endPt() == end)
+                    return;
+                if (edge.startPt() == end && edge.endPt() == start)
+                    return;
+            }
+            fillers = fillers->next;
+        }
+    }
+	void* block = allocateEdge(rasterFillerStorage  OP_DEBUG_PARAMS("rasterFillerStorage"));
+	OpEdge* fi = new(block) OpEdge(this, start, end  OP_LINE_FILE_PARGS());
+	fi->segment = parent;
+    PathOpsV0Lib::Output fiO { fi->curve.c, fi->winding.w, PathOpsV0Lib::LoopAttribute::none };
+    debugRaster->addOutput(fiO, fi);
+}
+
 void OpCurve::debugScale(double scaleX, double scaleY, double offsetX, double offsetY) {
 	context().debugCallback(c).scaleFuncPtr(c, scaleX, scaleY, offsetX, offsetY);
 	start = c.data->start;
@@ -66,6 +86,7 @@ std::string RasterSample::debugDump(DebugLevel l, DebugBase b) const {
 #endif
 
 #if OP_DEBUG_DUMP
+
 void RasterSample::dumpResolveAll(OpContext* context) {
 	if (contour)
 		context->dumpResolve(contour);
@@ -75,7 +96,7 @@ void RasterSample::dumpResolveAll(OpContext* context) {
 		context->dumpResolve(edge);
 }
 
-void RasterSample::dumpSet(char const*& str) {
+void RasterSample::dumpSet(const char *& str) {
 	ASSERT_FIRST(contour);
 	DEBUG_SET_OPTIONAL_COMMON_ID(contour);
 	DEBUG_SET_OPTIONAL_ID(contour, segment);
@@ -85,6 +106,18 @@ void RasterSample::dumpSet(char const*& str) {
 	DEBUG_SET_OPTIONAL_FINITE_VALUE(x, t);
 	DEBUG_SET_BOOL(t, curveDown);
 	ASSERT_LAST_OFFSET(curveDown, 3);
+}
+
+void dmp(const std::vector<RasterSample>* samples) {
+    dmp(*samples);
+}
+
+void dmp(const std::vector<RasterSample>& samples) {
+    std::string s;
+    for (const RasterSample& sample : samples) {
+        s += sample.debugDump(defaultLevel, defaultBase) + "\n";
+    }
+    OpDebugFormat(s);
 }
 #endif
 
@@ -702,6 +735,11 @@ float DebugRaster::out() {
 	OP_ASSERT(sampleSets.size());
 	OpDebugSamples& output = sampleSets.back();
 	output.sort();
+#if OP_DEBUG // !!! if validate?
+    for (RasterSamples sample : output.sampleSet) {
+        OP_ASSERT(0 == sample.size() % 2);
+    }
+#endif
 #if OP_DEBUG || OP_DEBUGGER
 	if (sendToDebugger) {
 		output.rasterize();
@@ -760,7 +798,6 @@ void DebugRaster::sampleOutput() {
 	OpDebugSamples& addSamples = sampleSets.back();
 	addSamples.sampleType = SampleType::output;
 	for (DebugOutput& output : outputs) {
-//		OpAssert(!output.edge || 60 != output.edge->id);
 		addSamples.sample(output);
 	}
 }

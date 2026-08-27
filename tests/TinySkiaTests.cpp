@@ -20,8 +20,6 @@
 #include "DebugOps.h"
 #endif
 
-#define THREAD_DEBUG 01
-
 struct TinySuite {
     void (*func)(TestTrack* );
     std::string name;
@@ -94,7 +92,7 @@ struct TinyState {
     // both false if before first; start false end true if no first; both true if after first
     bool startFirstTest = OP_DEBUG_FAST_TEST || !strlen(TEST_FIRST);
     bool endFirstTest = false;
-} tinyState;
+};
 
 void TestOptions::checkTestCount(int testCount) {
     if (!testCountCheck || TESTS_TO_SKIP || OP_DEBUG_FAST_TEST || strlen(TEST_FIRST))
@@ -274,7 +272,7 @@ TestDone TestOptions::testSetup(SkPath& left, SkPath& right, TinyOps op, SkPath*
     debugData = OpDebugData(testTrack.testName, 
             testFunc.mayFail ? OpDebugExpect::fail : OpDebugExpect::success, testTrack.maxError, 
             CURVE_CURVE_1, CURVE_CURVE_2, CURVE_CURVE_DEPTH, CURVE_CURVE_DUMP, UNAMBIGUOUS_DUMP,
-            tinyState.defeatBreak, TEST_DEFEAT_DUMPS, testTrack.runNamedTest, !ignoreRaster);
+            testTrack.tinyState->defeatBreak, TEST_DEFEAT_DUMPS, testTrack.runNamedTest, !ignoreRaster);
     return testPart(left, right, op, result);
 }
 
@@ -353,7 +351,7 @@ TestDone TestOptions::testPart(SkPath& a, SkPath& b, TinyOps op, SkPath* outPtr)
 #endif
 	}
     contextError = Error(context);
-	tinyState.trackError(contextError);
+	testTrack.tinyState->trackError(contextError);
 #if OP_TEST_RASTER
     if (ContextError::none == contextError && OpDebugExpect::success == debugRef.expect)
         debugRef.error = debugRaster.out();
@@ -363,7 +361,7 @@ TestDone TestOptions::testPart(SkPath& a, SkPath& b, TinyOps op, SkPath* outPtr)
 #else
     testTrack.addRun();
 #endif
-    tinyState.addADot(debugData);
+    testTrack.tinyState->addADot(debugData);
     if (testFunc.numbered)
         ++testTrack.runIndex;
     ++testTrack.run;
@@ -377,6 +375,7 @@ static void threadTest(TinySuite tinySuite, TestTrack track) {
 
 void TinyState::test() {
     TestTrack track;
+    track.tinyState = this;
     track.extended = TEST_EXTENDED;
     track.runNamedTest = !OP_DEBUG_FAST_TEST && strlen(TEST_FIRST);
     if (track.runNamedTest) {
@@ -390,15 +389,15 @@ void TinyState::test() {
         }
         track.toRun = 1;
     #if THREAD_DEBUG
-        if (tinyState.testsToSkip)
-            OpDebugOut("(skip " + STR(tinyState.testsToSkip) + " ignored because TEST_FIRST is set\n");
+        if (testsToSkip)
+            OpDebugOut("(skip " + STR(testsToSkip) + " ignored because TEST_FIRST is set\n");
     #endif
         track.skip = 0;  // can't set tests to skip if we are only running one test
     } else {
-        track.skip = tinyState.testsToSkip;
+        track.skip = testsToSkip;
         track.toRun = TESTS_TO_RUN ? TESTS_TO_RUN : INT_MAX;
     }
-    #if THREAD_DEBUG
+    #if THREAD_DEBUG_VERBOSE  // !!! triggers ASAN, don't know why
         std::string s = OP_DEBUG_FAST_TEST ? "(threaded)" : "(unthreaded)";
         if (track.skip)
             s += " skip:" + STR(track.skip);
@@ -411,7 +410,7 @@ void TinyState::test() {
                 continue;
             firstSuiteSeen = true;
         }
-        if (!tinyState.skipTo.empty() && tinyState.skipTo != tinySuite.name)
+        if (!skipTo.empty() && skipTo != tinySuite.name)
             continue;
         track.maxError = tinySuite.maxError;
         if (!OP_DEBUG_FAST_TEST) {
@@ -431,31 +430,36 @@ void TinyState::test() {
         track.testSkips.clear();
     #if THREAD_DEBUG
         std::string s = tinySuite.name + " totalTests:" + STR(totalTests);
-        if (tinyState.testsToSkip)
-            s += " skip:" + STR(tinyState.testsToSkip);
+        if (testsToSkip)
+            s += " skip:" + STR(testsToSkip);
         OpDebugOut(s + "\n");
     #endif
-        if (tinyState.testsToSkip > totalTests) {
-            tinyState.testsToSkip -= totalTests;
+        if (testsToSkip > totalTests) {
+            testsToSkip -= totalTests;
             continue;
         }
-        track.skip = tinyState.testsToSkip;
-        tinyState.testsToSkip = 0;
+        track.skip = testsToSkip;
+        testsToSkip = 0;
         track.toRun = std::max((totalTests - track.skip) / maxThreads, 0);
         if (TESTS_TO_RUN)
             track.toRun = std::min(track.toRun, TESTS_TO_RUN);
         std::vector<std::thread> t;
         for (int index = 0; index < maxThreads; ) {
+            track.threadNo = index;
             t.push_back(std::thread(threadTest, tinySuite, track));
             track.skip += track.toRun;
             ++index;
             track.toRun = totalTests * (index + 1) / maxThreads - track.skip;
+    #if THREAD_DEBUG_VERBOSE
+            OpDebugOut("index:" + STR(index) + " skip:" + STR(track.skip) 
+                    + " toRun:" + STR(track.toRun) + "\n");
+    #endif
         }
         for (unsigned index = 0; index < maxThreads; ++index)
             t[index].join();
     }
-    s = stats();
-    OpDebugOut(s + "\n");
+    std::string stat = stats();
+    OpDebugOut(stat + "\n");
 }
 
 TestRun* TestTrack::addTested(std::vector<TestRun>& tests, RunType runType) {
@@ -484,6 +488,8 @@ void TestTrack::addSkipRange(RunType runType, int count) {
     TestRun* testRun = addTested(testSkips, runType);
     testRun->last += count - 1;
 #endif
+    if (1 == threadNo && count < 7000)
+        OpNop();
     skip -= count;
     runIndex += count;
 }
@@ -520,6 +526,8 @@ void TestTrack::setName() {
 }
 
 TestDone TestTrack::skipInner(int count) {
+    if (1 == threadNo && 7000 > skip)
+        OpNop();
     setName();
     if (0 == toRun)
         return addSkip(RunType::zeroToRun), TestDone::yes;
@@ -541,7 +549,7 @@ TestDone TestTrack::skipInner(int count) {
     if (skip >= count)
         return addSkipRange(RunType::skip, count), TestDone::no;
     if (skip > 0)
-        return addSkipRange(RunType::smallSkip, skip), TestDone::skip;
+        return /* addSkipRange(RunType::smallSkip, skip), */ TestDone::skip;
     return TestDone::run;
 }
 
@@ -551,5 +559,6 @@ bool TestTrack::skipTests(int count) {
 }
 
 void runTinyTests() {
+    TinyState tinyState;
     tinyState.test();
 }

@@ -335,6 +335,12 @@ void DebuggerState::setIDTypes() {
             pushEdge(edge);
         }
 	}
+    if (context->rasterFillerStorage) {
+        int idx = 0;
+        while (OpEdge* edge = context->rasterFillerStorage->edgeIndex(idx++)) {
+            pushEdge(edge);
+        }
+    }
     OpContourIterator contourIter(context);
     for (auto contour : contourIter) {
         for (int index = 0; index < contour->debugCurveData.size(); ++index)

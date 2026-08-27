@@ -7,10 +7,10 @@
 #endif
 
 #define SKIP_TO_V0 0  // set to 1 to ignore file, test first and run first test in v0
-#define SKIP_TO_FILE "opRect" // e.g.,  "tiger"   one file
-#define TEST_SUITE_FIRST ""  // e.g., "simplifyFail" skip suites prior to this one
+#define SKIP_TO_FILE "" // e.g.,  "tiger"   one file
+#define TEST_SUITE_FIRST "quad"  // e.g., "simplifyFail" skip suites prior to this one
 #if !OP_DEBUG_ALT
-#define TEST_FIRST "rects3457"   // e.g.,  "chalkboard_1"   if file, one test (can be skipped test)
+#define TEST_FIRST "simplifyQuads21314157"   // e.g.,  "chalkboard_1"   if file, one test (can be skipped test)
                         // !!! "loop8478" fails sometimes (san/valgrind found no error)
                         // cubic9092  cubic454498  cubic327361 troublesome unsectables
                         // only single tested files get full debugger dumps
@@ -30,13 +30,13 @@
 #define TEST_DEFEAT_BREAK 0  // set to one to disallow debug breakpoints
 #define TEST_DEFEAT_DUMPS 0  // set to one to disallow rewriting dumps
 
-#define CURVE_CURVE_1 8  // id of segment 1 to break in divide and conquer
-#define CURVE_CURVE_2 20  // id of segment 2 to break in divide and conquer
+#define CURVE_CURVE_1 3  // id of segment 1 to break in divide and conquer
+#define CURVE_CURVE_2 22  // id of segment 2 to break in divide and conquer
 #define CURVE_CURVE_DEPTH -1  // minimum recursion depth for curve curve break (-1 to disable)
 #define CURVE_CURVE_DUMP 0  // 1: dump all ccs; 0: only dump matching curve (for very large tests)
 #define UNAMBIGUOUS_DUMP 0  // 1: dump all unamibiguous joins; 0: no dumps (for very large tests)
 
-#define TEST_PATH_SKIP_TESTS { "grshapearcs1" }  /* , "release_13", "pentrek10" */
+#define TEST_PATH_SKIP_TESTS { "grshapearc", "grshapearcs1" }  /* , "release_13", "pentrek10" */
 // when these tests are encountered, it and the remaining tests in the file are skipped
 #define TEST_PATH_OP_SKIP_REST
 #define TEST_PATH_OP_SKIP_FILES  /* e.g., "battle", "circleOp" */

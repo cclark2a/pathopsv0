@@ -120,8 +120,6 @@ struct OpContext {
 
     void clear();
 
-	bool containsFiller(OpPoint start, OpPoint end) const;
-	bool containsFiller(int ccUnsectableID) const;
 	bool containsPals(OpEdge* , int totalLimbs);
 //    WindingData* copySect(const OpWinding& );  // !!! add a separate OpWindingStorage for temporary blocks?
     int curveIndex(int nativeType) const;
@@ -214,7 +212,6 @@ struct OpContext {
 	WindingCondition pathOps();
 	void rebuildOverlaps();
 	void release(OpEdgeStorage*& );
-	void resetFiller();
 	void resetLimbs();
 	bool setError(PathOpsV0Lib::ContextError  OP_DEBUG_PARAMS(int id, int id2 = 0));
 	void setSortedBounds();
@@ -279,6 +276,9 @@ struct OpContext {
 	void dumpResolve(OpLimb*& limbRef);
 	void dumpResolve(OpSegment*& );
 #endif
+#if OP_TEST_RASTER
+    void addRasterFiller(OpPoint , OpPoint , OpSegment* );
+#endif
 #include "OpDebugDeclarations.h"
 
 	std::vector<PathOpsV0Lib::CurveCallbacks> callbacks;
@@ -341,7 +341,8 @@ struct OpContext {
 	std::vector<OpEdge*> debugDumpErasures;  // read from flattened data
 	bool debugDumpInit = false;   // if true, created by dump init
 #endif
-#if OP_TEST_RASTER || OP_DEBUGGER
+#if OP_TEST_RASTER
+    OpEdgeStorage* rasterFillerStorage = nullptr;
 	CallerDataStorage* rasterStorage = nullptr;
 	struct DebugRaster* debugRaster = nullptr;
 #endif

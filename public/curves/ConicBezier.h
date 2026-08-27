@@ -60,10 +60,10 @@ inline OpPoint ConicNumer(OpPoint start, PointWeight control, OpPoint end, float
 }
 
 inline OpDPoint ConicDNumer(OpPoint start, PointWeight control, OpPoint end, double t) {
-    OpPoint pt1w = control.pt * control.weight;
-    OpPoint C = start;
-    OpPoint A = C + (end - 2 * pt1w);
-    OpVector B = 2 * (pt1w - C);
+    OpDPoint pt1w = control.pt * control.weight;
+    OpDPoint C = start;
+    OpDPoint A = C + (end - 2 * pt1w);
+    OpDVector B = 2 * (pt1w - C);
     return (A * t + B) * t + C;
 }
 

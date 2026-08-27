@@ -205,7 +205,6 @@ bool OpContext::assemble() {
 		// sort contours so that first edge is on the outside
 		for (auto contour : sortedContours) {
 			remaining |= !joiner.linkRemaining(contour);
-			resetFiller();
 			if (fatalError)
 				return false;
 		}
@@ -226,18 +225,6 @@ void OpContext::clear() {
 		limbStorage->reset();
 		delete limbStorage;
 	}
-}
-
-bool OpContext::containsFiller(OpPoint start, OpPoint end) const {
-	if (!fillerStorage)
-		return false;
-	return fillerStorage->containsPts(start, end);
-}
-
-bool OpContext::containsFiller(int ccUnsectableID) const {
-	if (!fillerStorage)
-		return false;
-	return fillerStorage->contains(ccUnsectableID);
 }
 
 bool OpContext::containsPals(OpEdge* edge, int totalLimbs) {
@@ -664,16 +651,6 @@ void OpContext::release(OpEdgeStorage*& edgeStorage) {
 		delete edgeStorage;
 		edgeStorage = next;
 	}
-}
-
-void OpContext::resetFiller() {
-#if OP_DEBUG_DUMP
-	if (fillerStorage)
-		fillerStorage->debugRelease();
-#else
-	release(fillerStorage);
-	fillerStorage = nullptr;
-#endif
 }
 
 void OpContext::resetLimbs() {

@@ -248,6 +248,16 @@ void dmpEdges() {
 					->debugDump(defaultLevel, defaultBase) + "\n";
 		}
 	}
+#if OP_TEST_RASTER
+	if (debugGlobalContext->rasterFillerStorage) {
+		s += "rasterFillerStorage:\n";
+		int count = debugGlobalContext->rasterFillerStorage->edgeCount();
+		for (int index = 0; index < count; ++index) {
+			s += debugGlobalContext->rasterFillerStorage->edgeIndex(index)
+					->debugDump(defaultLevel, defaultBase) + "\n";
+		}
+	}
+#endif
     OpDebugOut(s);
 }
 
@@ -365,6 +375,14 @@ void OpContext::dumpResolve(OpEdge*& edgeRef) {
             edgeRef = ccEdge;
         }
     }
+#if OP_TEST_RASTER
+    if (rasterFillerStorage) {
+        if (OpEdge* fillEdge = rasterFillerStorage->debugFind(edgeID)) {
+            OP_ASSERT((int) (size_t) edgeRef == edgeID);
+            edgeRef = fillEdge;
+        }
+    }
+#endif
     if ((int) (size_t) edgeRef == edgeID)
         edgeRef = nullptr;  // !!! can happen in dump resolve?
 }
@@ -875,6 +893,8 @@ void OpContext::dumpSet(const char*& str) {
     ASSERT_ORDERED(debugOutPath, debugDumpErasures);  // omit for now
     ASSERT_ORDERED(debugDumpErasures, debugDumpInit);  // omit for now
 #if OP_TEST_RASTER
+    if (OpDebugOptional(str, "rasterFillerStorage"))
+        OpEdgeStorage::DumpSet(str, this, DumpStorage::rasterFiller);
     ASSERT_ORDERED(rasterStorage, debugRaster);
     if (OpDebugOptional(str, "debugRaster")) {
         if (!debugRaster)
@@ -918,8 +938,12 @@ void OpContext::dumpResolveAll(OpContext* self) {
     for (OpEdge*& edge : debugDumpErasures) {
         self->dumpResolve(edge);
     }
+#if OP_TEST_RASTER
+    if (dumpInitialized() && rasterFillerStorage)
+        rasterFillerStorage->dumpResolveAll(self);
     if (debugRaster)
         debugRaster->dumpResolveAll(self);
+#endif
 #endif
 }
 
@@ -1126,8 +1150,8 @@ void OpContour::dumpSet(const char*& str) {
 	DUMP_EDGES(*this, inX, inY);
 	DUMP_EDGES(*this, inY, byArea);
 	DUMP_EDGES(*this, byArea, unsectByArea);
-	DUMP_EDGES(*this, unsectByArea, coinPals);
-	DUMP_EDGES(*this, coinPals, disabledBackwards);
+	DUMP_EDGES(*this, unsectByArea, coincPals);
+	DUMP_EDGES(*this, coincPals, disabledBackwards);
 	DUMP_EDGES(*this, disabledBackwards, disabledCenterless);
 	DUMP_EDGES(*this, disabledCenterless, disabledEdges);
 	DUMP_EDGES(*this, disabledEdges, disabledPals);
@@ -1158,8 +1182,8 @@ void OpContour::dumpSet(const char*& str) {
         treeID = OpDebugReadSizeT(str);
     DEBUG_SET_BOOL(treeID, backwardsBuilt);
     DEBUG_SET_BOOL(backwardsBuilt, centerlessBuilt);
-    DEBUG_SET_BOOL(centerlessBuilt, coinPalsBuilt);
-    DEBUG_SET_BOOL(coinPalsBuilt, disabledBuilt);
+    DEBUG_SET_BOOL(centerlessBuilt, coincPalsBuilt);
+    DEBUG_SET_BOOL(coincPalsBuilt, disabledBuilt);
     DEBUG_SET_BOOL(disabledBuilt, hasPals);
     DEBUG_SET_BOOL(hasPals, palsBuilt);
     DEBUG_SET_BOOL(palsBuilt, disabled);
@@ -1212,7 +1236,7 @@ void OpContour::dumpResolveAll(OpContext* c) {
 	DUMP_RESOLVE_ARRAY(inY);
 	DUMP_RESOLVE_ARRAY(byArea);
 	DUMP_RESOLVE_ARRAY(unsectByArea);
-	DUMP_RESOLVE_ARRAY(coinPals);
+	DUMP_RESOLVE_ARRAY(coincPals);
 	DUMP_RESOLVE_ARRAY(disabledBackwards);
 	DUMP_RESOLVE_ARRAY(disabledCenterless);
 	DUMP_RESOLVE_ARRAY(disabledPals);
@@ -1323,6 +1347,24 @@ void dmp(const PathOpsV0Lib::Curve& c) {
 
 void dmp(const PathOpsV0Lib::Curve* c) {
 	dmp(*c);
+}
+
+void dmpHex(const PathOpsV0Lib::AddCurve& c) {
+	OpCurve curve(c, Rotated::debug);
+	OpDebugFormat(curve.debugDump(defaultLevel, DebugBase::hex));
+}
+
+void dmpHex(const PathOpsV0Lib::AddCurve* c) {
+	dmpHex(*c);
+}
+
+void dmpHex(const PathOpsV0Lib::Curve& c) {
+	OpCurve curve(c, Rotated::debug);
+	OpDebugFormat(curve.debugDump(defaultLevel, DebugBase::hex));
+}
+
+void dmpHex(const PathOpsV0Lib::Curve* c) {
+	dmpHex(*c);
 }
 
 bool debugDmpIsLine(const PathOpsV0Lib::AddCurve& c) {
@@ -1473,11 +1515,10 @@ void dmpEdgePts() {
 }
 
 void dmpPts(int ID) {
-    if (findEdge(ID)) {
-        std::vector<EdgeFilter> showFields = { EF::id, EF::startT, EF::endT, EF::curve, EF::winding, 
-                EF::sum, EF::whichEnd_impl };
-        OpSaveEF saveEF(showFields);
-        ::dmp(ID);
+    OpEdge* asEdge = findEdge(ID);
+    if (asEdge) {
+        std::string s = asEdge->debugDump(DebugLevel::brief, defaultBase);
+        OpDebugFormat(s + "\n");
         return;
     }
     const OpSegment* seg = findSegment(ID);
@@ -1896,7 +1937,6 @@ void OpEdge::dumpSet(const char*& str) {
 #if OP_DEBUG_DUMP
     ASSERT_SERIAL_OFFSET(*this, debugSumSet, 6, dumpContext);  // omit dumpContext
     DEBUG_SET_BOOL(dumpContext, debugLimb);
-    DEBUG_SET_BOOL(debugLimb, debugReleased);
 #endif
 #if OP_DEBUG_MAKER
     if (OpDebugOptional(str, "debugSetDisabled"))
@@ -2417,6 +2457,10 @@ void OpEdgeStorage::DumpSet(const char*& str, OpContext* dumpContext, DumpStorag
             edge = dumpContext->allocateEdge(dumpContext->ccStorage  OP_DEBUG_PARAMS("ccStorage"));
         else if (DumpStorage::filler == type)
             edge = dumpContext->allocateEdge(dumpContext->fillerStorage  OP_DEBUG_PARAMS("fillerStorage"));
+#if OP_TEST_RASTER
+        else if (DumpStorage::rasterFiller == type)
+            edge = dumpContext->allocateEdge(dumpContext->rasterFillerStorage  OP_DEBUG_PARAMS("rasterFillerStorage"));
+#endif
         else
             OpDebugExit("edge storage missing");
         (void) new(edge) OpEdge();
@@ -3243,11 +3287,15 @@ void OpSegment::dumpResolveAll(OpContext* context) {
     winding.dumpResolveAll(context);
 }
 
-std::string OpSegment::debugDumpEdges() const {
+std::string OpSegment::debugEdges(DebugLevel l) const {
     std::string s;
     for (auto& e : edges)
-        s += e.debugDump(defaultLevel, defaultBase) + "\n";
+        s += e.debugDump(l, defaultBase) + "\n";
     return debugPopMatching(s, '\n');
+}
+
+std::string OpSegment::debugDumpEdges() const {
+    return debugEdges(defaultLevel);
 }
 
 // used to find unsectable range; assumes range all has about the same slope
@@ -3270,7 +3318,7 @@ void dmpEdges(const OpSegment& seg) {
     OpDebugFormat(seg.debugDumpEdges());
 }
 
-std::string OpSegment::debugDumpFull() const {
+std::string OpSegment::debugFull(DebugLevel l) const {
     std::string s = debugDump(defaultLevel, defaultBase);
     if (sects.unsorted)
         s += " ";
@@ -3280,8 +3328,12 @@ std::string OpSegment::debugDumpFull() const {
     s += "edges:";
 	if (!edges.empty())
         s += "\n";
-    s += debugDumpEdges();
+    s += debugEdges(l);
     return s;
+}
+
+std::string OpSegment::debugDumpFull() const {
+    return debugFull(defaultLevel);
 }
 
 std::string OpSegment::debugDumpIntersections() const {
@@ -3355,6 +3407,10 @@ void DumpSet(OpContext* context, PathOpsV0Lib::Winding& w, char const*& str, boo
     w.contour = (PathOpsV0Lib::Contour*) OpDebugReadSizeT(str);
     OpDebugRequired(str, "w.size");
     w.size = OpDebugReadSizeT(str);
+    if (!w.size) {
+        OpDebugRequired(str, "]");
+        return;
+    }
     w.data = context->allocateWinding(w.size  OP_DEBUG_RASTER_PARAMS(raster));
     for (size_t index = 0; index < w.size; ++index) {
         ((uint8_t*) w.data)[index] = OpDebugByteToInt(str);

@@ -18,24 +18,22 @@ enum class RelinkJoins {
 	again
 };
 
+// uses link index to know which edge is tail and which is loop
 struct LoopCheck {
-	LoopCheck(OpEdge* e, EdgeMatch match) 
-		: edge(e) {
-		pt = e->flipPtT(match).pt;
+	LoopCheck(OpEdge* e, EdgeMatch match, int i) 
+		: edge(e)
+        , linkIndex(i) {
+		pt = e->whichCurvePt(match);
 	}
 
 	bool operator<(const LoopCheck& rh) const {
-		return pt.x < rh.pt.x || (pt.x == rh.pt.x && pt.y < rh.pt.y);
+		return pt.x < rh.pt.x || (pt.x == rh.pt.x && pt.y < rh.pt.y)
+                || (pt == rh.pt && linkIndex < rh.linkIndex);
 	}
 
 	OpEdge* edge;
 	OpPoint pt;
-};
-
-enum class EdgesLoop {
-	no,
-	simple,
-	tail
+    int linkIndex = -1;
 };
 
 typedef PathOpsV0Lib::Contour* ContourPtr;
@@ -84,7 +82,7 @@ struct OpContour {
 
 	void buildBackwards();
 	void buildCenterless();
-	void buildCoinPals();
+	void buildCoincPals();
 	void buildDisabled();
 	void buildPals();
     void clear();
@@ -97,7 +95,7 @@ struct OpContour {
     void init(OpContext* , PathOpsV0Lib::WindingData winding, size_t size);
     void init();
 	bool isEmpty();
-	static EdgesLoop IsLoop(std::vector<LoopCheck>& edges, OpEdge* e, EdgeMatch loopMatch);
+//	static EdgesLoop IsLoop(std::vector<LoopCheck>& edges, OpEdge* e, EdgeMatch loopMatch);
 	bool isOpen() { return !merges.empty(); }
 //	bool isSorted(Axis axis) const { return Axis::horizontal == axis ? isXSorted : isYSorted; }
 	bool joinSetup();
@@ -195,7 +193,7 @@ struct OpContour {
 	// for joiner:
 	std::vector<OpEdge*> byArea;
 	std::vector<OpEdge*> unsectByArea;
-	std::vector<OpEdge*> coinPals;
+	std::vector<OpEdge*> coincPals;
 	std::vector<OpEdge*> disabledBackwards;
 	std::vector<OpEdge*> disabledCenterless;
 	std::vector<OpEdge*> disabledEdges;
@@ -214,7 +212,7 @@ struct OpContour {
 	int treeID;  // tracks if contour has been initialized in this tree's context (for edge 'seen')
 	bool backwardsBuilt;
 	bool centerlessBuilt;
-	bool coinPalsBuilt;
+	bool coincPalsBuilt;
 	bool disabledBuilt;
 	bool hasPals;
 	bool palsBuilt;

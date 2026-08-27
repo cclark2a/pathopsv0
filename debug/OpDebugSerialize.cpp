@@ -122,6 +122,11 @@ OpEdge* findEdge(int ID) {
     if (OpEdge* ccEdge = debugGlobalContext->ccStorage
             ? debugGlobalContext->ccStorage->debugFind(ID) : nullptr)
         return ccEdge;
+#if OP_TEST_RASTER
+    if (OpEdge* rasterFiller = debugGlobalContext->rasterFillerStorage
+            ? debugGlobalContext->rasterFillerStorage->debugFind(ID) : nullptr)
+        return rasterFiller;
+#endif
 #endif
     return nullptr;
 }
@@ -1390,7 +1395,10 @@ std::string OpContext::debugDump(DebugLevel l, DebugBase b, DumpRaster dumpRaste
 #endif
 #if OP_TEST_RASTER
 //    ASSERT_ORDERED_OFFSET(debugDumpInit, rasterStorage, 7);  // !!! dump may not be defined
-// only dump raster winding storage at first and last
+    if (rasterFillerStorage)
+        s += rasterFillerStorage->debugDump(l, b) + "\n";
+    ASSERT_ORDERED(rasterFillerStorage, rasterStorage);
+    // raster storage not dumped
     ASSERT_ORDERED(rasterStorage, debugRaster);
     if (debugRaster && DumpRaster::yes == dumpRaster)
         s += "debugRaster:" + debugRaster->debugDump(l, b) + "\n";
@@ -1421,6 +1429,15 @@ const OpEdge* OpContext::debugFindEdge(int id) const {
                 return edge;
         }
 	}
+#if OP_TEST_RASTER
+	if (rasterFillerStorage) {
+        int index = 0;
+        while (OpEdge* edge = rasterFillerStorage->edgeIndex(index++)) {
+            if (edge->id == id)
+                return edge;
+        }
+	}
+#endif
     return nullptr;
 }
 
@@ -1527,15 +1544,15 @@ std::string OpContour::debugDump(DebugLevel l, DebugBase b) const {
         debugPopMatching(s, ' ');
 		s += closeBracket;
 	}
-    ASSERT_ORDERED(unsectByArea, coinPals);
-	if (!coinPals.empty()) {
-		s += "coinPals:" + STR(coinPals.size()) + "[";
-		for (OpEdge* e : coinPals)
+    ASSERT_ORDERED(unsectByArea, coincPals);
+	if (!coincPals.empty()) {
+		s += "coincPals:" + STR(coincPals.size()) + "[";
+		for (OpEdge* e : coincPals)
 			s += STR(e->id) + " ";
         debugPopMatching(s, ' ');
 		s += closeBracket;
 	}
-    ASSERT_ORDERED(coinPals, disabledBackwards);
+    ASSERT_ORDERED(coincPals, disabledBackwards);
 	if (!disabledBackwards.empty()) {
 		s += "disabledBackwards:" + STR(disabledBackwards.size()) + "[";
 		for (OpEdge* e : disabledBackwards)
@@ -1622,8 +1639,8 @@ std::string OpContour::debugDump(DebugLevel l, DebugBase b) const {
     DEBUG_DUMP_OPTIONAL_VALUE(id, treeID);
     DEBUG_DUMP_BOOL(treeID, backwardsBuilt);
     DEBUG_DUMP_BOOL(backwardsBuilt, centerlessBuilt);
-    DEBUG_DUMP_BOOL(centerlessBuilt, coinPalsBuilt);
-    DEBUG_DUMP_BOOL(coinPalsBuilt, disabledBuilt);
+    DEBUG_DUMP_BOOL(centerlessBuilt, coincPalsBuilt);
+    DEBUG_DUMP_BOOL(coincPalsBuilt, disabledBuilt);
     DEBUG_DUMP_BOOL(disabledBuilt, hasPals);
     DEBUG_DUMP_BOOL(hasPals, palsBuilt);
     DEBUG_DUMP_BOOL(palsBuilt, disabled);
@@ -1834,7 +1851,7 @@ std::string OpEdge::debugDump(DebugLevel l, DebugBase b) const {
     if (DebugLevel::brief == l) {
         std::string master = debugDump(DebugLevel::normal, b);
         std::vector<std::string> showFields = { "edge", "startT", "endT", "curve",
-            "wind", "sum", "whichEnd_impl" };
+            "wind", "sum", "whichEnd" };
         std::vector<Field> foundFields;
         std::string s;
         for (const char* ch = &master.front(); ch < &master.back(); ) {
@@ -2073,7 +2090,6 @@ std::string OpEdge::debugDump(DebugLevel l, DebugBase b) const {
     ASSERT_ORDERED_OFFSET(debugSumSet, dumpContext, 6);
     // omit dumpContext
     EDGE_BOOL(dumpContext, debugLimb);
-    EDGE_BOOL(debugLimb, debugReleased);
 #endif
 #if OP_DEBUG_MAKER
     if (debugSetDisabled.valid())

@@ -154,6 +154,8 @@ struct OpSegment {
 #if OP_DEBUG_DUMP || OP_DEBUGGER
 	OpSegment();
 	float debugFindAxisT(Axis , float start, float end, float oppXY);
+    std::string debugEdges(DebugLevel ) const;
+    std::string debugFull(DebugLevel ) const;
 	#define OP_X(Thing) \
 	std::string debugDump##Thing() const; \
 	void dump##Thing() const;

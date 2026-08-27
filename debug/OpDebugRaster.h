@@ -57,14 +57,8 @@ struct DebugOutput {
 };
 
 struct RasterSample {
-#if OP_DEBUG_SERIALIZE
-	std::string debugDump(DebugLevel l, DebugBase b) const;
-#endif
-#if OP_DEBUG_DUMP
-	void dumpResolveAll(OpContext* );
-	void dumpSet(char const*& str);
-#endif
 	const OpWinding& winding() const;
+    DUMP_DECLARATIONS
 
 	OpContour* contour = nullptr;  // if set: represents original curve (segment/edge are nullptr)
 	OpSegment* segment = nullptr;  // if set: contour and edge are nullptr
@@ -75,6 +69,11 @@ struct RasterSample {
 	bool curveDown = false;  // unused by contour curve (don't use int8_t; confuses compare diff)
 	bool visible = true;
 };
+
+#if OP_DEBUG_DUMP
+	extern void dmp(const std::vector<RasterSample>* );
+	extern void dmp(const std::vector<RasterSample>& );
+#endif
 
 typedef std::vector<RasterSample> RasterSamples;
 constexpr auto OpDoubleNaN = std::numeric_limits<double>::quiet_NaN();

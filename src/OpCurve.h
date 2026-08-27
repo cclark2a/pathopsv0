@@ -57,8 +57,13 @@ struct OpCurve {
 			bool firstPt, bool lastPt  OP_DEBUG_PARAMS(int parentID));
 	OpRect callerBounds() const {
 		return OpRect(c.data->start, c.data->end); }
+    OpPoint callerFirst() const {
+        return c.data->start; }
+    OpPoint callerLast() const {
+        return c.data->end; }
 	float callerLeft() const {
 		return std::min(c.data->start.x, c.data->end.x); }
+	OpPoint callerPt(EdgeMatch match) const;
 	float callerTop() const {
 		return std::min(c.data->start.y, c.data->end.y); }
 	float center(Axis offset, float axisIntercept) const;

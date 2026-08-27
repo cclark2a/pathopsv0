@@ -4,7 +4,11 @@
 
 #include "TinySkia.h"
 
+#define THREAD_DEBUG 1
+#define THREAD_DEBUG_VERBOSE 0
+
 class SkPath;
+struct TinyState;
 
 enum class TestDone {
     no,
@@ -58,6 +62,7 @@ struct TestTrack {
 
     std::vector<TestRun> testRuns;
     std::vector<TestRun> testSkips;
+    TinyState* tinyState = nullptr;
     const TestFunc* testFunc = nullptr;
     std::string testMatch;  // if run one: test to run, with trailing number removed
     std::string testName;  // set by function currently running
@@ -68,6 +73,7 @@ struct TestTrack {
     int run = 0;  // number of tests that have run
     int skip = 0;  // number of tests to skip before running first test
     int toRun = 0;  // zero runs all
+    int threadNo = -1;
     bool extended = false;
     bool hasDigits = false;
     bool runNamedTest = false;
@@ -109,6 +115,7 @@ struct TestOptions {
     const TestFunc& testFunc;
     bool testCountCheck = true;  // used to verify that skip count computed by test is right
     bool ignoreRaster = false;  // set true for fuzz tests with large values
+    bool firstRun = true;
 };
 
 #define TEST_FUNC(s) { &s, #s }

@@ -232,6 +232,10 @@ OpDebugEdgeIter::OpDebugEdgeIter(bool start)
 		edgeIndex += debugGlobalContext->fillerStorage->edgeCount();
 	if (debugGlobalContext->ccStorage)
 		edgeIndex += debugGlobalContext->ccStorage->edgeCount();
+#if OP_TEST_RASTER
+	if (debugGlobalContext->rasterFillerStorage)
+		edgeIndex += debugGlobalContext->rasterFillerStorage->edgeCount();
+#endif
 }
 
 OpEdge* OpDebugEdgeIter::operator*() {
@@ -269,6 +273,18 @@ OpEdge* OpDebugEdgeIter::operator*() {
 		}
 		index += debugGlobalContext->ccStorage->edgeCount();
 	}
+#if OP_TEST_RASTER
+	if (debugGlobalContext->rasterFillerStorage) {
+		OpEdge* filler = debugGlobalContext->rasterFillerStorage->edgeIndex(edgeIndex - index);
+		if (filler) {
+			isCurveCurve = false;
+			isFiller = true;
+			isLine = true;
+			return filler;
+		}
+		index += debugGlobalContext->rasterFillerStorage->edgeCount();
+	}
+#endif
 	OpDebugOut("iterator out of bounds! edgeIndex: " + STR(edgeIndex) + 
 			"; max index: " + STR(index) + "\n");
 	return nullptr; 
@@ -629,10 +645,6 @@ OpCurve OpCurve::toVerticalDouble(const LinePts& line) const {
 
 #if OP_DEBUGGER
 OpDPoint OpCurve::debugPtAtDT(double t) const {
-	if (0 == t)
-		return firstPt();
-	if (1 == t)
-		return lastPt();
 	PathOpsV0Lib::DebugPtAtDT funcPtr = context().debugCallback(c).ptAtDTFuncPtr;
 	OpDPoint result;
     if (funcPtr)

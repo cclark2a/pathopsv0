@@ -26,7 +26,8 @@ void OpContour::addMerge(OpContour* opp) {
 void OpContour::addEdges() {
 	for (auto& segment : segments) {
 		for (auto& edge : segment.edges) {
-			if (edge.disabled && (!edge.centerless || !edge.winding.visible()))
+			if (edge.disabled 
+                    && (!edge.centerless || !edge.winding.visible()) && edge.coinPals.empty())
 				continue;
 			const OpRect& edgeBounds = edge.curve.callerBounds();
 			if (edgeBounds.height())
@@ -245,16 +246,16 @@ void OpContour::buildCenterless() {
 	centerlessBuilt = true;
 }
 
-void OpContour::buildCoinPals() {
+void OpContour::buildCoincPals() {
 	for (auto& segment : segments) {
 		for (auto& e : segment.edges) {
 			if (!e.disabled || !e.isSortable() || e.hasPals())
 				continue;
 			if (e.coinPals.size()) // entire segment is not coincident; partial is
-				coinPals.push_back(&e);
+				coincPals.push_back(&e);
 		}
 	}
-	coinPalsBuilt = true;
+	coincPalsBuilt = true;
 }
 
 void OpContour::buildDisabled() {
@@ -324,6 +325,8 @@ void OpContour::clearSegments() {
     }
 }
 
+#if 0
+// sole caller can do simpler test
 EdgesLoop OpContour::IsLoop(std::vector<LoopCheck>& edges, OpEdge* e, EdgeMatch loopMatch) {
 	OpEdge* test = e;
 	// walk forwards to end, keeping one point per edge
@@ -332,33 +335,106 @@ EdgesLoop OpContour::IsLoop(std::vector<LoopCheck>& edges, OpEdge* e, EdgeMatch 
 		if (edges.end() != std::find_if(edges.begin(), edges.end(), 
 				[&test](const LoopCheck& check) { return check.edge == test; } ))
 			return EdgesLoop::tail;
-		edges.emplace_back(test, loopMatch);
+		edges.emplace_back(test, !loopMatch);
 		test = EdgeMatch::start == loopMatch ? test->nextEdge : test->priorEdge;
 		if (e == test)
 			return EdgesLoop::simple;
 	}
 	return EdgesLoop::no;
 }
+#endif
 
 // iterate edges to see some pt forms a loop
 // if so, detach remaining chain and close loop
 // check if any points in next links are in previous links
+// At first glance, it may seem that this should never detach part of a loop and leave something 
+// left over, since the caller should have detected the beginning and end of the loop. However, the
+// caller may prioritize different edges as being candidates of more or less importance, so if a 
+// less important candidate (e.g., centerless) is needed to complete a loop but higher priority 
+// edges (e.g. linkups) make another loop first, that second loop may be output and leave the 'tail'
+// to be resolved later. 
 // !!! TODO : find direction of loop at add 'reverse' param to output if needed
 //     direction should consider whether edge normal points to inside or outside
 bool OpContour::detachIfLoop(OpJoiner* joiner, OpEdge* e, std::vector<OpEdge*>* erasures,
 		EdgeMatch loopMatch) {
     if (context->windingCallbacks.windingWoundFuncPtr)
         return false;
-    std::vector<LoopCheck> edges;
-	if (EdgesLoop::simple == IsLoop(edges, e, loopMatch)) {	// if this forms a loop, there's nothing to detach, return success
-        EdgeOutput edgeOutput(context, e, true);
+    OpEdge* first = e->advanceToEnd(EdgeMatch::start);
+    // if this forms a loop, there's nothing to detach, return success
+	if (first->whichCurvePt() == first->lastEdge->whichCurvePt(EdgeMatch::end)) {	
+        EdgeOutput edgeOutput(context, first, true);
 		OP_DEBUG_VALIDATE_CODE(joiner->debugValidate());
 		return true;
 	}
+    std::vector<LoopCheck> startEdges;
+    std::vector<LoopCheck> endEdges;
+    auto checkEndsForLoop = [first](std::vector<LoopCheck>& edges, EdgeMatch match) {
+        OpEdge* test = first;
+        int linkIndex = 0;
+        for (;;) {
+            OP_ASSERT(edges.end() == std::find_if(edges.begin(), edges.end(), 
+                [test](const LoopCheck& check) { return check.edge == test; }));
+            edges.emplace_back(test, match, linkIndex++);
+            if (test == first->lastEdge)
+                break;
+            test = test->nextEdge;
+            OP_ASSERT(test);
+        }
+        std::sort(edges.begin(), edges.end());
+        LoopCheck* loopLast = &edges.front();
+        for (size_t loopIndex = 1; loopIndex < edges.size(); ++loopIndex) {
+            LoopCheck* loopTest = &edges[loopIndex];
+            if (loopLast->pt == loopTest->pt)
+                return loopIndex;
+            loopLast = loopTest;
+        }
+        return 0UL;
+    };
+    size_t startTail = checkEndsForLoop(startEdges, EdgeMatch::end);
+    size_t endTail = checkEndsForLoop(endEdges, EdgeMatch::start);
+    if (!startTail && !endTail)
+        return false;
+    first->clearLast();
+    auto detachEdge = [](OpEdge* tail) {
+        OpEdge* next = tail->nextEdge;
+        OP_ASSERT(next);
+        tail->clearNextEdge();
+        next->clearPriorEdge();
+        return next;
+    };
+    auto eraseErasure = [&erasures](OpEdge* keep) {
+        if (erasures) {
+            auto iter = std::find(erasures->begin(), erasures->end(), keep);
+            if (erasures->end() != iter)
+                erasures->erase(iter);
+        }
+    };
+    OpEdge* loopStart = first;
+    if (startTail) {
+        loopStart = detachEdge(startEdges[--startTail].edge);
+        eraseErasure(first);
+    } 
+    if (endTail) {
+        OpEdge* ender = detachEdge(endEdges[endTail].edge->priorEdge);
+        eraseErasure(ender);
+        addToLinkups(joiner, ender);
+    }
+    EdgeOutput edgeOutput(loopStart->context(), loopStart, true);
+    return true;
+#if 0
+    OpNop();  // more code to write
+    // detach linked edges before loop start, if any
+    ;
+    // connect loop to itself and send to output
+    ;
+
+    // if loop was output, detach edges following loop end
+
 	// walk backwards to start
-	std::sort(edges.begin(), edges.end());
-	auto detachEdge = [this, joiner, erasures](OpEdge* e, EdgeMatch match) {
+	auto detachEdge = [this, first, joiner, erasures](OpEdge* e, EdgeMatch match) {
 		if (OpEdge* detach = EdgeMatch::start == match ? e->priorEdge : e->nextEdge) {
+            OpEdge* last = first->lastEdge;
+            OpEdge* cleared = EdgeMatch::start == match ? detach->nextEdge : detach->priorEdge;
 			EdgeMatch::start == match ? detach->clearNextEdge() : detach->clearPriorEdge();
 			if (!detach->isSortable() && !detach->priorEdge && !detach->nextEdge)
 				return;
@@ -367,36 +443,33 @@ bool OpContour::detachIfLoop(OpJoiner* joiner, OpEdge* e, std::vector<OpEdge*>* 
 				if (erasures->end() != iter)
 					erasures->erase(iter);
 			}
+    #if 0
 			detach->setLastLink(match);
+    #elif 0
+            detach->setSplitLast(first, last, cleared);
+    #endif
 			addToLinkups(joiner, detach);	// return front edge
 		}
 	};
-	auto detachNext = [detachEdge](OpEdge* test, OpEdge* oppEdge) {
-		detachEdge(test, EdgeMatch::end);
-		detachEdge(oppEdge, EdgeMatch::start);
-		test->setNextEdge(oppEdge);
-		oppEdge->setPriorEdge(test);
-        EdgeOutput edgeOutput(test->context(), test, true);
+	auto detachLoop = [detachEdge](OpEdge* loopStart, OpEdge* loopEnd) {
+		detachEdge(loopStart, EdgeMatch::start);
+		detachEdge(loopEnd, EdgeMatch::end);
+		loopStart->setPriorEdge(loopEnd);
+		loopEnd->setNextEdge(loopStart);
+        EdgeOutput edgeOutput(loopStart->context(), loopStart, true);
 		return true;
 	};
-	auto detachPrior = [detachEdge](OpEdge* test, OpEdge* oppEdge) {
-		detachEdge(test, EdgeMatch::start);
-		detachEdge(oppEdge, EdgeMatch::end);
-		test->setPriorEdge(oppEdge);
-		oppEdge->setNextEdge(test);
-        EdgeOutput edgeOutput(test->context(), test, true);
-		return true;
-	};
-	OpEdge* test = e;
-	while ((test = (EdgeMatch::start == loopMatch ? test->priorEdge : test->nextEdge)) && e != test) {
-		LoopCheck testCheck(test, !loopMatch);
-		if (auto bound = std::lower_bound(edges.begin(), edges.end(), testCheck); 
-				bound != edges.end() && bound->pt == testCheck.pt)
-			return EdgeMatch::start == loopMatch ? detachNext(bound->edge, test) : 
-					detachPrior(bound->edge, test);
+	OpEdge* testEdge = first;
+	while ((testEdge = testEdge->nextEdge)) {
+		LoopCheck testCheck(testEdge, EdgeMatch::start);
+		if (auto bound = std::lower_bound(startEdges.begin(), startEdges.end(), testCheck); 
+				bound != startEdges.end() && bound->pt == testCheck.pt)
+			return EdgeMatch::start == loopMatch ? detachLoop(bound->edge, testEdge) : 
+					detachLoop(testEdge, bound->edge);
 	}
 	OP_DEBUG_VALIDATE_CODE(joiner->debugValidate());
 	return false;
+#endif
 }
 
 // !!! bare minimum to fix cubic129075 (experiment)
@@ -774,7 +847,7 @@ void OpContour::init() {
 	treeID = 0;  // tracks if contour has been initialized in this tree's context (for edge 'seen')
 	backwardsBuilt = false;
 	centerlessBuilt = false;
-	coinPalsBuilt = false;
+	coincPalsBuilt = false;
 	disabledBuilt = false;
 	hasPals = false;
 	palsBuilt = false;
@@ -799,7 +872,7 @@ int OpContour::nextID() const {
 
 void OpContour::setSeen(int tree_id) {
 	treeID = tree_id;
-	for (auto& testArray : {linkups.l, smallEdges, unsortables, unsectByArea, coinPals, disabledCenterless,
+	for (auto& testArray : {linkups.l, smallEdges, unsortables, unsectByArea, coincPals, disabledCenterless,
 			disabledPals } ) {
 		for (OpEdge* test : testArray) {
 			test->startSeen = false;

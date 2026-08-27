@@ -80,6 +80,10 @@ OpRoots OpCurve::axisRayHit(Axis axis, float axisIntercept, float start, float e
 	return roots;
 }
 
+OpPoint OpCurve::callerPt(EdgeMatch match) const {
+	return match == EdgeMatch::end ? callerLast() : callerFirst();
+}
+
 float OpCurve::center(Axis axis, float intercept) const {
 	OpRoots roots;
 	if (OpMath::Between(c.data->start.choice(axis), intercept, c.data->end.choice(axis)))
@@ -120,6 +124,7 @@ float OpCurve::closest(OpPoint pt, OpVector threshold) const {
 	addRoot(Axis::horizontal, bottomRight.y);
 	addRoot(Axis::vertical, topLeft.x);
 	addRoot(Axis::vertical, bottomRight.x);
+	return roots.average();
 #else
     // try putting the error term in the bounds test instead
     OpRect bounds = callerBounds();
@@ -133,6 +138,7 @@ float OpCurve::closest(OpPoint pt, OpVector threshold) const {
         return 1;
     OpRoots roots;
 	auto addRoot = [&roots, pt, threshold, this](Axis axis, float value) {
+        // !!! may need to outset t range to -OpEpsilon, 1 + OpEpsilon or something similar
         OpRoots testRoots = axisRayHit(axis, value);
         for (float testRoot : testRoots.roots) {
             OpPoint testPt = ptAtT(testRoot);
@@ -142,8 +148,8 @@ float OpCurve::closest(OpPoint pt, OpVector threshold) const {
     };
     addRoot(Axis::horizontal, pt.y);
     addRoot(Axis::vertical, pt.x);
-#endif
 	return roots.average();
+#endif
 }
 
 #if 0
@@ -800,8 +806,10 @@ OpPoint OpCurve::whichAlias(EdgeMatch match) const {
 	return match == EdgeMatch::end ? end : start;
 }
 
+// This should use resolved start / end points, as required by joiner when determining that edges
+// form a loop. If user requires caller points, create a separate function for that.
 OpPoint OpCurve::whichPt(EdgeMatch match) const {
 // match may be 'none' if curve was disabled but found in disabled join pass (testCubics56146)
 //	OP_ASSERT(match == EdgeMatch::start || match == EdgeMatch::end);
-	return match == EdgeMatch::end ? c.data->end : c.data->start;
+	return match == EdgeMatch::end ? end : start;
 }

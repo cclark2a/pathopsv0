@@ -1744,6 +1744,7 @@ void OpCurveCurve::findUnsectable() {
         if (candidateOnLine(seg, limit.segPtT, CurveRef::edge)
                 && candidateOnLine(opp, limit.oppPtT, CurveRef::opp))
             return;
+//        OpBreak2(seg, opp, 3, 22);
 		OpIntersection* sect = seg->addSegBase(limit.segPtT  OP_LINE_FILE_PARAMS(opp));
 		sect->ccLine = LimitLine::yes == limit.edgeLine;
 		OpIntersection* oSect = opp->addSegBase(limit.oppPtT  OP_LINE_FILE_PARAMS(seg));

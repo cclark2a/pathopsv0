@@ -33,7 +33,7 @@ void HelpWindow::update() {
     };
     std::string shortCuts = "\x01\x02\x03\x04" 
             "aAbBcCdDeEfFgGhHiIjJkKlLmMnNoOpPqQrRsStTuUvVwWxXuyYzZ"
-            "0123456789-~[]?";
+            "@0123456789-~?";
     for (char c : shortCuts) {
         event.key = c;
         nextLine(debuggerState->keyEvent(event, KeyAction::show).s);

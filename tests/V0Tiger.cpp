@@ -171,8 +171,10 @@ if (testlines & (1LL << i++)) path.close();
     return options->testOne(path);
 }
 
+#define ULL(x) x##ULL
+
 static void tiger8a_h_1(TestOptions* options) {
-    uint64_t testlines = 430771915762;
+    uint64_t testlines = ULL(274035693768);
     tiger8a_x(options, testlines);
 }
 
@@ -220,6 +222,11 @@ if (testlines & (1LL << i++)) path.close();
     return options->testOne(path);
 }
 
+static void tiger8b_h_1(TestOptions* options) {
+    uint64_t testlines = ULL(171655792639);
+    tiger8b_x(options, testlines);
+}
+
 static void tiger_threaded(TestOptions* options) {
     for (int ab = 0; ab < 2; ++ab) {
         SkRandom r;
@@ -242,11 +249,6 @@ static void tiger_threaded(TestOptions* options) {
             }
         }
     }
-}
-
-static void tiger8b_h_1(TestOptions* options) {
-    uint64_t testlines = 15877690538;
-    tiger8b_x(options, testlines);
 }
 
 // tries to add same edge twice

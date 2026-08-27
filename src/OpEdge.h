@@ -414,7 +414,6 @@ private:
 #if OP_DEBUG_DUMP
 		dumpContext = nullptr;
 		debugLimb = false;
-		debugReleased = false;
 #endif
 #if OP_DEBUG_VALIDATE
 		debugScheduledForErasure = false;
@@ -451,8 +450,8 @@ public:
 	OpContext* context() const;
 	OpPtT endPtT() const { return OpPtT(endPt(), endT); }
 	OpPoint endPt() const { return curve.lastPt(); }
-	OpPtT flipPtT(EdgeMatch match) const { 
-		return match == which() ? endPtT() : startPtT(); }
+//	OpPtT flipPtT(EdgeMatch match) const { 
+//		return match == which() ? endPtT() : startPtT(); }
 	bool hasLinkTo(EdgeMatch match) const { 
 		return EdgeMatch::start == match ? priorEdge : nextEdge; }
 	bool hasPals() const { 
@@ -495,6 +494,7 @@ public:
 	void setNextEdge(OpEdge* );  // setter exists so debug breakpoints can be set
 //	void setPointBounds();
 	void setPriorEdge(OpEdge* );  // setter exists so debug breakpoints can be set
+//    void setSplitLast(OpEdge* first, OpEdge* last, OpEdge* clearedLink);
 	void setSum(const OpWinding&  OP_LINE_FILE_ARGS());  // called by macro SET_SUM
 	void setUnsortable(Unsortable );  // setter exists so debug breakpoints can be set
 	const OpCurve& setVertical(const LinePts& , MatchEnds);
@@ -510,6 +510,8 @@ public:
 		return whichEnd_impl; }
 	EdgeMatch which(EdgeMatch match) const {
 		return EdgeMatch::start == match ? whichEnd_impl : !whichEnd_impl; }
+	OpPoint whichCallerPt(EdgeMatch match = EdgeMatch::start) const { 
+		return curve.callerPt(which(match)); }
 	OpPoint whichCurvePt(EdgeMatch match = EdgeMatch::start) const { 
 		return curve.whichPt(which(match)); }
     OpPtT whichSect(EdgeMatch match = EdgeMatch::start) const;
@@ -605,7 +607,6 @@ public:
 #if OP_DEBUG_DUMP
 	OpContext* dumpContext;  // temporary edges don't have segment ptrs when unflattened
 	bool debugLimb;  // true if a part of tree
-	bool debugReleased;  // true if (filler storage has been) deleted
 #endif
 OP_LINE_FILE_DECLARE(debugSetDisabled)
 OP_LINE_FILE_DECLARE(debugSetMaker)
@@ -622,6 +623,9 @@ OP_LINE_FILE_DECLARE(debugSetSum)
 enum class DumpStorage {
 	cc,
 	filler,
+#if OP_TEST_RASTER
+    rasterFiller,
+#endif
 };
 #endif
 
@@ -630,9 +634,6 @@ struct OpEdgeStorage {
 		: next(nullptr)
 		, used(0) {
 	}
-	bool contains(OpIntersection* start, OpIntersection* end) const;
-	bool containsPts(OpPoint start, OpPoint end) const;
-	bool contains(int ccUnsectableID) const;
 	int edgeCount() const;
 	OpEdge* edgeIndex(int index) const;
 	void reuse();
@@ -645,9 +646,6 @@ struct OpEdgeStorage {
 //	OpEdge* debugIndex(int index) const;
 #endif
 	DUMP_DECLARATIONS
-#if OP_DEBUG_DUMP  // keep deleted edges so raster sample can reference them
-	void debugRelease();
-#endif
 
 	OpEdgeStorage* next;
 	OpEdge storage[256];

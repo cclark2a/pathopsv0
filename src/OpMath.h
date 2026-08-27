@@ -577,7 +577,7 @@ struct OpDVector {
 		dy += v.dy;
 	}
 
-	void operator*=(float s) {
+	void operator*=(double s) {
 		dx *= s;
 		dy *= s;
 	}
@@ -588,10 +588,14 @@ struct OpDVector {
 		return result;
 	}
 
-	OpDVector operator*(float s) {
+	OpDVector operator*(double s) const {
 		OpDVector result = *this;
 		result *= s;
 		return result;
+	}
+
+	friend OpDVector operator*(double a, const OpDVector& b) {  // must be const ref to disambiguate
+		return { a * b.dx, a * b.dy };
 	}
 
 	double cross(OpDVector a) const {
@@ -613,6 +617,11 @@ struct OpDVector {
 };
 
 struct OpDPoint {
+    OpDPoint() : 
+        x(OpNaN), 
+        y(OpNaN) {
+    }
+
     OpDPoint(double _x, double _y) :
         x(_x),
         y(_y) {
@@ -623,14 +632,12 @@ struct OpDPoint {
         y(pt.y) {
     }
 
-    OpDPoint() : 
-        x(OpNaN), 
-        y(OpNaN) {
-    }
+	friend OpDVector operator-(OpDPoint a, OpDPoint b) {
+		return { a.x - b.x, a.y - b.y };
+	}
 
-	void operator+=(OpDVector v) {
-		x += v.dx;
-		y += v.dy;
+	friend OpDPoint operator+(const OpDPoint& a, OpDVector b) {  // must be const ref to disambiguate
+		return { a.x + b.dx, a.y + b.dy };
 	}
 
     friend bool operator==(OpDPoint a, OpDPoint b) {
@@ -641,8 +648,56 @@ struct OpDPoint {
 		return a.x != b.x || a.y != b.y;
 	}
 
-	friend OpDVector operator-(OpDPoint a, OpDPoint b) {
-		return { a.x - b.x, a.y - b.y };
+	void operator+=(OpDVector v) {
+		x += v.dx;
+		y += v.dy;
+	}
+
+	void operator+=(OpDPoint v) {
+		x += v.x;
+		y += v.y;
+	}
+
+	void operator*=(double s) {
+		x *= s;
+		y *= s;
+	}
+
+	void operator*=(OpDVector v) {
+		x *= v.dx;
+		y *= v.dy;
+	}
+
+	OpDPoint operator+(OpDVector v) {
+		OpDPoint result = *this;
+		result += v;
+		return result;
+	}
+
+	OpDPoint operator+(OpDPoint v) {
+		OpDPoint result = *this;
+		result += v;
+		return result;
+	}
+
+	OpDPoint operator*(double s) {
+		OpDPoint result = *this;
+		result *= s;
+		return result;
+	}
+
+	OpDPoint operator*(OpDVector v) {
+		OpDPoint result = *this;
+		result *= v;
+		return result;
+	}
+
+	friend OpDPoint operator*(double a, const OpDPoint& b) {  // must be const ref to disambiguate
+		return { a * b.x, a * b.y };
+	}
+
+	friend OpDPoint operator*(const OpDPoint& b, double a) {  // must be const ref to disambiguate
+		return { a * b.x, a * b.y };
 	}
 
     double choice(Axis axis) {

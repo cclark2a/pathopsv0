@@ -406,13 +406,16 @@ FindCept SectRay::findCept(OpEdge* test, AllowTooManyRetries allow) {
 		return FindCept::ok;
 	if (test->curve.start.isFinite() || test->curve.end.isFinite()) {
 		// check if axis at normal is between ends of nearly coincident edges (testQuad2558209)
+        // !!! can coin pals have opposite edge instead of segment ?
 		for (const CoinPal& pal : test->coinPals) {
 			bool palsReversed = pal.coinID < 0;
 			for (const OpEdge& palEdge : pal.opp->edges) {
 				if (palEdge.disabled)
 					continue;
+#if 0  // !!! not sure; this seems like overreach; disallows truly coincident edges (op/testRect2)
 				if (&palEdge == home)
 					return FindCept::retry;
+#endif
 				if (std::none_of(palEdge.coinPals.begin(), palEdge.coinPals.end(),
 						[pal](const CoinPal& oPal) { return oPal == pal; } ))
 					continue;
@@ -425,13 +428,14 @@ FindCept SectRay::findCept(OpEdge* test, AllowTooManyRetries allow) {
 		#endif
 //				OP_ASSERT(test->startPt().isNearly(palEdge.startPt(), test->context()->threshold)
 //						|| palsReversed);
-				OpPoint testStart = test->curve.firstPt();
-				OpPoint oppStart = palsReversed ? palEdge.curve.lastPt() : palEdge.curve.firstPt();
+				OpPoint testStart = test->curve.callerFirst();
+                const OpCurve& palCurve = palEdge.curve;
+				OpPoint oppStart = palsReversed ? palCurve.callerLast() : palCurve.callerFirst();
 				if (testStart != oppStart 
 						&& OpMath::Between(testStart.choice(axis), normal, oppStart.choice(axis)))
 					return FindCept::retry;
-				OpPoint testEnd = test->curve.lastPt();
-				OpPoint oppEnd = palsReversed ? palEdge.curve.firstPt() : palEdge.curve.lastPt();
+				OpPoint testEnd = test->curve.callerLast();
+				OpPoint oppEnd = palsReversed ? palCurve.callerFirst() : palCurve.callerLast();
 				if (testEnd != oppEnd 
 						&& OpMath::Between(testEnd.choice(axis), normal, oppEnd.choice(axis)))
 					return FindCept::retry;

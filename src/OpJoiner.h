@@ -151,8 +151,6 @@ struct OpTree {
 	OpEdge* addFiller(OpSegment* , OpPoint , OpPoint , FillerGap );
 //	void addUnsectableLoop(OpJoiner& , OpLimb* );
 	bool contains(OpLimb* , OpEdge* ) const;
-	bool containsFiller(OpLimb* , OpPoint , OpPoint ) const;
-	bool containsFiller(int ccUnsectableID) const;
 	bool containsParent(OpLimb* , OpEdge* , EdgeMatch ) const;
 	bool deepContains(const OpLimb* , OpEdge* , EdgeMatch ) const;
 	bool exhausted();

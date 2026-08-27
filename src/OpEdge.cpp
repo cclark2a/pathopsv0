@@ -6,6 +6,9 @@
 #include "OpJoiner.h"
 #include "PathOps.h"
 #endif
+#if OP_TEST_RASTER
+#include "OpDebugRaster.h"
+#endif
 
 // don't add if points are close
 // prefer end if types are different
@@ -608,10 +611,16 @@ bool OpEdge::isKept() const {
 
 void OpEdge::linkToEdge(FoundEdge& found, EdgeMatch match) {
 	OpEdge* oppEdge = found.edge;
-	advanceToEnd(EdgeMatch::start)->clearLast();
+	OP_ASSERT(oppEdge != this);
+    OpEdge* firstEdge = advanceToEnd(EdgeMatch::start);
+    OpEdge* testEdge = firstEdge;
+    bool notLoop = true;
+    do {
+        testEdge = testEdge->nextEdge;
+    } while (testEdge && (notLoop = oppEdge != testEdge));
+	firstEdge->clearLast();
 	oppEdge->advanceToEnd(EdgeMatch::start)->clearLast();
 //	OP_ASSERT(!oppEdge->hasLinkTo(match));  // !!! doesn't make sense -- opp match is unknown
-	OP_ASSERT(oppEdge != this);
 	const OpPoint edgePt = whichSect(match).pt;
 	if (EdgeMatch::start == match) {
 		OP_ASSERT(!priorEdge);
@@ -635,11 +644,15 @@ void OpEdge::linkToEdge(FoundEdge& found, EdgeMatch match) {
 		OP_ASSERT(startFoundMatch != endFoundMatch);
 		oppEdge->setWhich(startFoundMatch ? !match : match);
 	}
+    if (notLoop)
+        updateLastEdge();
+#if 0
     std::vector<LoopCheck> edges;
 	EdgesLoop edgesLoop = OpContour::IsLoop(edges, oppEdge, match);
 	if (EdgesLoop::no == edgesLoop)
 		updateLastEdge();
 	OP_ASSERT(EdgesLoop::tail != edgesLoop);  // !!! if triggered, more code to write
+#endif
 }
 
 float OpEdge::margin() const {
@@ -758,16 +771,19 @@ bool OpEdge::outputLinkedList() {
 // if so, mark edges accordingly and reuse to build next linked list
 // !!! tracking must be used for cut or some other new frame fill, but unsure if it still works...
 void OpEdge::outputLink(OpEdge* firstEdge, bool closeLoop) {
-//	OpBreak(this, 41435);
 	OpCurve copy(curve.c, Rotated::no);
 	if (EdgeMatch::end == which())
 		copy.reverse();
 	bool last = !nextEdge || firstEdge == nextEdge;
 	OpEdge* nextPtEdge = nextEdge ? nextEdge : firstEdge;
-	OpPoint nextPt = nextPtEdge->whichCurvePt();
-	bool addFiller = nextPt != copy.lastPt();
+	OpPoint nextPt = nextPtEdge->whichCallerPt();
+	bool addFiller = nextPt != copy.callerLast();
 	PathOpsV0Lib::WindKeep keep = copy.output(winding.w, this == firstEdge, last && !addFiller 
             OP_DEBUG_RASTER_PARAMS(this));
+#if 0 && OP_TEST_RASTER
+    if (nextEdge && copy.callerLast() != nextPt)
+        context()->addRasterFiller(copy.callerLast(), nextPt, segment);
+#endif
     if (PathOpsV0Lib::WindKeep::Discard == keep) {
 	    inOutput = true;
 	    clearActiveAndPals(OP_LINE_FILE_NPARGS());
@@ -778,7 +794,7 @@ void OpEdge::outputLink(OpEdge* firstEdge, bool closeLoop) {
 	    clearNextEdge();	    
     }
 	if (addFiller && (!last || !closeLoop)) {
-		OpEdge* filler = context()->addFiller(copy.lastPt(), nextPt, segment);
+		OpEdge* filler = context()->addFiller(copy.callerLast(), nextPt, segment);
     	filler->curve.output(winding.w, false, last  OP_DEBUG_RASTER_PARAMS(filler));
 	}
 }
@@ -813,6 +829,15 @@ void OpEdge::setLast(OpEdge* first, OpEdge* last, InOutput inOut) {
 		newContour->addLast(this);
 	setLinkBounds();
 }
+
+#if 0
+// called only when linked list is split in two so that part can be loop
+void OpEdge::setSplitLast(OpEdge* first, OpEdge* last, OpEdge* clearedLink) {
+    OP_ASSERT(!lastEdge);
+    OP_ASSERT(!last->nextEdge);
+    OpNop();
+}
+#endif
 
 void OpEdge::setLastEdge(OpEdge* last) {  // !!! to allow setting breakpoints at runtime
 	lastEdge = last;
@@ -987,52 +1012,6 @@ void OpEdge::unlink() {
 	setWhich(EdgeMatch::start);  // !!! should this set to none?
 }
 
-#if 0
-bool OpEdge::unsectableSeen(EdgeMatch match) const {
-	for (const EdgePal& pal : pals) {
-		if (pal.reversed == (EdgeMatch::end == match) ? pal.edge->startSeen : pal.edge->endSeen)
-			return true;
-	}
-	return false;
-}
-#endif
-
-#if 0
-bool OpEdgeStorage::contains(OpIntersection* start, OpIntersection* end) const {
-	for (size_t index = 0; index < used; index++) {
-		const OpEdge* test = &storage[index];
-		if (test->segment == start->segment && test->start() == start->ptT
-				&& test->end() == end->ptT)
-			return true;
-	}
-	if (!next)
-		return false;
-	return next->contains(start, end);
-}
-#endif
-
-bool OpEdgeStorage::containsPts(OpPoint start, OpPoint end) const {
-	for (int index = 0; index < used; index++) {
-		const OpEdge* test = &storage[index];
-		if (test->startPt() == start && test->endPt() == end)
-			return true;
-	}
-	if (!next)
-		return false;
-	return next->containsPts(start, end);
-}
-
-bool OpEdgeStorage::contains(int ccUnsectableID) const {
-	for (int index = 0; index < used; index++) {
-		const OpEdge* test = &storage[index];
-		if (test->ccUnsectID == ccUnsectableID)
-			return true;
-	}
-	if (!next)
-		return false;
-	return next->contains(ccUnsectableID);
-}
-
 // don't count curve that hasn't been built
 int OpEdgeStorage::edgeCount() const {
 	const OpEdge* last = edgeIndex(used - 1);
@@ -1063,19 +1042,6 @@ OpEdge* OpEdgeStorage::edgeIndex(int edgeIndex) const {
     }
     return nullptr;
 }
-
-
-#if OP_DEBUG_DUMP
-void OpEdgeStorage::debugRelease() {
-	for (int index = 0; index < used; ++index) {
-		OpEdge& edge = storage[index];
-		edge.debugReleased = true;
-	}
-	if (!next)
-		return;
-	return next->debugRelease();
-}
-#endif
 
 void OpEdgeStorage::reuse() {
 	OP_ASSERT(0);  // !!! not plumbed in, yet
