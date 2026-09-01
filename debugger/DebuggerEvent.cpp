@@ -33,7 +33,7 @@ int DebuggerState::count(IDType idType) const {
                 OpContourIterator contourIter(context);
                 for (auto contour : contourIter) {
                     for (auto segment :  contour->segments) {
-                        result += (int) segment.edges.size();
+                        result += (int) segment.edgeList.size();
                     }
                 }
             }

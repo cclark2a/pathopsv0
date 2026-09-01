@@ -367,6 +367,15 @@ void SectRay::checkOrder() {
 				OP_DEBUG_CODE((priorDist - 1)->edge->debugUnordered = true);
 			}
 		}
+#if CHECK_SNIP
+        // reference id in edges set by intersection snip to find unordered
+        if (last->snipped && prior->snipped) {
+            if (OpIntersections::SnippedBy(last->segment, prior->segment, normal, axis)) {
+                dist->rayOrder = RayOrder::unordered;
+                (dist + 1)->rayOrder = RayOrder::unordered;
+            }
+        }
+#endif
 	}
 }
 
@@ -409,7 +418,7 @@ FindCept SectRay::findCept(OpEdge* test, AllowTooManyRetries allow) {
         // !!! can coin pals have opposite edge instead of segment ?
 		for (const CoinPal& pal : test->coinPals) {
 			bool palsReversed = pal.coinID < 0;
-			for (const OpEdge& palEdge : pal.opp->edges) {
+			for (const OpEdge& palEdge : pal.opp->edgeList) {
 				if (palEdge.disabled)
 					continue;
 #if 0  // !!! not sure; this seems like overreach; disallows truly coincident edges (op/testRect2)
@@ -1282,7 +1291,7 @@ FoundWindings OpWinder::SetWindings(OpContext& context) {
 			// at very least, it should only consider contours edges intersect
 			for (auto contour : context.contours) {
 				for (auto& segment : contour->segments) {
-					for (auto& edge : segment.edges) {
+					for (auto& edge : segment.edgeList) {
 						if (edge.disabled)
 							continue;
 						SectRay& ray = edge.ray;
@@ -1321,7 +1330,7 @@ FoundWindings OpWinder::SetWindings(OpContext& context) {
 	// if a pair of pals share an edge, this puts each in the other's pal list
 	for (auto contour : context.contours) {
 		for (auto& segment : contour->segments) {
-			for (auto& edge : segment.edges) {
+			for (auto& edge : segment.edgeList) {
 					// copy pals if reciprocal, and points to other pals (thread_cubics2247347)
 				std::vector<EdgePal>& pals = edge.pals;
 				std::vector<EdgePal*> reciprocals;
@@ -1374,7 +1383,7 @@ FoundWindings OpWinder::SetWindings(OpContext& context) {
 //			OP_ASSERT(!contour->isSorted(axis));
 //			contour->setSorted(axis);
 			for (auto& segment : contour->segments) {
-				for (auto& edge : segment.edges) {
+				for (auto& edge : segment.edgeList) {
 					if (edge.disabled)
 						continue;
 					if (axis != edge.ray.axis)
@@ -1406,7 +1415,7 @@ FoundWindings OpWinder::SetWindings(OpContext& context) {
 	}
 	for (auto contour : context.contours) {
 		for (auto& segment : contour->segments) {
-			for (auto& edge : segment.edges) {
+			for (auto& edge : segment.edgeList) {
 				if (edge.disabled)
 					continue;
 				if (edge.centerless)

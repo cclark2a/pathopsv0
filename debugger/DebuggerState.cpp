@@ -347,7 +347,7 @@ void DebuggerState::setIDTypes() {
             ids.emplace_back(contour, index);
         for (const auto& seg : contour->segments) {
             ids.emplace_back(&seg);
-			for (auto& edge : seg.edges) {
+			for (auto& edge : seg.edgeList) {
                 pushEdge(&edge);
 			}
             for (const auto& sect : seg.sects.i) {

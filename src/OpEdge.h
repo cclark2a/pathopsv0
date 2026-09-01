@@ -594,6 +594,9 @@ public:
 	bool unsectableStart;  // set if start intersection has an unsectable id
 	bool unsectableEnd;  // set if end intersection has an unsectable id
 	bool unsummable;  // set if ray through adjacent edge is too close
+#if CHECK_SNIP
+    bool snipped;  // set if intersections that made it were snipped
+#endif
 #if OP_DEBUG || OP_DEBUGGER
 	OpEdge* debugMatch;  // left side of nonzero ray from this edge
 	OpEdge* debugZeroErr;  // debug match ray found edge that does not match -- diagnostic for now

@@ -124,16 +124,24 @@ FoundIntersections OpSegments::addLineCurveIntersection(OpSegment* opp, OpSegmen
 			// i guess record this and defer until after coin/unsect has been checked
 		if (cc.limits.alreadyIn(edgePtT, oppPtT))
 			continue;
+    #if CHECK_SNIP
 		bool skipIt = false;
+        // !!! because crossover is inside snip, line / line intersection is missed
+        //     later in winding, ray goes between limit and snip
+        //     keep computed snip in intersection so that ray can skip it?
 		for (const SnipPtTs& snip : cc.limits.snips) {
 			if ((snip.segCut.lo.t <= edgePtT.t && edgePtT.t <= snip.segCut.hi.t) 
 					|| (snip.oppCut.lo.t <= oppPtT.t && oppPtT.t <= snip.oppCut.hi.t)) {
+                int snipID = seg->contour->context->nextID();
+                snip.sect->setSnip(snip.segCut, snipID);
+                snip.sect->opp->setSnip(snip.oppCut, snipID);
 				skipIt = true;
 				break;
 			}
 		}
 		if (skipIt)
 			continue;
+    #endif
 		if (seg->sects.contains(edgePtT, opp))
 			continue;
 		if (opp->sects.contains(oppPtT, seg))
@@ -237,6 +245,8 @@ void OpSegments::checkCoins() {
 	for (const DeferredCoinSect& deferred : deferredCoinSects) {
 		OpSegment* seg = deferred.segStart->segment;
 		OpSegment* opp = deferred.segStart->opp->segment;
+        if (seg->disabled || opp->disabled)
+            continue;
 		OpIntersection* sectS = deferred.segStart;
 		OpIntersection* sectE = deferred.segEnd;
 		std::array<CoinEnd, 4> ends {{{ seg, opp, sectS->ptT, OpVector() }, 
@@ -246,6 +256,8 @@ void OpSegments::checkCoins() {
 		OpWinder::CoincidentCheck(ends, nullptr, nullptr);
 	}
 	for (const DeferredCoinEnd& defEnd : deferredCoinEnds) {
+        if (defEnd.seg->disabled || defEnd.opp->disabled)
+            continue;
 		OpWinder::CoincidentCheck(defEnd.seg, defEnd.opp);
 	}
 	OP_DEBUG_DUMP_CODE(context.dumpFile(__func__));

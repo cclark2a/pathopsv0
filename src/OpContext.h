@@ -179,14 +179,14 @@ struct OpContext {
 
 
 	void makePals() {
-	   for (auto contour : contours) {
+	    for (auto contour : contours) {
 			contour->makePals();
 		}
 		OP_DEBUG_DUMP_CODE(dumpFile(__func__));
 	}
 
 	void manyCoincidences() {
-	   for (auto contour : contours) {
+	    for (auto contour : contours) {
 			contour->manyCoincidences();
 		}
 		OP_DEBUG_DUMP_CODE(dumpFile(__func__));
@@ -212,6 +212,18 @@ struct OpContext {
 	WindingCondition pathOps();
 	void rebuildOverlaps();
 	void release(OpEdgeStorage*& );
+
+    void removeCollapsed() {
+        OP_DEBUG_DUMP_CODE(bool collapsed = false);
+	    for (auto contour : contours) {
+            if (!contour->segCollapsed)
+                continue;
+			contour->removeCollapsed();
+            OP_DEBUG_DUMP_CODE(collapsed = true);
+		}
+		OP_DEBUG_DUMP_CODE(if (collapsed) dumpFile(__func__));
+    }
+
 	void resetLimbs();
 	bool setError(PathOpsV0Lib::ContextError  OP_DEBUG_PARAMS(int id, int id2 = 0));
 	void setSortedBounds();

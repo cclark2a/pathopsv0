@@ -54,6 +54,13 @@ enum class MergeType {
     midPoint
 };
 
+struct CutRangeT {
+	DUMP_DECLARATIONS
+
+	OpPtT lo;
+	OpPtT hi;
+};
+
 // Places where a pair of segments cross are recorded as intersections.
 // Pairs of intersections, along with segments' ends, extremas, and inflections,
 // are used to create edges. Edges may then be subdivided so that each edge has
@@ -85,6 +92,9 @@ struct OpIntersection {
 	void setCoin(int id, MatchEnds end, CoinOpp );  // setter to help debugging
 	bool setMerge(int mergeID, OpPoint mergePt, MergeType);
 	OpRect setMergeBounds(OpVector halfThreshold);
+#if CHECK_SNIP
+    void setSnip(const CutRangeT& snip, int id);
+#endif
 	void setUnsect(int id, MatchEnds end);  // setter to help debugging
 
 	void zeroCoincidence() {
@@ -132,10 +142,16 @@ struct OpIntersection {
 	OpSegment* segment  OP_DEBUG_CODE(=nullptr);
 	OpIntersection* opp = nullptr;
 	OpPtT ptT;  // pt-at-t may be aligned if it or span is small
+#if CHECK_SNIP
+    CutRangeT snipTs;  // range excluded from ray casting because intersections were discarded
+#endif
 	OpPoint callerPt;  // returned by caller's curve at this t
 	int coincidenceID = 0;  // if non-zero, intersection marks range where edges completely overlap
 	int unsectID = 0;  // if non-zero, intersection marks range where edges are too close to call
 	int mergeID = 0;  // if non-zero, intersection pt is nearly equal to adjacent intersection
+#if CHECK_SNIP
+    int snipID = 0;  // if non-zero, another sect is found in snip in line/curve sect test
+#endif
 	// !!! why does coin makes both negative but unsect only makes one negative...
 	MatchEnds coinEnd = MatchEnds::none;  // puts start before end on sort (neg. if pair flipped)
 	MatchEnds unsectEnd = MatchEnds::none;  // one side is negative if pair are flipped
@@ -200,8 +216,12 @@ struct OpIntersections {
 	void orderPairs();
 //	bool outOfOrder() const;
 //	void range(const OpSegment* , std::vector<OpIntersection*>& );
+    void removeCollapsed();
 	bool simpleEnd() const;  // true if array has only one entry with t equal to one
 	bool simpleStart() const;  // true if array has only one entry with t equal to zero
+#if CHECK_SNIP
+    static bool SnippedBy(OpSegment* s1, OpSegment* s2, float normal, Axis );
+#endif
 	void sort();  // 
 	TripleSected tripleSect();  // check for three or more points
 // return intersections that delineate unsectable runs that contain this edge
@@ -224,6 +244,10 @@ struct OpIntersections {
 	bool unsorted = false;
 	bool hasCCSects = false;
 	bool hasPairs = false;
+    bool oppCollapsed = false;  // set true if some opposite segment has collapsed (delete sects)
+#if CHECK_SNIP
+    bool hasSnips = false;
+#endif
 };
 
 // allocating storage separately allows intersections to be immobile and have reliable pointers

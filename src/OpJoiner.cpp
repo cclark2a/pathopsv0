@@ -824,7 +824,7 @@ OpJoiner::OpJoiner(OpContext& contours)
 	OP_DEBUG_PARAMS(debugRecursiveDepth(0)) {
     for (auto contour : contours.contours) {
 		for (auto& segment : contour->segments) {
-			for (auto& e : segment.edges) {
+			for (auto& e : segment.edgeList) {
 				if (e.smallTRange)
 					contour->addSmallEdge(&e);
 				if (e.inOutput)
@@ -957,7 +957,7 @@ OpEdge* OpJoiner::LinkStart(OpEdge* first) {
 //		OP_ASSERT(!opp->disabled);  // !!! may be disabled if tiny -- segment points no longer moved
         if (opp->disabled)
             break;
-		OpEdge* prevEdge = &opp->edges.back();
+		OpEdge* prevEdge = &opp->edgeList.back();
 		if (!prevEdge->isSimple())
 			break;
 		if (!opp->simpleEnd(prevEdge) || prevSect->opp != opp->sects.i.back())
@@ -983,7 +983,7 @@ bool OpJoiner::LinkEnd(OpEdge* first) {
 //		OP_ASSERT(!opp->disabled);  // !!! may be disabled if tiny -- segment points no longer moved
         if (opp->disabled)
             break;
-		OpEdge* nextEdge = &opp->edges.front();
+		OpEdge* nextEdge = &opp->edgeList.front();
 		if (!nextEdge->isSimple())
 			break;
 		if (!opp->simpleStart(nextEdge) || nextSect->opp != opp->sects.i.front())
@@ -1139,10 +1139,6 @@ bool OpJoiner::unsectableLink(OpContour* contour, OpPoint start, OpPoint end) {
 		}
 	}
 	return false;
-}
-
-void LinkUps::clear() {
-    l.clear();
 }
 
 // sort by size to process largest of left (tail) first

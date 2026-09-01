@@ -519,6 +519,7 @@ WindingCondition OpContext::pathOps() {
 	    sortIntersections(SortSmall::yes);
 		mergeEndPoints();
 		mergeIntersections();  // merge intersections that are close together in each segment
+        removeCollapsed();  // remove sects pointing to collapsed segments
 //		mergeOpposites();  // further merge sectable opposite intersections
 //		aliasIntersections();  // alias close by intersections so they share a common point
 	    sortIntersections(SortSmall::no);

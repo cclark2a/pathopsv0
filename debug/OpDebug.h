@@ -235,7 +235,7 @@ struct OpDebugData {
 #else
 	#define OP_DEBUG_DUMP 1
 	#define OP_DEBUG_MAKER 1
-	#define OP_DEBUG_VALIDATE 0
+	#define OP_DEBUG_VALIDATE 1
 #endif
 #define OP_DEBUG_PARAMS(...) , __VA_ARGS__
 #define OP_DEBUG_CODE(...) __VA_ARGS__

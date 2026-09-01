@@ -296,8 +296,8 @@ OpVector DebuggerPoly::tangent(float t) const {
 void DebuggerPoly::validate() const {
     if (!isPrimary)
         return;
-    if (c.context)
-        OpDebugValidate(c);  // !!! add when needed
+    if (c.context())
+        PathOpsV0Lib::OpDebugValidate(c.c);  // !!! add when needed
     opType.validate();
 }
 #endif

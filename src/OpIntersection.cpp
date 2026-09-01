@@ -71,6 +71,14 @@ OpRect OpIntersection::setMergeBounds(OpVector threshold) {
 	return result;
 }
 
+#if CHECK_SNIP
+void OpIntersection::setSnip(const CutRangeT& snip, int id) {
+    snipTs = snip;
+    snipID = id;
+    segment->sects.hasSnips = true;
+}
+#endif
+
 void OpIntersection::setUnsect(int uid, MatchEnds end) {
 	unsectID = uid;
 	unsectEnd = end;
@@ -255,13 +263,11 @@ void OpIntersections::makeEdges(OpSegment* segment) {
 	OpIntersection* first = i.front();
 	for (OpIntersection* sectPtr : i) {
 		if (first->ptT.t != sectPtr->ptT.t) {
-			segment->edges.emplace_back(first, sectPtr  OP_LINE_FILE_PARGS());
-			OpEdge& newEdge = segment->edges.back();
+			segment->edgeList.emplace_back(first, sectPtr  OP_LINE_FILE_PARGS());
+			OpEdge& newEdge = segment->edgeList.back();
 			newEdge.unsectableStart = !!first->unsectID;
 			newEdge.unsectableEnd = !!sectPtr->unsectID;
-#if 1   // old code breaks skpagentxsites_com55 / though loops61i works
-		// old code did not check if coincident pair are from same coincidence (same coin id)
-		// new code: if edge is between a pair of coincident edges, mark it unsortable
+		// if edge is between a pair of coincident edges, mark it unsortable
 			if (newEdge.isLine() && first->betweenCoins && sectPtr->betweenCoins 
 					&& first->opp->segment != sectPtr->opp->segment) {
 				std::vector<CoinPal> firstCoins;
@@ -282,7 +288,6 @@ void OpIntersections::makeEdges(OpSegment* segment) {
 					}
 				}
 			}
-#endif
 			first = sectPtr;
 			if (!unsectables.empty())
 				newEdge.unSects = unsectables;
@@ -292,6 +297,44 @@ void OpIntersections::makeEdges(OpSegment* segment) {
 		stackUnsects(sectPtr);
 		stackCoins(coincidences, sectPtr);
 	}
+#if CHECK_SNIP
+    if (!hasSnips)
+        return;
+    first = i.front();
+    bool startSnip = false;
+    bool endSnip = false;
+    float lastT = first->ptT.t;
+    bool nextSnip = !!first->snipID;
+    int endIndex = 0;
+    auto checkT = [this, &endIndex, &lastT, &startSnip, &endSnip, &nextSnip]() {
+        const OpIntersection* sect = nullptr;
+        float sectT = lastT;
+        bool tEqual = false;
+        if (++endIndex < (int) i.size()) {
+            sect = i[endIndex];
+            sectT = sect->ptT.t;
+            tEqual = lastT == sectT;
+        }
+        if (!tEqual) {
+            startSnip = endSnip;
+            endSnip = nextSnip;
+            nextSnip = false;
+            lastT = sectT;
+        }
+        if (sect)
+            nextSnip |= !!sect->snipID;
+        return tEqual;
+    };
+    while (checkT())
+        ;
+    int edgeIndex = 0;
+    do {
+        while (checkT())
+            ;
+        OpEdge& edge = segment->edgeList[edgeIndex];
+        edge.snipped = startSnip | endSnip;
+    } while (++edgeIndex < (int) segment->edgeList.size());
+#endif
 }
 
 // edge is coincident with an edge in opp, but hasn't been marked as such
@@ -626,6 +669,16 @@ SectCleanup OpIntersections::moveSects(const OpPtT& match, OpPoint destination,
 			: SectCleanup::none;
 }
 
+void OpIntersections::removeCollapsed() {
+    std::vector<OpIntersection*> condensed;
+    for (OpIntersection* sect : i) {
+        if (!sect->opp->segment->disabled)
+            condensed.push_back(sect);
+    }
+    OP_ASSERT(condensed.size() < i.size());
+    std::swap(condensed, i);
+}
+
 bool OpIntersections::simpleEnd() const {
 	OP_ASSERT(!unsorted);
 	OP_ASSERT(i.size() > 1);
@@ -639,6 +692,34 @@ bool OpIntersections::simpleStart() const {
 	OP_ASSERT(i.front()->ptT.t == 0);
 	return i[1]->ptT.t != 0;
 }
+
+#if CHECK_SNIP
+bool OpIntersections::SnippedBy(OpSegment* s1, OpSegment* s2, float normal, Axis axis) {
+    std::vector<OpIntersection*> snip1;
+    std::vector<OpIntersection*> snip2;
+    auto findSnip = [normal, axis](OpIntersections& sects, std::vector<OpIntersection*>& snip1) {
+        for (OpIntersection* sect : sects.i) {
+            if (!sect->snipID)
+                continue;
+            float sectLo = sect->snipTs.lo.pt.choice(!axis);
+            float sectHi = sect->snipTs.hi.pt.choice(!axis);
+            if (OpMath::Between(sectLo, normal, sectHi))
+                snip1.push_back(sect);
+        }
+    };
+    findSnip(s1->sects, snip1);
+    if (snip1.empty())
+        return false;
+    findSnip(s2->sects, snip2);
+    if (snip2.empty())
+        return false;
+    for (OpIntersection* test1 : snip1) {
+        if (snip2.end() != std::find(snip2.begin(), snip2.end(), test1))
+            return true;
+    }
+    return false;
+}
+#endif
 
 void OpIntersections::sort() {
 	if (!unsorted) {

@@ -549,8 +549,8 @@ std::string DebuggerWindow::debugTextDump(size_t index) {
 
 #if OP_DEBUG_VALIDATE
 void DebuggerWindow::validate() const {
-for (std::vector<DebuggerPoly>& polys : polyIDs) {
-        for (const DebuggerPoly& poly : polys) {
+for (std::vector<DebuggerPoly>* polys : polyIDs) {
+        for (const DebuggerPoly& poly : *polys) {
             poly.validate();
         }
     }

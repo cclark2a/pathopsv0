@@ -197,7 +197,7 @@ void dmpWidth(int width) {
 void dmpActive() {
     for (const auto c : contourIterator) {
         for (const auto& seg : c->segments) {
-            for (const auto& edge : seg.edges) {
+            for (const auto& edge : seg.edgeList) {
                 if (edge.isActive())
                     edge.dump();
             }
@@ -224,10 +224,10 @@ void dmpEdges() {
     std::string s;
     for (const auto c : contourIterator) {
         for (const auto& seg : c->segments) {
-			if (!seg.edges.size())
+			if (!seg.edgeList.size())
 				continue;
             s += seg.debugDump(defaultLevel, defaultBase) + "\n";
-            for (const auto& edge : seg.edges) {
+            for (const auto& edge : seg.edgeList) {
                 s += edge.debugDump(defaultLevel, defaultBase) + "\n";
             }
         }
@@ -269,13 +269,13 @@ std::string debugDumpEdges() {
     size_t edgeCount = 0;
     for (const auto c : contourIterator) {
         for (const auto& seg : c->segments) {
-            edgeCount += seg.edges.size();
+            edgeCount += seg.edgeList.size();
         }
     }
-    std::string s = "edges:" + STR(edgeCount) + "\n";
+    std::string s = "edgeList:" + STR(edgeCount) + "\n";
     for (const auto c : contourIterator) {
         for (const auto& seg : c->segments) {
-            for (const auto& edge : seg.edges) {
+            for (const auto& edge : seg.edgeList) {
                 s += edge.debugDump(defaultLevel, defaultBase) + "\n";
             }
         }
@@ -309,7 +309,7 @@ void dmpRays() {
     size_t edgeCount = 0;
     for (const auto c : contourIterator) {
         for (const auto& seg : c->segments) {
-            for (const auto& edge : seg.edges) {
+            for (const auto& edge : seg.edgeList) {
                 if (!edge.ray.distances.empty())
 					++edgeCount;
             }
@@ -318,7 +318,7 @@ void dmpRays() {
     std::string s = "edges with rays:" + STR(edgeCount) + "\n";
     for (const auto c : contourIterator) {
         for (const auto& seg : c->segments) {
-            for (const auto& edge : seg.edges) {
+            for (const auto& edge : seg.edgeList) {
 				if (edge.ray.distances.empty())
 					continue;
 				s += "[" + STR(edge.id) + "] ";
@@ -354,7 +354,7 @@ void OpContext::dumpResolve(OpEdge*& edgeRef) {
         return;
     for (auto c : contours) {
         for (auto& seg : c->segments) {
-            for (auto& edge : seg.edges) {
+            for (auto& edge : seg.edgeList) {
                 if (edge.id == edgeID) {
                     OP_ASSERT((int) (size_t) edgeRef == edgeID);
                     edgeRef = &edge;
@@ -446,7 +446,7 @@ void dmpHex(int id) {
 void dmpDisabled() {
     for (const auto c : contourIterator) {
         for (const auto& seg : c->segments) {
-            for (const auto& edge : seg.edges) {
+            for (const auto& edge : seg.edgeList) {
                 if (edge.disabled)
                     edge.dump();
             }
@@ -457,7 +457,7 @@ void dmpDisabled() {
 void dmpInOutput() {
     for (const auto c : contourIterator) {
         for (const auto& seg : c->segments) {
-            for (const auto& edge : seg.edges) {
+            for (const auto& edge : seg.edgeList) {
                 if (edge.inOutput)
                     edge.dump(DebugLevel::detailed, defaultBase);
             }
@@ -530,7 +530,7 @@ void dmpSorted() {
 void dmpUnsummable() {
     for (const auto& c : contourIterator) {
         for (const auto& seg : c->segments) {
-            for (const auto& edge : seg.edges) {
+            for (const auto& edge : seg.edgeList) {
                 if (edge.unsummable)
                     edge.dump(DebugLevel::detailed, defaultBase);
             }
@@ -541,7 +541,7 @@ void dmpUnsummable() {
 void dmpUnsortable() {
     for (const auto& c : contourIterator) {
         for (const auto& seg : c->segments) {
-            for (const auto& edge : seg.edges) {
+            for (const auto& edge : seg.edgeList) {
                 if (!edge.isSortable())
                     edge.dump(DebugLevel::detailed, defaultBase);
             }
@@ -553,7 +553,7 @@ void dmpWindings() {
     std::string s;
     for (const auto& c : contourIterator) {
         for (const auto& seg : c->segments) {
-            for (const auto& edge : seg.edges) {
+            for (const auto& edge : seg.edgeList) {
                 s += "edge[" + STR(edge.id) + "] ";
                 s += edge.debugDumpWinding() + "\n";
             }
@@ -1054,7 +1054,7 @@ void OpContext::debugCompare(std::string s) {
                 std::string line = getline(str);
                 intersection->debugCompare(line);
             }
-            for (const auto& edge : seg.edges) {
+            for (const auto& edge : seg.edgeList) {
                 std::string line = getline(str);
                 edge.debugCompare(line);
             }
@@ -1190,9 +1190,10 @@ void OpContour::dumpSet(const char*& str) {
     DEBUG_SET_BOOL(disabled, overlapsMerged);
     DEBUG_SET_BOOL(overlapsMerged, segEndsMerged);
     DEBUG_SET_BOOL(segEndsMerged, segMerged);
-    DEBUG_SET_BOOL(segMerged, debugEmpty);
+    DEBUG_SET_BOOL(segMerged, segCollapsed);
+    DEBUG_SET_BOOL(segCollapsed, debugEmpty);
 #if OP_DEBUGGER || OP_TEST
-    ASSERT_SERIAL_OFFSET(*this, debugEmpty, 1, debugCurveData);
+    ASSERT_SERIAL_OFFSET(*this, debugEmpty, 0, debugCurveData);
     if (OpDebugOptional(str, "debugCurveData")) {
         debugCurveData.resize(OpDebugReadSizeT(str));
         for (PathOpsV0Lib::DebugCurveData& curveData : debugCurveData) {
@@ -1239,6 +1240,7 @@ void OpContour::dumpResolveAll(OpContext* c) {
 	DUMP_RESOLVE_ARRAY(coincPals);
 	DUMP_RESOLVE_ARRAY(disabledBackwards);
 	DUMP_RESOLVE_ARRAY(disabledCenterless);
+	DUMP_RESOLVE_ARRAY(disabledEdges);
 	DUMP_RESOLVE_ARRAY(disabledPals);
 	DUMP_RESOLVE_ARRAY(smallEdges);
 	DUMP_RESOLVE_ARRAY(unsortables);
@@ -1918,6 +1920,9 @@ void OpEdge::dumpSet(const char*& str) {
     DEBUG_SET_BOOL(endSeen, unsectableStart);
     DEBUG_SET_BOOL(unsectableStart, unsectableEnd);
     DEBUG_SET_BOOL(unsectableEnd, unsummable);
+#if CHECK_SNIP
+    DEBUG_SET_BOOL(unsummable, snipped);
+#endif
 #if OP_DEBUG
     ASSERT_SERIAL_OFFSET(*this, unsummable, 2, debugMatch);
     debugMatch = (OpEdge*) strID("debugMatch");
@@ -2143,7 +2148,7 @@ void OpCurveCurve::dumpClosest(const OpPoint& originalPt) const {
         s += " dist[" + debugFloat(defaultBase, xyDist(test.s)) + ", "
                 + debugFloat(defaultBase, dist) + ", "
                 + debugFloat(defaultBase, xyDist(test.l)) + "]";
-        s += " " + name + " result:" + result.debugDump(defaultLevel, defaultBase);
+        s += STR(" ") + name + " result:" + result.debugDump(defaultLevel, defaultBase);
         OpDebugFormat(s + "\n");
         return result;
     };
@@ -2165,8 +2170,8 @@ void OpCurveCurve::dumpClosest(const OpPoint& originalPt) const {
     int iterations = 0;
     OpPointBounds eLast;
     OpPointBounds oLast;
-    const OpEdge* originalEdge = &seg->edges[0];
-    const OpEdge* originalOpp = &opp->edges[0];
+    const OpEdge* originalEdge = &seg->edgeList[0];
+    const OpEdge* originalOpp = &opp->edgeList[0];
     do {
         ++iterations;
         dc_ex = tMatch(originalEdge, XyChoice::inX, bestOPtT.pt, exd, "ex");
@@ -2228,7 +2233,7 @@ void OpCurveCurve::dumpClosest(const OpPoint& originalPt) const {
     auto floatString = [&closestDistance, &closestLabel]
             (std::string s, const OpPtT& ptT, float dist) {
         if (closestDistance == dist && s != closestLabel)
-            return s + "=" + closestLabel;
+            return s + STR("=") + closestLabel;
         return s + ":" + ptT.debugDump(defaultLevel, defaultBase) 
                 + " dist:" + debugFloat(defaultBase, dist);
     };
@@ -2264,7 +2269,7 @@ void dmpHulls() {
     for (const auto& edges : { curveCurve->edgeCurves, curveCurve->oppCurves } ) {
         if (edges.c.empty())
             continue;
-        s += "-- " + names[count] + ":" + STR(edges.c.size()) + " --\n";
+        s += STR("-- ") + names[count] + ":" + STR(edges.c.size()) + " --\n";
         for (OpEdge* edge : edges.c) {
             s += "edge:" + STR(edge->id) + " hulls:" + STR(edge->hulls.h.size()) + "\n";
             for (const auto& hs : edge->hulls.h) {
@@ -2358,7 +2363,7 @@ std::string debugDmpLinks(OpContext* context, DebugLevel l, DebugBase b) {
     std::vector<const OpEdge*> seen;
     for (const OpContour* c : context->contours) {
         for (const auto& seg : c->segments) {
-            for (const auto& edge : seg.edges) {
+            for (const auto& edge : seg.edgeList) {
                 if (edge.priorEdge)
                     continue;
                 addToSeen(context, seen, edge);
@@ -2369,7 +2374,7 @@ std::string debugDmpLinks(OpContext* context, DebugLevel l, DebugBase b) {
     }
     for (const OpContour* c : context->contours) {
         for (const auto& seg : c->segments) {
-            for (const auto& edge : seg.edges) {
+            for (const auto& edge : seg.edgeList) {
                 if (seen.end() == std::find(seen.begin(), seen.end(), &edge)) {
                     if (edge.priorEdge || edge.nextEdge || edge.lastEdge)
                         s += debugDmpLink(edge, l, b) + "\n";
@@ -3117,7 +3122,14 @@ void OpIntersection::dumpSet(const char*& str) {
     ASSERT_ORDERED(opp, ptT);
     OpDebugRequired(str, "ptT");
     ptT.dumpSet(str);
+#if CHECK_SNIP
+    ASSERT_ORDERED(ptT, snipTs);
+    if (OpDebugOptional(str, "snipTs"))
+        snipTs.dumpSet(str);
+    ASSERT_ORDERED(snipTs, callerPt);
+#else
     ASSERT_ORDERED(ptT, callerPt);
+#endif
     if (OpDebugOptional(str, "callerPt"))
         callerPt.dumpSet(str);
     ASSERT_ORDERED(callerPt, coincidenceID);
@@ -3126,7 +3138,13 @@ void OpIntersection::dumpSet(const char*& str) {
     unsectID = OpDebugReadNamedInt(str, "unsectID");
     ASSERT_ORDERED(unsectID, mergeID);
     mergeID = OpDebugReadNamedInt(str, "mergeID");
+#if CHECK_SNIP
+    ASSERT_ORDERED(mergeID, snipID);
+    snipID = OpDebugReadNamedInt(str, "snipID");
+    ASSERT_ORDERED(snipID, coinEnd);
+#else
     ASSERT_ORDERED(mergeID, coinEnd);
+#endif
     coinEnd = MatchEndsStr(str, "coinEnd", MatchEnds::none);
     ASSERT_ORDERED(coinEnd, unsectEnd);
     unsectEnd = MatchEndsStr(str, "unsectEnd", MatchEnds::none);
@@ -3191,16 +3209,21 @@ void dmpIntersections(const OpIntersection& sect) {
 }
 
 void OpIntersections::dumpSet(const char*& str) {
-    unsorted = OpDebugOptional(str, "unsorted");
-    if (!OpDebugOptional(str, "intersections"))
+    if (!OpDebugOptional(str, "i"))
         return;
     int sectCount = (int) OpDebugReadSizeT(str);
     i.resize(sectCount);
-    OpDebugRequired(str, "[");
     for (int index = 0; index < sectCount; index++) {
         i[index] = (OpIntersection*) OpDebugReadSizeT(str);
     }
-    OpDebugRequired(str, "]");
+    DEBUG_SET_BOOL(i, unsorted);
+    DEBUG_SET_BOOL(unsorted, hasCCSects);
+    DEBUG_SET_BOOL(hasCCSects, hasPairs);
+    DEBUG_SET_BOOL(hasPairs, oppCollapsed);
+#if CHECK_SNIP
+    DEBUG_SET_BOOL(oppCollapsed, hasSnips);
+#endif
+
 }
 
 OpIntersection* OpSectStorage::debugFind(int ID) const {
@@ -3242,23 +3265,18 @@ void OpSegment::dumpSet(const char*& str) {
     c.c.context = (ContextPtr) contour->context;
     c.dumpSet(str);
     ASSERT_ORDERED(c, sects);
-    if (OpDebugOptional(str, "sects:")) {
-        int sectCount = (int) OpDebugReadSizeT(str);
-        sects.i.resize(sectCount);
-        for (int index = 0; index < sectCount; ++index) {
-            sects.i[index] = (OpIntersection*) OpDebugReadSizeT(str);
-        }
-    }
-    ASSERT_ORDERED(sects, edges);
-    if (OpDebugOptional(str, "edges:")) {
+    OpDebugRequired(str, "sects:");
+    sects.dumpSet(str);
+    ASSERT_ORDERED(sects, edgeList);
+    if (OpDebugOptional(str, "edgeList:")) {
         int edgeCount = (int) OpDebugReadSizeT(str);
-        edges.resize(edgeCount);
+        edgeList.resize(edgeCount);
         for (int index = 0; index < edgeCount; ++index)
-            edges[index].dumpContext = contour->context;
+            edgeList[index].dumpContext = contour->context;
         for (int index = 0; index < edgeCount; ++index)
-            edges[index].dumpSet(str);
+            edgeList[index].dumpSet(str);
     }
-    ASSERT_ORDERED(edges, winding);
+    ASSERT_ORDERED(edgeList, winding);
     OpDebugRequired(str, "winding");
     winding.dumpSet(contour->context, str);
     ASSERT_ORDERED(winding, id);  // write at front
@@ -3282,14 +3300,14 @@ void OpSegment::dumpResolveAll(OpContext* context) {
     context->contourStorage->debugCheck(contour);  // asserts and exists if missing
     for (auto& sect : sects.i)
         context->dumpResolve(sect);
-    for (auto& edge : edges)
+    for (auto& edge : edgeList)
         edge.dumpResolveAll(context);
     winding.dumpResolveAll(context);
 }
 
 std::string OpSegment::debugEdges(DebugLevel l) const {
     std::string s;
-    for (auto& e : edges)
+    for (auto& e : edgeList)
         s += e.debugDump(l, defaultBase) + "\n";
     return debugPopMatching(s, '\n');
 }
@@ -3325,8 +3343,8 @@ std::string OpSegment::debugFull(DebugLevel l) const {
     else
         s += "\n";
     s += debugDumpIntersections();
-    s += "edges:";
-	if (!edges.empty())
+    s += "edgeList:";
+	if (!edgeList.empty())
         s += "\n";
     s += debugEdges(l);
     return s;
@@ -3364,7 +3382,7 @@ void dmpIntersections(const OpSegment& seg) {
 }
 
 void dmpCount(const OpSegment& seg) {
-    OpDebugFormat("seg:" + seg.debugDumpID() + " edges:" + STR(seg.edges.size())
+    OpDebugFormat("seg:" + seg.debugDumpID() + " edgeList:" + STR(seg.edgeList.size())
             + " intersections:" + STR(seg.sects.i.size()) + "\n");
 }
 

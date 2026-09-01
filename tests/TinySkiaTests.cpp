@@ -20,6 +20,18 @@
 #include "DebugOps.h"
 #endif
 
+struct TinyRestart {
+    int runIndex;
+    int run;
+    int toRun;
+    int threadNo;
+} tinyRestarts[] = { 
+    { 14950055, 2931355, 73320, 4 },
+    { 5856333, 2851659, 153016, 1 },
+    { 11861725, 2847701, 156975, 3 },
+    { 17998810, 2975435, 29240, 5 }
+};  // total tests run: 74600722
+
 struct TinySuite {
     void (*func)(TestTrack* );
     std::string name;

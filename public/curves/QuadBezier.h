@@ -32,7 +32,8 @@ inline OpDPoint QuadPointAtDT(OpPoint start, OpPoint control, OpPoint end, doubl
     double a = one_t * one_t;
     double b = 2 * one_t * t;
     double c = t * t;
-    OpDPoint result = a * start + b * control + c * end;
+    OpDPoint result { a * start.x + b * control.x + c * end.x, 
+            a * start.y + b * control.y + c * end.y };
     return result;
 }
 

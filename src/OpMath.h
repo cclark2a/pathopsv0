@@ -11,6 +11,15 @@
 #include <limits>
 #include <math.h>
 
+// !!! CHECK_SNIP should probably be in its own configuration file
+// tiger test tiger8a_h_1 with testlines 80239527965 failed because the vertical ray for edge 141
+// hit edges 140 and 158 in the wrong order. 140 & 158's intersection was ignored because it is
+// very close to the found end intersection. The CHECK_SNIP code retains the snip lo and hi ptTs
+// so that the ray can check to see if it cannot be trusted because it passes through the snip 
+// region. A separate fix was found (combine callerPts if they share the same mergeID) that more
+// simply fixed the bug. This may still be needed, but turn it and all associated code off for now.
+#define CHECK_SNIP 0
+
 constexpr auto OpPI = 3.14159265f;
 constexpr auto OpInfinity = std::numeric_limits<float>::infinity();
 constexpr auto OpNaN = std::numeric_limits<float>::quiet_NaN();

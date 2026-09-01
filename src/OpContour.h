@@ -100,7 +100,7 @@ struct OpContour {
 //	bool isSorted(Axis axis) const { return Axis::horizontal == axis ? isXSorted : isYSorted; }
 	bool joinSetup();
 	void joinSort();
-	bool linkUp(OpJoiner* , OpEdge* );
+	void linkUp(OpJoiner* , OpEdge* );
 
 	void makeCoins() {
 		for (auto& segment : segments) {
@@ -139,6 +139,7 @@ struct OpContour {
 	}
 
 	RelinkJoins relinkUnambiguous(OpJoiner* , size_t checked);
+    void removeCollapsed();
 	void removeLast(OpEdge* /*, InOutput */);
 	void removeLink(OpEdge* );
 	void setLinkEdge(OpEdge* link, size_t index);
@@ -220,6 +221,7 @@ struct OpContour {
 	bool overlapsMerged;
 	bool segEndsMerged = false;
 	bool segMerged = false;
+    bool segCollapsed = false;  // set true if some seg references collapsed segment via opp sect
 //	bool oppMerged = false;
 #if OP_DEBUG || OP_DEBUGGER
 	bool debugEmpty = false;  // if empty, when cloned, this is reused in release

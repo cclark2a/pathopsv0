@@ -390,7 +390,7 @@ void OpDebugSamples::sample(OpContour* contour) {
 			addCurveXatY(&segment);
 		} else {
 			OP_ASSERT(SampleType::edges == sampleType);
-			for (OpEdge& edge : segment.edges) {
+			for (OpEdge& edge : segment.edgeList) {
 				if (edge.inOutput)
 					addCurveXatY(&edge);
 			}

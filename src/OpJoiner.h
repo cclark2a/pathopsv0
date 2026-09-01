@@ -29,7 +29,8 @@ enum class LinkPass {
 struct LinkUps {
 	bool contains(OpEdge* e) {
 		return l.end() != std::find(l.begin(), l.end(), e); }
-    void clear();
+    void clear() {
+        l.clear(); }
 	void sort(OpContext* );
 
 	DUMP_DECLARATIONS

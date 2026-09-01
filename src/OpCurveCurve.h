@@ -110,13 +110,6 @@ struct LoHi {
 	DiffIntersect diffSect;
 };
 
-struct CutRangeT {
-	DUMP_DECLARATIONS
-
-	OpPtT lo;
-	OpPtT hi;
-};
-
 struct CcCurves {
 	EdgeRun* addEdgeRun(OpEdge* edge, EdgeMatch , ClampDist  OP_LINE_FILE_ARGS());
 	EdgeRun* addEdgeRun(EdgeRun& , EdgeMatch , ClampDist);
@@ -222,19 +215,20 @@ struct FoundLimit {
 };
 
 struct SnipPtTs {
-	DUMP_DECLARATIONS
-
+    OpIntersection* sect = nullptr;  // origin of snip
     OpPtT segPtT;
     OpPtT oppPtT;
 	CutRangeT segCut;
 	CutRangeT oppCut;
+
+	DUMP_DECLARATIONS
 };
 
 struct FoundLimits {
 	FoundLimits(OpCurveCurve* c_c) {
 		cc = c_c; }
-	bool addSnip(const OpPtT& s, const OpPtT& o, float scale);
-	bool addSnipCommon(SnipPtTs& snipLo, SnipPtTs& snipHi);
+	bool addSnip(OpIntersection* , const OpPtT& s, const OpPtT& o, float scale);
+	bool addSnipCommon(OpIntersection* , SnipPtTs& snipLo, SnipPtTs& snipHi);
 	bool addSnipRange(size_t oldCount);
 	bool alreadyIn(const OpPtT& edgePtT, const OpPtT& oppPtT) const;
 	bool cutPair(SnipPtTs& lo, SnipPtTs& hi) const;

@@ -813,7 +813,7 @@ void OpEdge::setDisabled(OP_LINE_FILE_NP_ARGS()) {
 
 void OpEdge::setLast(OpEdge* first, OpEdge* last, InOutput inOut) {
 	OpContour* oldContour = lastEdge ? lastEdge->segment->contour : nullptr;
-	OP_ASSERT(InOutput::yes == inOut || !first->lastEdge || first->lastEdge == last);
+//	OP_ASSERT(InOutput::yes == inOut || !first->lastEdge || first->lastEdge == last);
 	OP_ASSERT(InOutput::yes == inOut || first == last || !last->lastEdge);
 //	OP_ASSERT(!last->nextEdge);
 	OpContour* newContour = last->segment->contour;

@@ -174,7 +174,7 @@ struct OpSegment {
 //	OpPointBounds ptBounds;
 	OpIntersections sects;
 //	OpIntersections smallSects;	!!! start here; put small in sects array; add flag to op intersection
-	std::vector<OpEdge> edges;
+	std::vector<OpEdge> edgeList;
 	OpWinding winding;
 	int id;     // used to normalize each end point once
 	bool disabled; // winding has canceled this edge out

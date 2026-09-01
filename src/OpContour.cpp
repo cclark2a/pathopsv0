@@ -25,7 +25,7 @@ void OpContour::addMerge(OpContour* opp) {
 // !!! contour) remember that to check to see if coin edge should also be added. (fuzz763_1823)
 void OpContour::addEdges() {
 	for (auto& segment : segments) {
-		for (auto& edge : segment.edges) {
+		for (auto& edge : segment.edgeList) {
 			if (edge.disabled 
                     && (!edge.centerless || !edge.winding.visible()) && edge.coinPals.empty())
 				continue;
@@ -49,14 +49,14 @@ void OpContour::addEdges() {
 //     if this is a performance concern, defer duplicate check until after sort
 void OpContour::addCoinEdges() {
 	for (auto& segment : segments) {
-		for (auto& edge : segment.edges) {
+		for (auto& edge : segment.edgeList) {
 			if (!edge.disabled)
 				continue;
 			for (CoinPal& coinPal : edge.coinPals) {
 				OpSegment* coinSeg = coinPal.opp;
 				if (sects.end() != std::find(sects.begin(), sects.end(), coinSeg->contour))
 					continue;
-				for (auto& cEdge : coinSeg->edges) {
+				for (auto& cEdge : coinSeg->edgeList) {
 					if (cEdge.ptBounds.height() 
 							&& inX.end() == std::find(inX.begin(), inX.end(), &cEdge))
 						inX.push_back(&cEdge);
@@ -221,7 +221,7 @@ void OpContour::aliasIntersections() {
 
 void OpContour::buildBackwards() {
 	for (auto& segment : segments) {
-		for (auto& e : segment.edges) {
+		for (auto& e : segment.edgeList) {
 			if (e.disabled && e.isSortable() && !e.hasPals()
 					&& !e.centerless && !e.coinPals.size())
 				disabledBackwards.push_back(&e);
@@ -234,7 +234,7 @@ void OpContour::buildCenterless() {
 	// example that needs small factor: testQuads18787007
 //	OpVector threshold = contours.threshold() * OpMath::smallJoinerFactor;
 	for (auto& segment : segments) {
-		for (auto& e : segment.edges) {
+		for (auto& e : segment.edgeList) {
 			if (!e.disabled || !e.isSortable() || e.hasPals())
 				continue;
 			// for the very small, include disabled edges
@@ -248,7 +248,7 @@ void OpContour::buildCenterless() {
 
 void OpContour::buildCoincPals() {
 	for (auto& segment : segments) {
-		for (auto& e : segment.edges) {
+		for (auto& e : segment.edgeList) {
 			if (!e.disabled || !e.isSortable() || e.hasPals())
 				continue;
 			if (e.coinPals.size()) // entire segment is not coincident; partial is
@@ -260,7 +260,7 @@ void OpContour::buildCoincPals() {
 
 void OpContour::buildDisabled() {
 	for (auto& segment : segments) {
-		for (auto& e : segment.edges) {
+		for (auto& e : segment.edgeList) {
 			if (!e.disabled || !e.isSortable() || e.hasPals())
 				continue;
 			if (e.centerless || e.coinPals.size()) // entire segment is not coincident; partial is
@@ -273,7 +273,7 @@ void OpContour::buildDisabled() {
 
 void OpContour::buildPals() {
 	for (auto& segment : segments) {
-		for (auto& e : segment.edges) {
+		for (auto& e : segment.edgeList) {
 			if (e.disabled && !e.inOutput && !e.isSortable()) {
 				// !!! test may be overbroad; may need to look at sect and include only
 				//     coin + unsect (or add bit in edge to register coin)
@@ -311,7 +311,7 @@ void OpContour::clear() {
 
 void OpContour::clearEdges() {
 	for (auto& segment : segments) {
-		for (auto& e : segment.edges) {
+		for (auto& e : segment.edgeList) {
             e.inOutput = false;
         }
     }
@@ -394,7 +394,6 @@ bool OpContour::detachIfLoop(OpJoiner* joiner, OpEdge* e, std::vector<OpEdge*>* 
     size_t endTail = checkEndsForLoop(endEdges, EdgeMatch::start);
     if (!startTail && !endTail)
         return false;
-    first->clearLast();
     auto detachEdge = [](OpEdge* tail) {
         OpEdge* next = tail->nextEdge;
         OP_ASSERT(next);
@@ -411,14 +410,21 @@ bool OpContour::detachIfLoop(OpJoiner* joiner, OpEdge* e, std::vector<OpEdge*>* 
     };
     OpEdge* loopStart = first;
     if (startTail) {
-        loopStart = detachEdge(startEdges[--startTail].edge);
+        OpEdge* tail = startEdges[--startTail].edge;
+        loopStart = detachEdge(tail);
+        addToLinkups(joiner, tail);
+        first->setLast(first, tail, InOutput::no);
         eraseErasure(first);
     } 
     if (endTail) {
         OpEdge* ender = detachEdge(endEdges[endTail].edge->priorEdge);
-        eraseErasure(ender);
+        OpEdge* last = ender->advanceToEnd(EdgeMatch::end);
         addToLinkups(joiner, ender);
+        ender->setLast(ender, last, InOutput::no);
+        eraseErasure(ender);
     }
+    if (!loopStart->priorEdge)
+        loopStart->setLast(loopStart, loopStart->advanceToEnd(EdgeMatch::end), InOutput::no);
     EdgeOutput edgeOutput(loopStart->context(), loopStart, true);
     return true;
 #if 0
@@ -548,7 +554,7 @@ void OpContour::joinSort() {
 // links a single edge or (link of edges) with another edge
 // first pass: only allow unambiguous connections; only one choice, matching zero side, etc.
 // second pass: check for unambiuous, then allow reversing, pick smallest area, etc.
-bool OpContour::linkUp(OpJoiner* joiner, OpEdge* e) {
+void OpContour::linkUp(OpJoiner* joiner, OpEdge* e) {
 	for (;;) {
 		OP_ASSERT(++joiner->debugRecursiveDepth < 630);	// !!! set to deepest test
 		EdgeMatch linkMatch = joiner->linkMatch;
@@ -560,31 +566,18 @@ bool OpContour::linkUp(OpJoiner* joiner, OpEdge* e) {
 		// if oppEdges is count of one and unsortable, don't return any edges (testQuadratic67x)
 		if (foundEdges.size() == 1 && !foundEdges[0].edge->isSortable() /* && hadLinkTo */)
 			foundEdges.clear(); // hadLinkTo breaks thread_cubics147521
-		// skip pals should choose the pal that minimizes the output path area
-		// if there's not enough info here to do that, the pal choice should be reconsidered
-		//   when match links is called
-		// !!! maybe the right choice here is the wrong choice later?!
 		if ((foundEdges.size() && hasPal)  // if edges[x] has pals and pal is in linkups, remove edges[x]
-		//	e->skipPals(linkMatch, edges);
 		// if edge has pals, and there's a matching unsortable, don't return edge (thread_cubics502920)
 				|| 1 != foundEdges.size() || !foundEdges[0].edge->isActive()) {
-			if (EdgeMatch::start == linkMatch)
-				return true;  // 1) found multiple possibilities, try end
-			e->segment->contour->addToLinkups(joiner, e);
-			return false;  // 2) found multiple possibilities (end)
+			if (EdgeMatch::start != linkMatch)
+			    e->segment->contour->addToLinkups(joiner, e);
+			return;  // 2) found multiple possibilities
 		}
 		FoundEdge foundOne = foundEdges.front();
 		OP_DEBUG_VALIDATE_CODE(joiner->debugValidate());
 		e->linkToEdge(foundOne, linkMatch);
-		#if 0  // !!! this assert is wrong : see if a test fails if it is ignored
-		OP_ASSERT(e->compareMatch(linkMatch, foundOne.edge, 
-				linkMatch == foundOne.edge->which() ? EdgeMatch::end : EdgeMatch::start));
-		#endif
-//		OP_ASSERT(e->whichSect(linkMatch).pt.isNearly(foundOne.edge->flipPtT(linkMatch).pt,
-//                context->threshold()));  // !!! old pre-collect code
-//		OP_DEBUG_VALIDATE_CODE(joiner->debugValidate());  // can't validate; loop isn't processed
 		if (detachIfLoop(joiner, e, nullptr, linkMatch))
-			return false; // 4) found loop, nothing leftover; caller to move on to next edge
+			return; // 4) found loop, nothing leftover; caller to move on to next edge
 		OP_DEBUG_VALIDATE_CODE(joiner->debugValidate());
 		// move to the front or back edge depending on link match
 		e = foundOne.edge->advanceToEnd(linkMatch);  // 5)  recurse to extend prior or next
@@ -730,12 +723,25 @@ RelinkJoins OpContour::relinkUnambiguous(OpJoiner* joiner, size_t link) {
 		mergeLinks(lastLink, EdgeMatch::end, tContour, tIndex);
 	}
 	context->linkErased = false;
+    OP_DEBUG_VALIDATE_CODE(joiner->debugValidate());
 	detachIfLoop(joiner, edge->advanceToEnd(EdgeMatch::start), &linkupsErasures, EdgeMatch::end);
+    OP_DEBUG_VALIDATE_CODE(joiner->debugValidate());
 	bool somethingWasErased = eraseLinks(linkupsErasures);
 	if (!somethingWasErased && !context->linkErased)
 		return RelinkJoins::unchanged;
 	return RelinkJoins::again;
 }
+
+void OpContour::removeCollapsed() {
+	for (auto& segment : segments) {
+        if (segment.disabled)
+            continue;
+		if (!segment.sects.oppCollapsed)
+			continue;
+		segment.sects.removeCollapsed();
+	}
+}
+
 
 // !!! this had incomplete code that cared about 'InOutput' but didn't do anything with it
 //     removing that for now...

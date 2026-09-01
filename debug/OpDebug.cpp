@@ -226,7 +226,7 @@ OpDebugEdgeIter::OpDebugEdgeIter(bool start)
 		return;
 	for (const auto c : contourIterator) {
 		for (const auto& s : c->segments)
-			edgeIndex += (int) s.edges.size();
+			edgeIndex += (int) s.edgeList.size();
 	}
 	if (debugGlobalContext->fillerStorage)
 		edgeIndex += debugGlobalContext->fillerStorage->edgeCount();
@@ -242,7 +242,7 @@ OpEdge* OpDebugEdgeIter::operator*() {
 	int index = 0;
 	for (auto c : contourIterator) {
 		for (auto& s : c->segments) {
-			for (auto& edge : s.edges) {
+			for (auto& edge : s.edgeList) {
 				if (index == edgeIndex) {
 					isCurveCurve = false;
 					isFiller = false;
@@ -831,7 +831,7 @@ void OpEdge::debugValidate() const {
             OP_ASSERT(linkEnd == test ? !test->nextEdge : !!test->nextEdge);
         }
     }
-    for (auto& edge : segment->edges) {
+    for (auto& edge : segment->edgeList) {
         if (&edge == this)
             return;
     }
@@ -1013,7 +1013,7 @@ OpIntersection* OpIntersections::debugAlreadyContains(const OpPoint& pt, const O
 void OpContext::debugRemap(int oldRayMatch, int newRayMatch) {
     for (auto contour : contours) {
         for (auto& segment : contour->segments) {
-            for (auto& edge : segment.edges) {
+            for (auto& edge : segment.edgeList) {
                 if (oldRayMatch == edge.debugRayMatch)
                     edge.debugRayMatch = newRayMatch;
             }
@@ -1282,7 +1282,17 @@ void OpContour::debugValidate(const OpJoiner* joiner) const {
 			dmpJoin();
 #endif
 		OP_ASSERT(!e->priorEdge);
-        OP_ASSERT(e->disabled || e->lastEdge);
+        OP_ASSERT(e->disabled || (e->lastEdge && e->advanceToEnd(EdgeMatch::end) == e->lastEdge));
+        OP_ASSERT(e->disabled || e->segment->contour == this);
+        OP_ASSERT(!e->debugIsLoop());
+    }
+    for (OpEdge* e : endLinks.l) {
+        if (e->debugScheduledForErasure)
+            continue;
+        e->debugValidate();
+		OP_ASSERT(!e->priorEdge);
+        OP_ASSERT(e->disabled || (e->lastEdge && e->advanceToEnd(EdgeMatch::end) == e->lastEdge));
+        OP_ASSERT(e->disabled || e->lastEdge->segment->contour == this);
         OP_ASSERT(!e->debugIsLoop());
     }
 }

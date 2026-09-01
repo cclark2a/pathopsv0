@@ -194,7 +194,7 @@ OpIntersection* OpSegment::addUnsectable(const OpPtT& ptT, int usectID, MatchEnd
 }
 
 WindingCondition OpSegment::apply() {
-	for (auto& edge : edges) {
+	for (auto& edge : edgeList) {
         if (WindingCondition windingCondition = edge.apply())
             return windingCondition;
     }
@@ -520,7 +520,7 @@ OpPtT OpSegment::distance(const OpPtT& segPtT, OpSegment* opp) {
 
 // !!! would it be any better (faster) to split this into findStart / findEnd instead?
 OpEdge* OpSegment::findEnabled(const OpPtT& ptT, EdgeMatch match) const {
-	for (auto& edge : edges) {
+	for (auto& edge : edgeList) {
 		// !!! this required both pt and t to match; try matching only point
 		if (ptT.pt == edge.ptT(match).pt) {
 			if (edge.smallTRange)
@@ -695,7 +695,7 @@ void OpSegment::makeCoins() {
 		return (OpIntersection*) nullptr;
 	};
 	unsigned startIndex = 0;
-	for (OpEdge& edge : edges) {
+	for (OpEdge& edge : edgeList) {
 		if (edge.disabled || !edge.isLine())
 			continue;
 		OpIntersection* startSect = nextSect(&startIndex, edge.startT, MatchEnds::start, false);
@@ -733,7 +733,7 @@ void OpSegment::makeCoins() {
 			bool reversed = oppStart->ptT.t > oppEnd->ptT.t;
 			OpPoint first = edge.curve.firstPt();
 			OpPoint last = edge.curve.lastPt();
-			for (OpEdge& oppEdge : oppSeg->edges) {
+			for (OpEdge& oppEdge : oppSeg->edgeList) {
 				if (!oppEdge.isLine())
 					continue;
 				if (reversed ? first == oppEdge.curve.lastPt() && last == oppEdge.curve.firstPt()
@@ -756,16 +756,16 @@ void OpSegment::makeCoins() {
 }
 
 void OpSegment::makeEdge(OP_LINE_FILE_NP_ARGS()) {
-	if (!edges.size()) 
-		edges.emplace_back(this  OP_LINE_FILE_PARGS());
+	if (!edgeList.size()) 
+		edgeList.emplace_back(this  OP_LINE_FILE_PARGS());
 }
 
 void OpSegment::makeEdges() {
-	edges.clear();
+	edgeList.clear();
 	if (disabled)
 	   return;
 	OP_ASSERT(sects.i.size());
-	edges.reserve(sects.i.size());
+	edgeList.reserve(sects.i.size());
 	sects.makeEdges(this);
 }
 
@@ -775,7 +775,7 @@ void OpSegment::makePals() {
 		return;
 	if (disabled)
 		return;
-	for (OpEdge& edge : edges) {
+	for (OpEdge& edge : edgeList) {
 		if (edge.disabled)
 			continue;
 		for (OpIntersection* uSect : edge.unSects) {
@@ -785,7 +785,7 @@ void OpSegment::makePals() {
 			OP_ASSERT(oSeg != this);
 			if (oSeg->disabled)
 				continue;
-			for (OpEdge& oEdge : oSeg->edges) {
+			for (OpEdge& oEdge : oSeg->edgeList) {
 				if (oEdge.disabled)
 					continue;
 #if 1  // !!! causes nearly axis-aligned unsectables to fail (loop134368)
@@ -930,6 +930,7 @@ bool OpSegment::mergeIntersections() {
 		OpIntersection* first = sects.i[index];
 		OpRect mergeBounds = first->setMergeBounds(thresh);
 		OpPtT mergePtT = first->ptT;
+        OpPoint callerPt = first->callerPt;
 		int mergeId = first->mergeID;
 		size_t endIndex = index;
 		size_t startIndex = index;
@@ -940,6 +941,7 @@ bool OpSegment::mergeIntersections() {
 		//     if there is no master merge/id make one, assign to these sects and opp sects
 		while (++endIndex < sects.i.size()) {
 			OpIntersection* test = sects.i[endIndex];
+            OpBreak(test, 213);
 			if (mergePtT.pt != test->ptT.pt) {
 				OpRect testBounds = test->setMergeBounds(thresh);
 				if (!mergeBounds.intersects(testBounds) && mergePtT.t + smallT < test->ptT.t)
@@ -957,13 +959,19 @@ bool OpSegment::mergeIntersections() {
 			} else
 				needsMerging |= test->ptT.pt != test->opp->ptT.pt && !test->opp->unsectID;
 			if (test->mergeID) {
-				if (mergeId && test->mergeID != mergeId)
-					mergeMultiple(mergePtT.pt, mergeId, test->ptT.pt, test->mergeID);
-				else {
-					mergePtT = test->ptT;
-					mergeId = test->mergeID;
-				}
-			}
+				if (mergeId) {
+                    if (test->mergeID != mergeId)
+                        mergeMultiple(mergePtT.pt, mergeId, test->ptT.pt, test->mergeID);
+                    if (test->mergeID == mergeId && test->ptT.t != mergePtT.t) {
+                        OP_ASSERT(test->ptT.pt == mergePtT.pt);
+                        test->ptT.t = mergePtT.t;
+                        test->callerPt = callerPt;
+                    }
+                    mergePtT = test->ptT;
+                    callerPt = test->callerPt;
+                    mergeId = test->mergeID;
+                }
+            }
 		}
 		// if pt != opp pt, choose side that has existing merge id
 		for (; index < endIndex; ++index) {
@@ -1052,8 +1060,14 @@ void OpSegment::mergeMultiple(OpPoint masterPt, int masterID, OpPoint mergePt, i
 					sect->ptT.pt = masterPt;
 				}
 			}
-			if (seg.sects.i.front()->ptT.pt == seg.sects.i.back()->ptT.pt)
+			if (seg.sects.i.front()->ptT.pt == seg.sects.i.back()->ptT.pt) {
 				seg.setDisabled(OP_LINE_FILE_NPARGS());
+                for (OpIntersection* sect : seg.sects.i) {
+                    OpSegment* oppSeg = sect->opp->segment;
+                    oppSeg->sects.oppCollapsed = true;
+                    oppSeg->contour->segCollapsed = true;
+                }
+            }
 		}
 	}
 }
@@ -1171,14 +1185,14 @@ void OpSegment::setUnmerged() {
 bool OpSegment::simpleEnd(const OpEdge* edge) const {
 	if (!sects.simpleEnd())
 		return false;
-	return edge == &edges.back();
+	return edge == &edgeList.back();
 
 }
 
 bool OpSegment::simpleStart(const OpEdge* edge) const {
 	if (!sects.simpleStart())
 		return false;
-	return edge == &edges.front();
+	return edge == &edgeList.front();
 }
 
 OpVector OpSegment::threshold() const {
@@ -1199,8 +1213,8 @@ void OpSegment::transferCoins() {
 		return;
 	if (disabled)
 		return;
-	for (size_t edgeIndex = 0; edgeIndex < edges.size(); ++edgeIndex) {
-		OpEdge& edge = edges[edgeIndex];
+	for (size_t edgeIndex = 0; edgeIndex < edgeList.size(); ++edgeIndex) {
+		OpEdge& edge = edgeList[edgeIndex];
 		if (!edge.coinPals.size())
 			continue;
 		if (edge.disabled)
@@ -1214,7 +1228,7 @@ void OpSegment::transferCoins() {
 			int cID = cPal.coinID;
 			OP_ASSERT(cID);
 			EdgeMatch match = cID > 0 ? EdgeMatch::start : EdgeMatch::end;
-			for (OpEdge& oEdge : oSeg->edges) {
+			for (OpEdge& oEdge : oSeg->edgeList) {
 				if (edge.startPt() != oEdge.ptT(match).pt)
 					continue;
 				if (oEdge.disabled)

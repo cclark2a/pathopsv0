@@ -109,7 +109,7 @@ OpEdge* findEdge(int ID) {
     };
     for (auto c : contourIterator) {
         for (auto& seg : c->segments) {
-            for (auto& edge : seg.edges) {
+            for (auto& edge : seg.edgeList) {
                 if (match(edge))
                     return &edge;
             }
@@ -136,7 +136,7 @@ std::vector<const OpEdge*> findEdgeUnsectable(int ID) {
 #if OP_DEBUG_GLOBALS
     for (const auto c : contourIterator) {
         for (const auto& seg : c->segments) {
-            for (const auto& edge : seg.edges) {
+            for (const auto& edge : seg.edgeList) {
                 for (const EdgePal& pal : edge.pals) {
                     if (ID == pal.unsectID)
                         result.push_back(&edge);
@@ -153,7 +153,7 @@ std::vector<const OpEdge*> findEdgeRayMatch(int ID) {
 #if OP_DEBUG_GLOBALS
     for (const auto c : contourIterator) {
         for (const auto& seg : c->segments) {
-            for (const auto& edge : seg.edges) {
+            for (const auto& edge : seg.edgeList) {
                 if (ID == edge.debugRayMatch)
                     result.push_back(&edge);
             }
@@ -276,7 +276,7 @@ std::string stringFormat(std::string s, int lineWidth, int maxLines) {
 // !!! temporary : I need to figure out where to put the dmp.txt file
 std::string dmpFileToPath(std::string name) {
 #ifdef __APPLE__
-    std::string filename = "/Users/cary/pathopsv0/build/" + name;
+    std::string filename = STR("/Users/cary/pathopsv0/build/") + name;
 #elif _WIN32
     std::string filename = "c:/users/cclar/source/repos/v0/v0/" + name;
 #else
@@ -695,7 +695,7 @@ static std::string debugContextCallbacksDump(const PathOpsV0Lib::DebugContextCal
 #else
     ASSERT_SERIAL(debugContextCallbacks, debugSafetyLinksFuncPtr, debugEdgeColorFuncName);
     if (!debugContextCallbacks.debugEdgeColorFuncName.empty())
-        s += "debugEdgeColorFuncName:" + debugContextCallbacks.debugEdgeColorFuncName + " ";
+        s += STR("debugEdgeColorFuncName:") + debugContextCallbacks.debugEdgeColorFuncName + " ";
     static_assert(offsetof(PathOpsV0Lib::DebugContextCallbacks, debugEdgeColorFuncName) 
             + sizeof(debugContextCallbacks.debugEdgeColorFuncName) == sizeof(debugContextCallbacks));
 #endif
@@ -1062,10 +1062,10 @@ std::string MatchReverse::debugDump(DebugLevel l, DebugBase b) const {
 
 void OpContext::dumpString(const std::string& s) const {
     // special descriptions are also filenames, to allow verifying that dump works correctly
-    std::string tmpFilePath = dmpFileToPath("tmp_" + debugFilename);
+    std::string tmpFilePath = dmpFileToPath(STR("tmp_") + debugFilename);
     FILE* file = fopen(tmpFilePath.c_str(), "w");
     if (!file) {
-        OpDebugOut("could not open " + tmpFilePath + " to write\n");
+        OpDebugOut(STR("could not open ") + tmpFilePath + " to write\n");
         return;
     }
     std::string fS = stringFormat(s, 133);  // accomodate op debug bitmap (66 bytes x 2)
@@ -1073,7 +1073,7 @@ void OpContext::dumpString(const std::string& s) const {
     fclose(file);
     std::string filePath = dmpFileToPath(debugFilename);
     if (rename(tmpFilePath.c_str(), filePath.c_str()))  // so debugger doesn't read partial file
-        OpDebugOut("could not rename " + tmpFilePath + " to " + filePath + "\n");
+        OpDebugOut(STR("could not rename ") + tmpFilePath + " to " + filePath + "\n");
 }
 
 void OpContext::dumpBaseFile(DumpRaster dumpRaster) const {
@@ -1090,10 +1090,10 @@ void OpContext::dumpBaseFile(DumpRaster dumpRaster) const {
         fwrite(&copy[0], 1, copy.size(), file);
         fclose(file);
 
-        OpDebugOut("!!! " + debugFilename + " != DumpCopy.txt\n");
+        OpDebugOut(STR("!!! ") + debugFilename + " != DumpCopy.txt\n");
 #ifndef _WIN32
         std::string filePath = dmpFileToPath(debugFilename);
-        std::string bashStr = "bash -c 'diff " + filePath + " " + copyPath + "'";
+        std::string bashStr = STR("bash -c 'diff ") + filePath + " " + copyPath + "'";
         system(bashStr.c_str());
 #else
         const char* o = &orig.front();
@@ -1348,7 +1348,7 @@ std::string OpContext::debugDump(DebugLevel l, DebugBase b, DumpRaster dumpRaste
     ASSERT_ORDERED(debugCallbacks, debugContextCallbacks);
     ASSERT_ORDERED(debugContextCallbacks, debugData);  // omit debugData (!!! omit most for now, may have uses...)
     if (debugData.testname.size())
-        s += "debugTestname:" + debugData.testname + " ";
+        s += STR("debugTestname:") + debugData.testname + " ";
     ASSERT_ORDERED(debugData, debugCurveCurve);
     if (debugCurveCurve)
         s += "debugCurveCurve:" + debugCurveCurve->debugDump(l, b) + "\n";
@@ -1382,7 +1382,7 @@ std::string OpContext::debugDump(DebugLevel l, DebugBase b, DumpRaster dumpRaste
     ASSERT_ORDERED(debugFailOnEqualCepts, debugFilename);  // omit for now
     ASSERT_ORDERED(debugFilename, debugDescription);
     if (!debugDescription.empty())
-        s += "\ndebugDescription:" + debugDescription + "\n";
+        s += STR("\ndebugDescription:") + debugDescription + "\n";
     ASSERT_ORDERED(debugDescription, debugOutPath);
     if (!debugOutPath.empty()) {
         s += "debugOutPath:\n";
@@ -1409,7 +1409,7 @@ std::string OpContext::debugDump(DebugLevel l, DebugBase b, DumpRaster dumpRaste
 const OpEdge* OpContext::debugFindEdge(int id) const {
     for (OpContour* contour : contours) {
         for (const auto& seg : contour->segments) {
-            for (const auto& edge : seg.edges) {
+            for (const auto& edge : seg.edgeList) {
                 if (edge.id == id)
                     return &edge;
             }
@@ -1647,9 +1647,10 @@ std::string OpContour::debugDump(DebugLevel l, DebugBase b) const {
     DEBUG_DUMP_BOOL(disabled, overlapsMerged);
     DEBUG_DUMP_BOOL(overlapsMerged, segEndsMerged);
     DEBUG_DUMP_BOOL(segEndsMerged, segMerged);
-    DEBUG_DUMP_BOOL(segMerged, debugEmpty);
+    DEBUG_DUMP_BOOL(segMerged, segCollapsed);
+    DEBUG_DUMP_BOOL(segCollapsed, debugEmpty);
 #if OP_DEBUGGER || OP_TEST
-    ASSERT_SERIAL_OFFSET(*this, debugEmpty, 1, debugCurveData);
+    ASSERT_SERIAL_OFFSET(*this, debugEmpty, 0, debugCurveData);
     if (!debugCurveData.empty()) {
 		s += "debugCurveData:" + STR(debugCurveData.size()) + "[";
 		for (int index = 0; index < (int) debugCurveData.size(); ++index) {
@@ -1759,16 +1760,16 @@ std::string OpCurveCurve::debugDump(DebugLevel l, DebugBase b) const {
     ASSERT_FIRST(context);
     if (DebugLevel::file != l) {
         DebugLevel down1 = DebugLevel::file == l ? DebugLevel::file : (DebugLevel) ((int) l - 1);
-        if (!seg->edges.size())
+        if (!seg->edgeList.size())
             s += "seg:" + STR(seg->id) + " ";
         else  {
-            const OpEdge* originalEdge = &seg->edges[0];
+            const OpEdge* originalEdge = &seg->edgeList[0];
             s += "originalEdge:" + originalEdge->debugDump(down1, b) + "\n";
         }
-        if (!opp->edges.size())
+        if (!opp->edgeList.size())
             s += "opp:" + STR(opp->id) + "\n";
         else {
-            const OpEdge* originalOpp = &opp->edges[0];
+            const OpEdge* originalOpp = &opp->edgeList[0];
             s += "originalOpp:" + originalOpp->debugDump(down1, b) + "\n";
         }
         std::string names[] = { "edge curves", "opp curves" };
@@ -1776,7 +1777,7 @@ std::string OpCurveCurve::debugDump(DebugLevel l, DebugBase b) const {
 	    for (auto edgesPtrs : { &edgeCurves, &oppCurves } ) {
             const auto& edges = *edgesPtrs;
             if (edges.c.size()) {
-                s += "-- " + names[count] + ":" + STR(edges.c.size()) + " --\n";
+                s += STR("-- ") + names[count] + ":" + STR(edges.c.size()) + " --\n";
                 s += edges.debugDump(l, b) + "\n";
             }
             ++count;
@@ -2068,6 +2069,9 @@ std::string OpEdge::debugDump(DebugLevel l, DebugBase b) const {
     EDGE_BOOL(endSeen, unsectableStart);
     EDGE_BOOL(unsectableStart, unsectableEnd);
     EDGE_BOOL(unsectableEnd, unsummable);
+#if CHECK_SNIP
+    EDGE_BOOL(unsummable, snipped);
+#endif
 #if OP_DEBUG
     ASSERT_ORDERED_OFFSET(unsummable, debugMatch, 2);
     if (debugMatch)
@@ -2233,8 +2237,13 @@ std::string OpIntersection::debugDump(DebugLevel l, DebugBase b) const {
         const OpSegment* oppParent = opp ? opp->segment : nullptr;
         std::string oppID = opp ? opp->debugDumpID() : "-";
         std::string oppParentID = oppParent ? oppParent->debugDumpID() : "-";
-        s += "segment:" + segmentID + " ";
-        s += "opp/sect:" + oppParentID + "/" + oppID + " ";
+        s += STR("segment:") + segmentID + " ";
+        s += STR("opp/sect:") + oppParentID + "/" + oppID + " ";
+    #if CHECK_SNIP
+        if (snipID)
+            s += "snip[" + STR(snipID) + "]"
+                    "{lo:" + snipTs.lo.debugDump(l, b) + " hi:" + snipTs.hi.debugDump(l, b) + "} ";
+    #endif
         if (coincidenceID  OP_DEBUG_CODE(|| debugCoincidenceID)) {
             s += "coinID:" + STR(coincidenceID)  OP_DEBUG_CODE(+ "/" + STR(debugCoincidenceID)) 
                     + " ";
@@ -2261,7 +2270,14 @@ std::string OpIntersection::debugDump(DebugLevel l, DebugBase b) const {
             s += "opp:" + opp->debugDumpID() + " ";
         ASSERT_ORDERED(opp, ptT);
         s += "ptT:" + ptT.debugDump(id ? l : DebugLevel::error, b) + " ";
+    #if CHECK_SNIP
+        ASSERT_ORDERED(ptT, snipTs);
+        if (!snipTs.lo.debugIsUninitialized())
+            s += "snipTs:" + snipTs.debugDump(l, b) + " ";
+        ASSERT_ORDERED(snipTs, callerPt);
+    #else
         ASSERT_ORDERED(ptT, callerPt);
+    #endif
         if (!callerPt.debugIsUninitialized() && callerPt != ptT.pt)
             s += "callerPt:" + callerPt.debugDump(l, b) + " ";
         ASSERT_ORDERED(callerPt, coincidenceID);
@@ -2273,7 +2289,14 @@ std::string OpIntersection::debugDump(DebugLevel l, DebugBase b) const {
         ASSERT_ORDERED(unsectID, mergeID);
         if (mergeID)
             s += "mergeID:" + STR(mergeID) + " ";
+    #if CHECK_SNIP
+        ASSERT_ORDERED(mergeID, snipID);
+        if (snipID)
+            s += "snipID:" + STR(snipID) + " ";
+        ASSERT_ORDERED(snipID, coinEnd);
+    #else
         ASSERT_ORDERED(mergeID, coinEnd);
+    #endif
         if (MatchEnds::none != coinEnd)
             s += "coinEnd:" + MatchEndsName(coinEnd) + " ";
         ASSERT_ORDERED(coinEnd, unsectEnd);
@@ -2303,16 +2326,14 @@ std::string OpIntersection::debugDump(DebugLevel l, DebugBase b) const {
     s += debugSetMaker.debugDump() + " ";
 #endif
     return debugPopMatching(s, ' ');
-}
+}        
 
 std::string OpIntersections::debugDump(DebugLevel l, DebugBase b) const {
     std::string s;
-    if (unsorted)
-        s += "unsorted ";
     if (!i.size())
         return s;
-    s += "intersections:" + STR(i.size()) + "\n";
-    if (DebugLevel::brief == l) {
+    s += "i:" + STR(i.size()) + "\n";
+    if (DebugLevel::brief == l || DebugLevel::file == l) {
         s += "[";
         for (OpIntersection* sect : i)
             s += STR(sect->id) + " ";
@@ -2323,6 +2344,13 @@ std::string OpIntersections::debugDump(DebugLevel l, DebugBase b) const {
             s += sect->debugDump(l, b) + "\n";
         debugPopMatching(s, '\n');
     }
+    DEBUG_DUMP_BOOL(i, unsorted);
+    DEBUG_DUMP_BOOL(unsorted, hasCCSects);
+    DEBUG_DUMP_BOOL(hasCCSects, hasPairs);
+    DEBUG_DUMP_BOOL(hasPairs, oppCollapsed);
+#if CHECK_SNIP
+    DEBUG_DUMP_BOOL(oppCollapsed, hasSnips);
+#endif
     return s;
 }
 
@@ -2592,29 +2620,23 @@ std::string OpSegment::debugDump(DebugLevel l, DebugBase b) const {
         ASSERT_ORDERED(contour, c);
         s += c.debugDump(l, b) + "\n";
         ASSERT_ORDERED(c, sects);
-        if (!sects.i.empty()) {
-            s += "sects:" + STR(sects.i.size()) + "[";
-            for (auto sect : sects.i)
-                s += STR(sect->id) + " ";
-            debugPopMatching(s, ' ');
-            s += "]\n";
-        }
-        ASSERT_ORDERED(sects, edges);
-        if (!edges.empty() && dumpInitialized()) {
-            s += "edges:" + STR(edges.size());
+        s += "sects:" + sects.debugDump(l, b) + "\n";
+        ASSERT_ORDERED(sects, edgeList);
+        if (!edgeList.empty() && dumpInitialized()) {
+            s += "edgeList:" + STR(edgeList.size());
             if (DebugLevel::normal == l) {
                 s += "[";
-                for (auto& edge : edges)
+                for (auto& edge : edgeList)
                     s += STR(edge.id) + " ";
                 debugPopMatching(s, ' ');
                 s += "]\n";
             } else {
                 s += "\n";
-                for (auto& edge : edges)
+                for (auto& edge : edgeList)
                     s += edge.debugDump(l, b) + "\n";
             }
         }
-        ASSERT_ORDERED(edges, winding);
+        ASSERT_ORDERED(edgeList, winding);
         s += "winding:" + winding.debugDump(l, b) + " ";
         ASSERT_ORDERED(winding, id);  // write at front
         DEBUG_DUMP_BOOL(id, disabled);
@@ -2858,7 +2880,7 @@ std::string dmpFileToStr(std::string name) {
     std::string buffer;
     FILE* file = fopen(filename.c_str(), "r");
     if (!file) {
-        OpDebugOut("could not open " + filename + " to read (1st time)\n");
+        OpDebugOut(STR("could not open ") + filename + " to read (1st time)\n");
         return "";
     }
     int seek = fseek(file, 0, SEEK_END);
@@ -2867,7 +2889,7 @@ std::string dmpFileToStr(std::string name) {
     fclose(file);
     file = fopen(filename.c_str(), "r");
     if (!file) {
-        OpDebugOut("could not open " + filename + " to read (2nd time)\n");
+        OpDebugOut(STR("could not open ") + filename + " to read (2nd time)\n");
         return "";
     }
     buffer.resize(size);
