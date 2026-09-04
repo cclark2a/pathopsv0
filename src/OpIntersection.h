@@ -90,6 +90,7 @@ struct OpIntersection {
 	}
 
 	void setCoin(int id, MatchEnds end, CoinOpp );  // setter to help debugging
+    void setCoincidenceID(int id);  // funnel for ease of debugging
 	bool setMerge(int mergeID, OpPoint mergePt, MergeType);
 	OpRect setMergeBounds(OpVector halfThreshold);
 #if CHECK_SNIP
@@ -100,7 +101,7 @@ struct OpIntersection {
 	void zeroCoincidence() {
 //		OP_ASSERT(!debugCoincidenceID);  // !!! should this always be zero?
 		OP_DEBUG_CODE(debugCoincidenceID = coincidenceID);
-		coincidenceID = 0;
+		setCoincidenceID(0);
 		coinEnd = MatchEnds::none;
 	}
 
@@ -109,11 +110,7 @@ struct OpIntersection {
 		opp->zeroCoincidence();
 	}
 
-	void zeroUnsect() {
-		unsectID = 0;
-		unsectEnd = MatchEnds::none;
-		ccUnsectable = false;
-	}
+	void zeroUnsect();
 
 	void zeroUnsectPair() {
 		zeroUnsect();
@@ -147,7 +144,7 @@ struct OpIntersection {
 #endif
 	OpPoint callerPt;  // returned by caller's curve at this t
 	int coincidenceID = 0;  // if non-zero, intersection marks range where edges completely overlap
-	int unsectID = 0;  // if non-zero, intersection marks range where edges are too close to call
+	int usectID = 0;  // if non-zero, intersection marks range where edges are too close to call
 	int mergeID = 0;  // if non-zero, intersection pt is nearly equal to adjacent intersection
 #if CHECK_SNIP
     int snipID = 0;  // if non-zero, another sect is found in snip in line/curve sect test
@@ -161,8 +158,7 @@ struct OpIntersection {
 	bool ccSect = false;  // set if curve-curve created coins/unsectables (if possibly out-of-order)
 	bool ccUnsectable = false;  // set if curve-curve created or set unsectables (to treat as coin)
 	bool collapsed = false;  // set if coincidence or unsect pair collapsed to a point
-//	bool mergeProcessed = false;
-//	bool moved = false;
+    bool oppErased = false;  // set if merging via point aliasing erased opposite from sects
 #if OP_DEBUG || OP_DEBUGGER
 	int id = 0;
 	int debugSrcID = 0;	// pair of edges or segments that intersected (!!! only useful if edges?)
@@ -199,10 +195,12 @@ enum class TripleSected {
 struct OpIntersections {
 	OpIntersection* add(OpIntersection* );
     void clear();
+    static void ClearPairs(OpIntersection* testSect, OpIntersection* visited);
 	OpIntersection* coinContains(OpPoint pt, const OpSegment* opp) const;
 	OpIntersection* coinContains(OpPoint pt, const OpSegment* opp, OpPtT* nearby) const;
 	int coinRange(OpEdge& , OpSegment* opp, bool reversed);
 	void collectMatchingPts(OpPoint , std::vector<OpPoint>& ) const;
+    bool contains(const OpIntersection* ) const;
 	OpIntersection* contains(const OpPtT& ptT, const OpSegment* opp) const;  // nearby ptT
 	CloseBy containsClose(OpPoint pt, OpVector threshold, const OpSegment* opp) const;
 //	OpIntersection* const * entry(const OpPtT& , const OpSegment* opp) const;  // exact opp + ptT
@@ -217,6 +215,7 @@ struct OpIntersections {
 //	bool outOfOrder() const;
 //	void range(const OpSegment* , std::vector<OpIntersection*>& );
     void removeCollapsed();
+    void removeOne(OpIntersection* , OpIntersection*);  // pair sharing segment was erased by opp
 	bool simpleEnd() const;  // true if array has only one entry with t equal to one
 	bool simpleStart() const;  // true if array has only one entry with t equal to zero
 #if CHECK_SNIP
@@ -242,6 +241,7 @@ struct OpIntersections {
 	// all intersections are stored here before edges are rewritten
 	std::vector<OpIntersection*> i;
 	bool unsorted = false;
+    bool isMerged = false;  // if set, sorted by t but not sorted by unsect / coin id
 	bool hasCCSects = false;
 	bool hasPairs = false;
     bool oppCollapsed = false;  // set true if some opposite segment has collapsed (delete sects)

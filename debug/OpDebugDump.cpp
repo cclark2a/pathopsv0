@@ -3134,9 +3134,9 @@ void OpIntersection::dumpSet(const char*& str) {
         callerPt.dumpSet(str);
     ASSERT_ORDERED(callerPt, coincidenceID);
     coincidenceID = OpDebugReadNamedInt(str, "coincidenceID");
-    ASSERT_ORDERED(coincidenceID, unsectID);
-    unsectID = OpDebugReadNamedInt(str, "unsectID");
-    ASSERT_ORDERED(unsectID, mergeID);
+    ASSERT_ORDERED(coincidenceID, usectID);
+    usectID = OpDebugReadNamedInt(str, "usectID");
+    ASSERT_ORDERED(usectID, mergeID);
     mergeID = OpDebugReadNamedInt(str, "mergeID");
 #if CHECK_SNIP
     ASSERT_ORDERED(mergeID, snipID);
@@ -3155,6 +3155,7 @@ void OpIntersection::dumpSet(const char*& str) {
 	DEBUG_SET_BOOL(ccLine, ccSect);
 	DEBUG_SET_BOOL(ccSect, ccUnsectable);
 	DEBUG_SET_BOOL(ccUnsectable, collapsed);
+	DEBUG_SET_BOOL(collapsed, oppErased);
 #if OP_DEBUG
     id = OpDebugReadNamedInt(str, "id");
     debugSrcID = OpDebugReadNamedInt(str, "debugSrcID");
@@ -3217,7 +3218,8 @@ void OpIntersections::dumpSet(const char*& str) {
         i[index] = (OpIntersection*) OpDebugReadSizeT(str);
     }
     DEBUG_SET_BOOL(i, unsorted);
-    DEBUG_SET_BOOL(unsorted, hasCCSects);
+    DEBUG_SET_BOOL(unsorted, isMerged);
+    DEBUG_SET_BOOL(isMerged, hasCCSects);
     DEBUG_SET_BOOL(hasCCSects, hasPairs);
     DEBUG_SET_BOOL(hasPairs, oppCollapsed);
 #if CHECK_SNIP
@@ -3342,7 +3344,6 @@ std::string OpSegment::debugFull(DebugLevel l) const {
         s += " ";
     else
         s += "\n";
-    s += debugDumpIntersections();
     s += "edgeList:";
 	if (!edgeList.empty())
         s += "\n";

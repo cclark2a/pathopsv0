@@ -1170,7 +1170,7 @@ bool OpCurveCurve::addUnsectable(FoundLimit& limit, FoundLimit& limitEnd) {
 				result.o = result.s->opp;
 		}
 		result.alreadySet = result.s 
-				&& (IsCoin::yes == isCoin ? result.s->coincidenceID : result.s->unsectID);
+				&& (IsCoin::yes == isCoin ? result.s->coincidenceID : result.s->usectID);
 		return result;
 	};
 	SectDuo sect1 = setSectPair(eStart, oStart);
@@ -1183,10 +1183,10 @@ bool OpCurveCurve::addUnsectable(FoundLimit& limit, FoundLimit& limitEnd) {
 		return false;
 	if (sect1.o && sect1.o == sect2.o)
 		return false;
-	int usectID = seg->nextID();
-	auto idEnds = [usectID, &match, isCoin](CoinOpp isOpp) {
+	int usectId = seg->nextID();
+	auto idEnds = [usectId, &match, isCoin](CoinOpp isOpp) {
 		IdEnds idEnds {
-			match.reversed && (CoinOpp::yes == isOpp || IsCoin::yes == isCoin) ? -usectID : usectID,
+			match.reversed && (CoinOpp::yes == isOpp || IsCoin::yes == isCoin) ? -usectId : usectId,
 			CoinOpp::yes == isOpp && match.reversed ? !match.match : match.match };
 		return idEnds;
 	};

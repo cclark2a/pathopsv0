@@ -208,7 +208,7 @@ std::vector<const OpIntersection*> findSectUnsectable(int ID) {
     for (const auto c : contourIterator) {
         for (const auto& seg : c->segments) {
             for (const auto intersection : seg.sects.i) {
-                if (ID == abs(intersection->unsectID))
+                if (ID == abs(intersection->usectID))
                     result.push_back(intersection);
             }
         }
@@ -1058,6 +1058,35 @@ std::string MatchReverse::debugDump(DebugLevel l, DebugBase b) const {
     if (reversed)
         s += "reversed ";
     return debugPopMatching(s, ' ');
+}
+
+std::string Misses::debugDump(DebugLevel l, DebugBase b) const {
+    std::string s;
+    if (aStart.isFinite())
+        s += "aStart:" + aStart.debugDump(l, b) + "\n";
+    if (cStart.isFinite())
+        s += "cStart:" + cStart.debugDump(l, b) + "\n";
+    if (segA)
+        s += "segA:" + segA->debugDump(l, b) + "\n";
+    if (segC)
+        s += "segC:" + segC->debugDump(l, b) + "\n";
+    if (aSSect)
+        s += "aSSect:" + aSSect->debugDump(l, b) + "\n";
+    if (cSSect)
+        s += "cSSect:" + cSSect->debugDump(l, b) + "\n";
+    if (aCoinID)
+        s += "aCoinID:" + STR(aCoinID) + " ";
+    if (cCoinID)
+        s += "cCoinID:" + STR(cCoinID) + " ";
+    if (used)
+        s += "used ";
+    return s;
+}
+
+std::string Misses::debugDumpID() const {
+    std::string s;
+    s += "segA:" + STR(segA->id) + " segC:" + STR(segC->id) + " ";
+    return s;
 }
 
 void OpContext::dumpString(const std::string& s) const {
@@ -2250,13 +2279,13 @@ std::string OpIntersection::debugDump(DebugLevel l, DebugBase b) const {
             s += MatchEndsName(coinEnd) + " ";
             s += CoinOppName(coinOpp) + " ";
         }
-        if (unsectID) {
-            s += "unsectID:" + STR(unsectID)+ " ";
+        if (usectID) {
+            s += "usectID:" + STR(usectID)+ " ";
             s += MatchEndsName(unsectEnd) + " ";
         }
         if (mergeID)
             s += "mergeID:" + STR(mergeID)+ " ";
-        if (!coincidenceID  OP_DEBUG_CODE(&& !debugCoincidenceID) && !unsectID 
+        if (!coincidenceID  OP_DEBUG_CODE(&& !debugCoincidenceID) && !usectID 
                 && MatchEnds::none != coinEnd)
             s += "!!! (unexpected) " + MatchEndsName(coinEnd) + " ";
         if (!coincidenceID  OP_DEBUG_CODE(&& !debugCoincidenceID) && CoinOpp::yes == coinOpp)
@@ -2283,10 +2312,10 @@ std::string OpIntersection::debugDump(DebugLevel l, DebugBase b) const {
         ASSERT_ORDERED(callerPt, coincidenceID);
         if (coincidenceID)
             s += "coincidenceID:" + STR(coincidenceID) + " ";
-        ASSERT_ORDERED(coincidenceID, unsectID);
-        if (unsectID)
-            s += "unsectID:" + STR(unsectID) + " ";
-        ASSERT_ORDERED(unsectID, mergeID);
+        ASSERT_ORDERED(coincidenceID, usectID);
+        if (usectID)
+            s += "usectID:" + STR(usectID) + " ";
+        ASSERT_ORDERED(usectID, mergeID);
         if (mergeID)
             s += "mergeID:" + STR(mergeID) + " ";
     #if CHECK_SNIP
@@ -2311,6 +2340,7 @@ std::string OpIntersection::debugDump(DebugLevel l, DebugBase b) const {
 	DEBUG_DUMP_BOOL(ccLine, ccSect);
 	DEBUG_DUMP_BOOL(ccSect, ccUnsectable);
 	DEBUG_DUMP_BOOL(ccUnsectable, collapsed);
+	DEBUG_DUMP_BOOL(collapsed, oppErased);
 #if OP_DEBUG
     if (DebugLevel::file == l && id)
         s += "id:" + STR(id) + " ";
@@ -2342,15 +2372,16 @@ std::string OpIntersections::debugDump(DebugLevel l, DebugBase b) const {
     } else {
         for (OpIntersection* sect : i)
             s += sect->debugDump(l, b) + "\n";
-        debugPopMatching(s, '\n');
     }
     DEBUG_DUMP_BOOL(i, unsorted);
-    DEBUG_DUMP_BOOL(unsorted, hasCCSects);
+    DEBUG_DUMP_BOOL(unsorted, isMerged);
+    DEBUG_DUMP_BOOL(isMerged, hasCCSects);
     DEBUG_DUMP_BOOL(hasCCSects, hasPairs);
     DEBUG_DUMP_BOOL(hasPairs, oppCollapsed);
 #if CHECK_SNIP
     DEBUG_DUMP_BOOL(oppCollapsed, hasSnips);
 #endif
+    debugPopMatching(s, '\n');
     return s;
 }
 

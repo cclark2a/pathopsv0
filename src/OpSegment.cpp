@@ -185,7 +185,7 @@ OpIntersection* OpSegment::addUnsectable(const OpPtT& ptT, int usectID, MatchEnd
 	// rework caller to do contains in pairs prior to calling add
 	OpIntersection* sect = sects.contains(ptT, oSeg);
 	if (sect) {
-		OP_ASSERT(!sect->unsectID);
+		OP_ASSERT(!sect->usectID);
 		sect->setUnsect(usectID, end);
 		sects.unsorted = true;
 		return sect;
@@ -200,31 +200,6 @@ WindingCondition OpSegment::apply() {
     }
     return 0;
 }
-
-struct Misses {
-	Misses(const OpPtT& aPtT, const OpPtT& cPtT, OpSegment* a, OpSegment* c, 
-			OpIntersection* aInC, OpIntersection* cInA, int aCid, int cCid)
-		: aStart(aPtT)
-		, cStart(cPtT)
-		, segA(a)
-		, segC(c)
-		, aSSect(aInC)
-		, cSSect(cInA)
-		, aCoinID(aCid)
-		, cCoinID(cCid)
-		, used(false) {
-	}
-
-	OpPtT aStart;
-	OpPtT cStart;
-	OpSegment* segA;
-	OpSegment* segC;
-	OpIntersection* aSSect;
-	OpIntersection* cSSect;
-	int aCoinID;
-	int cCoinID;
-	bool used;
-};
 
 // if a and b are coincident, and a and c are coincident, add b/c coin if missing
 void OpSegment::manyCoincidences() {
@@ -312,8 +287,8 @@ void OpSegment::manyCoincidences() {
 					continue;
 				if (test->coincidenceID)
 					continue;
-				if (test->unsectID)  // if erasing this one, remove the companion unsectable ID
-					uIDs.push_back(test->unsectID);
+				if (test->usectID)  // if erasing this one, remove the companion unsectable ID
+					uIDs.push_back(test->usectID);
 				seg->sects.i.erase(seg->sects.i.begin() + index);
 			}
 			if (uIDs.empty())
@@ -323,9 +298,9 @@ void OpSegment::manyCoincidences() {
 			for (OpIntersection* check : seg->sects.i) {
 				if (check->coincidenceID)
 					segHasPairs = true;
-				if (!check->unsectID)
+				if (!check->usectID)
 					continue;
-				if (uIDs.end() == std::find(uIDs.begin(), uIDs.end(), check->unsectID)) {
+				if (uIDs.end() == std::find(uIDs.begin(), uIDs.end(), check->usectID)) {
 					segHasUnsectable = true;
 					segHasPairs = true;
 					continue;
@@ -779,7 +754,7 @@ void OpSegment::makePals() {
 		if (edge.disabled)
 			continue;
 		for (OpIntersection* uSect : edge.unSects) {
-			int uID = abs(uSect->unsectID);
+			int uID = abs(uSect->usectID);
 			OP_ASSERT(uID);
 			OpSegment* oSeg = uSect->opp->segment;
 			OP_ASSERT(oSeg != this);
@@ -794,10 +769,10 @@ void OpSegment::makePals() {
 					continue;
 #endif
 				for (OpIntersection* oSect : oEdge.unSects) {
-					if (abs(oSect->unsectID) != uID)
+					if (abs(oSect->usectID) != uID)
 						continue;
 					OP_ASSERT(!edge.isPal(&oEdge));
-					edge.pals.emplace_back(&oEdge, uID, uSect->unsectID != oSect->unsectID);
+					edge.pals.emplace_back(&oEdge, uID, uSect->usectID != oSect->usectID);
 					edge.unsummable = true;
 					hasPals = true;
 					contour->hasPals = true;
@@ -914,6 +889,14 @@ needsMerge:
 // if a pair of sects are within the threshold, they share a point, so give them matching merge ids
 // It may be possible for a run of nearly identical points to have multiple merge ids. However, wait
 // for a test case before coding for this.
+start here;
+// !!! if run ends w/ t=1, use that for mergeId, mergePtT, callerPt
+// rewrite to examine entire run before doing anything
+// remember if it starts at 0, ends at 1, and if it has 1 or more mergeIDs
+// if >1 mergeIDs, they must be run through mergeMultiple first
+// if no mergeIDs, then make one
+// when can seg ptT not equal opp ptT?! (callerPts may not equal, but sect pts should always be ==
+// may need to merge >1 segments at same pt/t. current code doesn't anticipate this
 bool OpSegment::mergeIntersections() {
 	if (disabled) {
 		merged = true;
@@ -934,14 +917,14 @@ bool OpSegment::mergeIntersections() {
 		int mergeId = first->mergeID;
 		size_t endIndex = index;
 		size_t startIndex = index;
-		bool needsMerging = mergePtT.pt != first->opp->ptT.pt && !first->opp->unsectID;
+		bool needsMerging = mergePtT.pt != first->opp->ptT.pt && !first->opp->usectID;
+        OpBreakIf(this, 3, needsMerging);
 		// !!! restructure to gather 1 or more sects close to each other
 		//     if the sect/opp distance exceeds the threshold, expand the gather on both ends
 		//     if the opp has already been merged, reuse the master merge/id
 		//     if there is no master merge/id make one, assign to these sects and opp sects
 		while (++endIndex < sects.i.size()) {
 			OpIntersection* test = sects.i[endIndex];
-            OpBreak(test, 213);
 			if (mergePtT.pt != test->ptT.pt) {
 				OpRect testBounds = test->setMergeBounds(thresh);
 				if (!mergeBounds.intersects(testBounds) && mergePtT.t + smallT < test->ptT.t)
@@ -956,8 +939,11 @@ bool OpSegment::mergeIntersections() {
 				}
 				mergeBounds = testBounds;
 				needsMerging = true;
-			} else
-				needsMerging |= test->ptT.pt != test->opp->ptT.pt && !test->opp->unsectID;
+                OpBreak(this, 3);
+			} else {
+				needsMerging |= test->ptT.pt != test->opp->ptT.pt && !test->opp->usectID;
+                OpBreakIf(this, 3, needsMerging);
+            }
 			if (test->mergeID) {
 				if (mergeId) {
                     if (test->mergeID != mergeId)
@@ -966,6 +952,7 @@ bool OpSegment::mergeIntersections() {
                         OP_ASSERT(test->ptT.pt == mergePtT.pt);
                         test->ptT.t = mergePtT.t;
                         test->callerPt = callerPt;
+                        sects.isMerged = true;  // !!! if has coin id or unsect id
                     }
                     mergePtT = test->ptT;
                     callerPt = test->callerPt;
@@ -973,12 +960,22 @@ bool OpSegment::mergeIntersections() {
                 }
             }
 		}
+        if (!disabled && endIndex == sects.i.size() && sects.i.back()->ptT.t != 1) {
+            size_t fixIndex = endIndex;
+            while (fixIndex > 1) {
+                OpIntersection* fixSect = sects.i[--fixIndex];
+                if (fixSect->mergeID != mergeId)
+                    break;
+                fixSect->ptT.t = 1;
+                fixSect->callerPt = c.c.data->end;
+            }
+        }
 		// if pt != opp pt, choose side that has existing merge id
 		for (; index < endIndex; ++index) {
 			OpIntersection* opp = sects.i[index]->opp;
 			if (!opp->mergeID)
 				continue;
-			if (opp->unsectID)
+			if (opp->usectID)
 				continue;
 			if (!opp->segment->merged)
 				continue;
@@ -995,14 +992,39 @@ bool OpSegment::mergeIntersections() {
 				mergeId = contour->nextID();
 			// if any in range are already merged, use that for all points
 			for (; index < endIndex; ++index) {
-				runAgain |= sects.i[index]->setMerge(mergeId, mergePtT.pt, MergeType::midPoint);
+                OpIntersection* testSect = sects.i[index];
+                // if same segment is visited twice, keep only first
+                size_t visitedIndex = startIndex;
+                for (; visitedIndex < index; ++visitedIndex) {
+                    OpIntersection* visited = sects.i[visitedIndex];
+                    if (visited->opp->segment == testSect->opp->segment) {
+                        if (testSect->ptT.t == 1) {
+                            std::swap(testSect, visited);
+                            index = visitedIndex;
+                        }
+                        OpIntersections::ClearPairs(testSect, visited);
+                        // if opposite was already visited, remove it, too
+                        OpIntersection* opp = testSect->opp;
+                        // !!! see if it is safe to erase opp all the time
+                        if (1 || testSect->segment->id > opp->segment->id)
+                            opp->segment->sects.removeOne(opp, visited->opp);
+                        else {  // pair may not be close enough so mark both
+                            opp->oppErased = true;
+                            visited->opp->oppErased = true;
+                        }
+                        sects.i.erase(sects.i.begin() + index);
+                        index = startIndex;
+                        goto doBackup;
+                    }
+                }
+				runAgain |= testSect->setMerge(mergeId, mergePtT.pt, MergeType::midPoint);
 			}
 		}
 		index = endIndex;
 doBackup:
 		;
 	} while (index + 1 < sects.i.size());
-	if (sects.i.front()->ptT.pt == sects.i.back()->ptT.pt) {
+	if (!disabled && sects.i.front()->ptT.pt == sects.i.back()->ptT.pt) {
 		OP_ASSERT(0 == sects.i.front()->ptT.t);
 		OP_ASSERT(1 == sects.i.back()->ptT.t);
 		setDisabled(OP_LINE_FILE_NPARGS());
@@ -1011,37 +1033,8 @@ doBackup:
 	return runAgain;  // but if an opposite segment changed, do rerun overlapping contours' segments
 }
 
-#if 0
-// !!! confused on how to write this
-// not sure what merge id on intersection means...
-bool OpSegment::mergeOpposites() {
-	if (disabled) {
-		oppMerged = true;
-		return false;
-	}
-	size_t index = 0;
-	bool runAgain = false;
-	do {
-		OpIntersection* first = sects.i[index];
-		OpPoint mergePt = first->ptT.pt;
-		size_t endIndex = index;
-		while (++endIndex < sects.i.size()) {
-			OpIntersection* test = sects.i[endIndex];
-			if (mergePt == test->ptT.pt && !test->mergeID)
-				continue;
-			if (first->ptT.pt == first->opp->ptT.pt) {
-				++index;
-				continue;
-			}
-		}
-	} while (index + 1 < sects.i.size());
-	oppMerged = true;  // don't merge this segment's sects' opposites again
-	return runAgain;  // but if an opposite segment changed, do rerun overlapping contours' segments
-}
-#endif
-
 // chase intersections and map ones with merge id to master id
-// if points are both ends, mark it small
+// if points are both ends, mark it disabled
 void OpSegment::mergeMultiple(OpPoint masterPt, int masterID, OpPoint mergePt, int mergeID) {
 	// iterate through all owned contours
 //	OP_ASSERT(masterPt != mergePt);
@@ -1090,7 +1083,7 @@ PrefFound OpSegment::moveSects(OpPtT match, OpPoint destination) {
 				if (sect->collapsed)
 					continue;
 				hasCoin |= !!sect->coincidenceID;
-				hasUnsectable |= !!sect->unsectID;
+				hasUnsectable |= !!sect->usectID;
 				sects.hasCCSects |= sect->ccSect;
 				sects.hasPairs |= hasCoin | hasUnsectable;
 			}

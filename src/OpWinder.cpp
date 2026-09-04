@@ -739,7 +739,7 @@ struct CoinSects {
 
 	bool areUnsectable() const {
 		auto unsectMatch = [](const OpIntersection* s, const OpIntersection* e) {
-			return s && e && s->unsectID && s->unsectID == e->unsectID;
+			return s && e && s->usectID && s->usectID == e->usectID;
 		};
 		return unsectMatch(start.seg.sect, end.seg.sect)
 				|| unsectMatch(start.opp.sect, end.opp.sect);

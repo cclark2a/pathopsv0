@@ -220,9 +220,8 @@ struct OpContour {
 	bool disabled;
 	bool overlapsMerged;
 	bool segEndsMerged = false;
-	bool segMerged = false;
+	bool segMerged = false;  // set if all segs' sects are unique in point and t
     bool segCollapsed = false;  // set true if some seg references collapsed segment via opp sect
-//	bool oppMerged = false;
 #if OP_DEBUG || OP_DEBUGGER
 	bool debugEmpty = false;  // if empty, when cloned, this is reused in release
 #endif

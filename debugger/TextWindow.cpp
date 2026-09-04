@@ -76,7 +76,7 @@ DrawLevel TextWindow::doType(TextAction eventAction, const DebuggerEvent* event)
         PictureWindow& p = debuggerState->pictureWindow;
         for (const std::vector<DebuggerPoly>* polys : p.polyIDs ) {
             for (const DebuggerPoly& poly : *polys) {
-                if (poly.isPrimary)
+                if (poly.isPrimary || IDType::intersection == poly.opType.type)
                     doOneType(const_cast<OpType&>(poly.opType));
             }
         }
@@ -250,7 +250,7 @@ void TextWindow::innerUpdate(int& safetyCheck) {
     PictureWindow& p = debuggerState->pictureWindow;
         for (const std::vector<DebuggerPoly>* polys : p.polyIDs ) {
             for (const DebuggerPoly& poly : *polys) {
-                if (poly.isPrimary)
+                if (poly.isPrimary || IDType::intersection == poly.opType.type)
                     doID(const_cast<OpType&>(poly.opType));
             }
         }

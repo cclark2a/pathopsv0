@@ -208,19 +208,19 @@ FoundIntersections OpSegments::addLineCurveIntersection(OpSegment* opp, OpSegmen
 	PathOpsV0Lib::ContextCallbacks& cb = seg->contour->context->contextCallbacks;
 	float unsectDist = cb.maxUnsectDistFuncPtr ? cb.maxUnsectDistFuncPtr(seg->c.c) : 8.0f;
 	if (dist < seg->threshold().length() * unsectDist) {
-		int usectID = seg->nextID();
-		seg->addUnsectable(sectS->ptT, usectID, endFromT(sectS, sectE, MatchEnds::start), opp
+		int usectId = seg->nextID();
+		seg->addUnsectable(sectS->ptT, usectId, endFromT(sectS, sectE, MatchEnds::start), opp
 				OP_LINE_FILE_PARGS());
-		seg->addUnsectable(sectE->ptT, usectID, endFromT(sectS, sectE, MatchEnds::end), opp
+		seg->addUnsectable(sectE->ptT, usectId, endFromT(sectS, sectE, MatchEnds::end), opp
 				OP_LINE_FILE_PARGS());
 		OpIntersection* oStart = sectS->opp;
 		OpIntersection* oEnd = sectE->opp;
 		bool flipped = oStart->ptT.t > oEnd->ptT.t;
 		if (flipped)
-			usectID = -usectID;
-		opp->addUnsectable(oStart->ptT, usectID, endFromT(oStart, oEnd, MatchEnds::start), seg
+			usectId = -usectId;
+		opp->addUnsectable(oStart->ptT, usectId, endFromT(oStart, oEnd, MatchEnds::start), seg
 				OP_LINE_FILE_PARGS());
-		opp->addUnsectable(oEnd->ptT, usectID, endFromT(oStart, oEnd, MatchEnds::end), seg
+		opp->addUnsectable(oEnd->ptT, usectId, endFromT(oStart, oEnd, MatchEnds::end), seg
 				OP_LINE_FILE_PARGS());
 	}
 	return FoundIntersections::yes;
@@ -248,7 +248,15 @@ void OpSegments::checkCoins() {
         if (seg->disabled || opp->disabled)
             continue;
 		OpIntersection* sectS = deferred.segStart;
+        if (!seg->sects.contains(sectS))
+            continue;
 		OpIntersection* sectE = deferred.segEnd;
+        if (!seg->sects.contains(sectE))
+            continue;
+        if (!opp->sects.contains(sectS->opp))
+            continue;
+        if (!opp->sects.contains(sectE->opp))
+            continue;
 		std::array<CoinEnd, 4> ends {{{ seg, opp, sectS->ptT, OpVector() }, 
 			{ seg, opp, sectE->ptT, OpVector() },
 			{ opp, seg, sectS->opp->ptT, OpVector() }, 

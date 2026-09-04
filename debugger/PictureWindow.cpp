@@ -445,7 +445,6 @@ void PictureWindow::dump() {
 }
 #endif
 
-// does not add id for intersection, since it does not have polygon to draw
 void PictureWindow::addIDs() {
     if (!drawIDs)
         return;

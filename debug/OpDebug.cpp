@@ -139,7 +139,7 @@ bool OpDebugOptional(const char*& str, const char* match) {
 }
 
 int OpDebugReadNamedInt(const char*& str, const char* label) {
-    while (' ' >= str[0])
+    while (' ' >= str[0] && '\0' != str[0])
         ++str;
     while ('{' == str[0])
         ++str;

@@ -40,6 +40,7 @@ OP_X(EdgePal) \
 OP_X(FoundEdge) \
 OP_X(FoundLimits) \
 OP_X(HullSect) \
+OP_X(Misses) \
 OP_X(OpContour) \
 OP_X(OpEdge) \
 OP_X(OpIntersection) \

@@ -17,6 +17,32 @@ enum class ChopUnsortable {
 	ChopUnsortable_Enums
 };
 
+struct Misses {
+	Misses(const OpPtT& aPtT, const OpPtT& cPtT, OpSegment* a, OpSegment* c, 
+			OpIntersection* aInC, OpIntersection* cInA, int aCid, int cCid)
+		: aStart(aPtT)
+		, cStart(cPtT)
+		, segA(a)
+		, segC(c)
+		, aSSect(aInC)
+		, cSSect(cInA)
+		, aCoinID(aCid)
+		, cCoinID(cCid)
+		, used(false) {
+	}
+	DUMP_DECLARATIONS
+
+	OpPtT aStart;
+	OpPtT cStart;
+	OpSegment* segA;
+	OpSegment* segC;
+	OpIntersection* aSSect;
+	OpIntersection* cSSect;
+	int aCoinID;
+	int cCoinID;
+	bool used;
+};
+
 struct FoundEdge {
 	FoundEdge() {
 		reset();
@@ -171,22 +197,16 @@ struct OpSegment {
 
 	OpContour* contour;
 	OpCurve c;
-//	OpPointBounds ptBounds;
 	OpIntersections sects;
-//	OpIntersections smallSects;	!!! start here; put small in sects array; add flag to op intersection
 	std::vector<OpEdge> edgeList;
 	OpWinding winding;
 	int id;     // used to normalize each end point once
 	bool disabled; // winding has canceled this edge out
 	bool endsMerged = false;
-//	bool willDisable;  // moveTo aligned ends; will be disabled by disable small segments
 	bool hasCoin;
 	bool hasPals = false;
 	bool hasUnsectable;
-	bool merged = false;
-	bool oppMerged = false;
-//	bool startMoved;
-//	bool endMoved;
+	bool merged = false;  // set true if each point and t are unique
 #if OP_DEBUGGER
 	uint32_t debugColor = debugBlack;
 #endif

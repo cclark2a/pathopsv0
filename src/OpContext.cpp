@@ -330,29 +330,6 @@ void OpContext::mergeIntersections() {
 #endif
 	// merge remaining mid points
 	for (size_t index = 0; index < contours.size(); ++index) {
-#if 0 && OP_DEBUG
-		std::string s = "safety:" + STR(debugSafetyCount) + " index:" + STR(index) + " !segMerged[";
-		for (OpContour* c : contours) {
-			if (!c->segMerged)
-				s += STR(c->id) + " ";
-		}
-		if (' ' == s.back())
-			s.pop_back();
-		s += "] !merged ";
-		for (OpContour* c : contours) {
-			s += "contour:" + STR(c->id) + " [";
-			for (const OpSegment& seg : c->segments) {
-				if (!seg.merged)
-					s += STR(seg.id) + " ";
-			}
-			if (' ' == s.back())
-				s.pop_back();
-			s += "] ";
-		}
-		OpDebugOut(s + "\n");
-
-#endif
-		OP_ASSERT(0 <= index && index < contours.size());
 		OpContour* contour = contours[index]; 
 		if (contour->segMerged)
 			continue;
@@ -367,30 +344,6 @@ void OpContext::mergeIntersections() {
 	}
 	OP_DEBUG_DUMP_CODE(dumpFile(__func__));
 }
-
-#if 0
-void OpContext::mergeOpposites() {
-#if OP_DEBUG
-	PathOpsV0Lib::DebugValue debugMergeEnds = debugContextCallbacks.debugMergeEndsFuncPtr;
-	int debugSafetyCount = debugMergeEnds ? (*debugMergeEnds)() : 10;
-#endif
-	for (size_t index = 0; index < contours.size(); ++index) {
-		OP_ASSERT(0 <= index && index < contours.size());
-		OpContour* contour = contours[index]; 
-		if (contour->oppMerged)
-			continue;
-		if (!contour->mergeOpposites())
-			continue;
-		// something in overlap changed
-		for (OpContour* overlap : contour->overlapOwner->overlaps) {
-			index = std::min(index, (size_t) overlap->contextIndex); 
-		}
-		index -= 1;  // loop adds one back
-		OP_ASSERT(--debugSafetyCount > 0);
-	}
-	OP_DEBUG_DUMP_CODE(dumpFile(__func__));
-}
-#endif
 
 OpLimb& OpContext::nthLimb(int index) {
 	int blockBase = index & ~(ARRAY_COUNT(limbStorage->storage) - 1);

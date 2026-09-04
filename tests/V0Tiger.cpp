@@ -174,7 +174,7 @@ if (testlines & (1LL << i++)) path.close();
 #define ULL(x) x##ULL
 
 static void tiger8a_h_1(TestOptions* options) {
-    uint64_t testlines = ULL(80239527965);
+    uint64_t testlines = ULL(8859025425);
     tiger8a_x(options, testlines);
 }
 
@@ -223,7 +223,7 @@ if (testlines & (1LL << i++)) path.close();
 }
 
 static void tiger8b_h_1(TestOptions* options) {
-    uint64_t testlines = ULL(295353913415);
+    uint64_t testlines = ULL(527690314355);
     tiger8b_x(options, testlines);
 }
 

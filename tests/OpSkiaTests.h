@@ -10,7 +10,7 @@
 #define SKIP_TO_FILE "" // e.g.,  "tiger"   one file
 #define TEST_SUITE_FIRST "tiger"  // e.g., "simplifyFail" skip suites prior to this one
 #if !OP_DEBUG_ALT
-#define TEST_FIRST "tiger8b"   // e.g.,  "simplifyQuads14942304"   if file, one test (can be skipped test)
+#define TEST_FIRST "tiger8a_h_1"   // e.g.,  "simplifyQuads14942304"   if file, one test (can be skipped test)
                         // !!! "loop8478" fails sometimes (san/valgrind found no error)
                         // cubic9092  cubic454498  cubic327361 troublesome unsectables
                         // only single tested files get full debugger dumps

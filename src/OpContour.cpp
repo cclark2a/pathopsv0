@@ -610,20 +610,6 @@ bool OpContour::mergeIntersections() {
 	return runAgain;  // if true, caller must run all overlapping contours
 }
 
-#if 0
-bool OpContour::mergeOpposites() {
-	OP_ASSERT(!oppMerged);
-	bool runAgain = false;
-	for (auto& segment : segments) {
-		if (segment.oppMerged)
-			continue;
-		runAgain |= segment.mergeOpposites();
-	}
-	oppMerged = true;
-	return runAgain;  // if true, caller must run all overlapping contours
-}
-#endif
-
 // check if resolution of link ups left unambiguous edge ends for further linkage
 // !!! this is missing a check to see if the matched edge has the correct winding
 // at very least, it should have an assert

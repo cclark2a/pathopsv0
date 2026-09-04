@@ -4,13 +4,13 @@
 #include "OpSegment.h"
 
 void OpIntersection::pair(OpIntersection* o) {
-	OP_ASSERT(abs(unsectID) == abs(o->unsectID)); 
+	OP_ASSERT(abs(usectID) == abs(o->usectID)); 
 	OP_ASSERT(coincidenceID == o->coincidenceID); 
 #if 0  // !!! need looser compare to allow for intersection error  testCubics3519581
 // !!! ... or, make sects common in merge intersection, and remove need for meet-in-the-middle
 	OP_ASSERT(ptT.pt.isNearly(o->ptT.pt, segment->threshold()) 
-			|| (!!unsectID && !!o->unsectID) || !opp);
-	if (!unsectID && !o->unsectID && ptT.pt != o->ptT.pt 
+			|| (!!usectID && !!o->usectID) || !opp);
+	if (!usectID && !o->usectID && ptT.pt != o->ptT.pt 
 			/* !!! && ptT.pt.isNearly(o->ptT.pt, segment->threshold()) */ )
 		OpPtT::MeetInTheMiddle(ptT, o->ptT);
 #endif
@@ -19,7 +19,7 @@ void OpIntersection::pair(OpIntersection* o) {
 }
 
 void OpIntersection::setCoin(int cid, MatchEnds end, CoinOpp co) {
-	coincidenceID = cid;
+	setCoincidenceID(cid);
 	coinEnd = end;
 	coinOpp = co;
 	segment->hasCoin = true;
@@ -27,12 +27,17 @@ void OpIntersection::setCoin(int cid, MatchEnds end, CoinOpp co) {
 	segment->sects.unsorted = true;
 }
 
+void OpIntersection::setCoincidenceID(int coinID) {
+    // debugging helper; set breakpoint here
+    coincidenceID = coinID;
+}
+
 // returns true if merge end points needs to run again
 bool OpIntersection::setMerge(int masterID, OpPoint masterPt, MergeType mergeType) {
 	mergeID = masterID;
 	ptT.pt = masterPt;
 	if (MergeType::midPoint == mergeType) {
-		if (opp->unsectID)
+		if (opp->usectID)
 			return false;
 		if (opp->mergeID == masterID && opp->ptT.pt == masterPt)
 			return false;
@@ -54,7 +59,7 @@ bool OpIntersection::setMerge(int masterID, OpPoint masterPt, MergeType mergeTyp
 
 OpRect OpIntersection::setMergeBounds(OpVector threshold) {
 	OpRect mergeBounds { ptT.pt, callerPt };
-	if (!unsectID) {
+	if (!usectID) {
 		mergeBounds.add(opp->ptT.pt);
 		mergeBounds.add(opp->callerPt);
 	}
@@ -80,11 +85,17 @@ void OpIntersection::setSnip(const CutRangeT& snip, int id) {
 #endif
 
 void OpIntersection::setUnsect(int uid, MatchEnds end) {
-	unsectID = uid;
+	usectID = uid;
 	unsectEnd = end;
 	segment->hasUnsectable = true;
 	segment->sects.hasPairs = true;
 	segment->sects.unsorted = true;
+}
+
+void OpIntersection::zeroUnsect() {
+    usectID = 0;
+    unsectEnd = MatchEnds::none;
+    ccUnsectable = false;
 }
 
 #if 0
@@ -108,6 +119,21 @@ void OpIntersections::clear() {
 	unsorted = false;
 	hasCCSects = false;
 	hasPairs = false;
+}
+
+void OpIntersections::ClearPairs(OpIntersection* testSect, OpIntersection* visited) {
+    if (testSect->usectID == visited->usectID) {
+        testSect->zeroUnsect();
+        visited->zeroUnsect();
+    }
+    if (testSect->coincidenceID == visited->coincidenceID) {
+        testSect->zeroCoincidence();
+        visited->zeroCoincidence();
+    }
+}
+
+bool OpIntersections::contains(const OpIntersection* test) const {
+    return i.end() != std::find(i.begin(), i.end(), test);
 }
 
 // this matches opp with nearby ptT
@@ -247,7 +273,7 @@ void OpIntersections::makeEdges(OpSegment* segment) {
 	OP_ASSERT(!unsorted);
 	std::vector<OpIntersection*> unsectables;
 	auto stackUnsects = [&unsectables](OpIntersection* sect) {
-		if (!sect->unsectID)
+		if (!sect->usectID)
 			return;
 		if (MatchEnds::start == sect->unsectEnd) {
 			unsectables.push_back(sect);
@@ -255,7 +281,7 @@ void OpIntersections::makeEdges(OpSegment* segment) {
 		}
 		OP_ASSERT(MatchEnds::end == sect->unsectEnd);
 		auto found = std::find_if(unsectables.begin(), unsectables.end(), 
-				[sect](const OpIntersection* uT) { return uT->unsectID == sect->unsectID; });
+				[sect](const OpIntersection* uT) { return uT->usectID == sect->usectID; });
 		OP_ASSERT(unsectables.end() != found);
 		unsectables.erase(found);
 	};
@@ -265,8 +291,8 @@ void OpIntersections::makeEdges(OpSegment* segment) {
 		if (first->ptT.t != sectPtr->ptT.t) {
 			segment->edgeList.emplace_back(first, sectPtr  OP_LINE_FILE_PARGS());
 			OpEdge& newEdge = segment->edgeList.back();
-			newEdge.unsectableStart = !!first->unsectID;
-			newEdge.unsectableEnd = !!sectPtr->unsectID;
+			newEdge.unsectableStart = !!first->usectID;
+			newEdge.unsectableEnd = !!sectPtr->usectID;
 		// if edge is between a pair of coincident edges, mark it unsortable
 			if (newEdge.isLine() && first->betweenCoins && sectPtr->betweenCoins 
 					&& first->opp->segment != sectPtr->opp->segment) {
@@ -366,7 +392,8 @@ int OpIntersections::coinRange(OpEdge& edge, OpSegment* opp, bool reversed) {
 			coinID = sect->coincidenceID;
 			if (edgeStart) {
 //				OP_ASSERT(edgeStart->coincidenceID);
-   				edgeStart->coincidenceID = edgeStart->opp->coincidenceID = coinID;
+   				edgeStart->setCoincidenceID(coinID);
+                edgeStart->opp->setCoincidenceID(coinID);
 				OP_ASSERT(t > edge.startT);
 				coinStart->zeroCoincidencePair();
 				if (oldCoinID) {
@@ -420,7 +447,7 @@ int OpIntersections::coinRange(OpEdge& edge, OpSegment* opp, bool reversed) {
 			if (oldID == sect->coincidenceID) {
 				sect->zeroCoincidencePair();
 				if (!seenNew)
-					sect->coincidenceID = coinID;
+					sect->setCoincidenceID(coinID);
 				seenOld = true;
 			} else if (coinID == sect->coincidenceID) {
 				if (seenOld)
@@ -437,7 +464,7 @@ std::vector<OpIntersection*> OpIntersections::unsectables(OpPoint pt) {
 	for (OpIntersection* sect : i) {
 		if (sect->ptT.pt != pt)
 			continue;
-		if (!sect->unsectID)
+		if (!sect->usectID)
 			continue;
 		result.push_back(sect);
 	}
@@ -537,7 +564,7 @@ void OpIntersections::orderPairs() {
 	for (size_t index = 0; index + 1 < i.size(); ++index) {
 		OpIntersection* sect = i[index];
 		int cID = sect->coincidenceID;
-		int uID = sect->unsectID;
+		int uID = sect->usectID;
 		if (!cID && !uID)
 			continue;
 		for (size_t inner = index + 1; inner < i.size(); ++inner) {
@@ -546,7 +573,7 @@ void OpIntersections::orderPairs() {
 				sect->coinEnd = MatchEnds::start;
 				test->coinEnd = MatchEnds::end;
 			}
-			if (uID && uID == test->unsectID) {
+			if (uID && uID == test->usectID) {
 				sect->unsectEnd = MatchEnds::start;
 				test->unsectEnd = MatchEnds::end;
 			}
@@ -611,7 +638,7 @@ SectCleanup OpIntersections::moveSects(const OpPtT& match, OpPoint destination,
 					segmentCollapsed = true;  // caller should disable segment
 				if (toMove->collapsed || (!test->collapsed 
 						&& ((!toMove->coincidenceID && test->coincidenceID)
-						|| (!toMove->unsectID && test->unsectID))))
+						|| (!toMove->usectID && test->usectID))))
 					keepToMove = false;
 				break;
 			}
@@ -679,6 +706,15 @@ void OpIntersections::removeCollapsed() {
     std::swap(condensed, i);
 }
 
+// opposite will be erased, but this pair was not erased because they were too far apart
+void OpIntersections::removeOne(OpIntersection* one, OpIntersection* two) {
+    ClearPairs(one, two);
+    OpIntersection* toErase = 1 == one->ptT.t || 0 == one->ptT.t ? two : one;
+    auto index = std::find(i.begin(), i.end(), toErase);
+    OP_ASSERT(index != i.end());
+    i.erase(index);
+}
+
 bool OpIntersections::simpleEnd() const {
 	OP_ASSERT(!unsorted);
 	OP_ASSERT(i.size() > 1);
@@ -722,7 +758,7 @@ bool OpIntersections::SnippedBy(OpSegment* s1, OpSegment* s2, float normal, Axis
 #endif
 
 void OpIntersections::sort() {
-	if (!unsorted) {
+	if (!unsorted && !isMerged) {
 #if 01 && OP_DEBUG  // !!! fails with fuzz763_378
 		if (i.size()) {
 			const OpIntersection* last = i.front();
@@ -731,7 +767,7 @@ void OpIntersections::sort() {
 					const OpIntersection* test = i[index];
 					if (test->coincidenceID == sect->coincidenceID && MatchEnds::end == test->coinEnd)
 						return index;
-					if (test->unsectID == sect->unsectID && MatchEnds::end == test->unsectEnd)
+					if (test->usectID == sect->usectID && MatchEnds::end == test->unsectEnd)
 						return index;
 				}
 				OP_ASSERT(0); // match not found
@@ -754,6 +790,7 @@ void OpIntersections::sort() {
 		return;
 	}
 	unsorted = false;
+    isMerged = false;
 	// moved sects may have put coin, unsect out of order -- reset coin, unsect: start and end
 	// order first in t
 	std::sort(i.begin(), i.end(), [](const OpIntersection* s1, const OpIntersection* s2) {
@@ -787,10 +824,10 @@ void OpIntersections::sort() {
 							&& (!s1end || s1->coincidenceID < s2->coincidenceID);
 				if (s1end)
 					return MatchEnds::end == s1->unsectEnd
-							&& (!s2end || s1->unsectID < s2->unsectID);
+							&& (!s2end || s1->usectID < s2->usectID);
 				if (s2start)
 					return MatchEnds::start == s2->unsectEnd
-							&& (!s1start || s2->unsectID < s1->unsectID);
+							&& (!s1start || s2->usectID < s1->usectID);
 			}
 			return s1->opp->segment->id < s2->opp->segment->id;  // compare ptr if id is debug only?
 		});
@@ -814,7 +851,7 @@ void OpIntersections::sort() {
 				OpIntersection* start = i[startI++];
 				OP_ASSERT(MatchEnds::start == start->unsectEnd
 						|| MatchEnds::start == start->coinEnd);
-				if ((start->unsectID != end->unsectID || !start->unsectID) 
+				if ((start->usectID != end->usectID || !start->usectID) 
 						&& (start->coincidenceID != end->coincidenceID || !start->coincidenceID))
 					continue;
 				 if (sorted.end() != std::find(sorted.begin(), sorted.end(), start))
@@ -857,7 +894,7 @@ void OpIntersections::sort() {
 				OpIntersection* end = i[endI++];
 				OP_ASSERT(MatchEnds::end == end->unsectEnd
 						|| MatchEnds::end == end->coinEnd);
-				if ((end->unsectID != start->unsectID || !end->unsectID)
+				if ((end->usectID != start->usectID || !end->usectID)
 						&& (end->coincidenceID != start->coincidenceID || !end->coincidenceID))
 					continue;
 				if (sorted.end() != std::find(sorted.begin(), sorted.end(), end))
@@ -949,13 +986,13 @@ TripleSected OpIntersections::tripleSect() {
 
 void OpIntersections::zeroPairs(OpIntersection* sect) {
 	int coinID = sect->coincidenceID;
-	int unsectID = sect->unsectID;
-	if (!coinID && !unsectID)
+	int usectId = sect->usectID;
+	if (!coinID && !usectId)
 		return;
 	for (OpIntersection* test : i) {
 		if (coinID && test->coincidenceID == coinID)
 			test->zeroCoincidencePair();
-		if (unsectID && test->unsectID == unsectID)
+		if (usectId && test->usectID == usectId)
 			test->zeroUnsectPair();
 	}
 }
