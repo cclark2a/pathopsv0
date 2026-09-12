@@ -609,15 +609,10 @@ bool OpEdge::isKept() const {
 	return !discardAll;
 }
 
-void OpEdge::linkToEdge(FoundEdge& found, EdgeMatch match) {
+bool OpEdge::linkToEdge(FoundEdge& found, EdgeMatch match) {
 	OpEdge* oppEdge = found.edge;
 	OP_ASSERT(oppEdge != this);
     OpEdge* firstEdge = advanceToEnd(EdgeMatch::start);
-    OpEdge* testEdge = firstEdge;
-    bool notLoop = true;
-    do {
-        testEdge = testEdge->nextEdge;
-    } while (testEdge && (notLoop = oppEdge != testEdge));
 	firstEdge->clearLast();
 	oppEdge->advanceToEnd(EdgeMatch::start)->clearLast();
 //	OP_ASSERT(!oppEdge->hasLinkTo(match));  // !!! doesn't make sense -- opp match is unknown
@@ -644,7 +639,12 @@ void OpEdge::linkToEdge(FoundEdge& found, EdgeMatch match) {
 		OP_ASSERT(startFoundMatch != endFoundMatch);
 		oppEdge->setWhich(startFoundMatch ? !match : match);
 	}
-    if (notLoop)
+    OpEdge* testEdge = firstEdge;
+    bool isLoop = false;
+    do {
+        testEdge = testEdge->nextEdge;
+    } while (testEdge && !(isLoop = firstEdge == testEdge));
+    if (!isLoop)
         updateLastEdge();
 #if 0
     std::vector<LoopCheck> edges;
@@ -653,6 +653,7 @@ void OpEdge::linkToEdge(FoundEdge& found, EdgeMatch match) {
 		updateLastEdge();
 	OP_ASSERT(EdgesLoop::tail != edgesLoop);  // !!! if triggered, more code to write
 #endif
+    return isLoop;  // return true if loop
 }
 
 float OpEdge::margin() const {

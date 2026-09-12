@@ -354,7 +354,7 @@ void DebuggerState::setIDTypes() {
                 ids.emplace_back(sect);
                 if (sect->coincidenceID)
                     ids.emplace_back(sect, IDType::coincident);
-                if (sect->unsectID)
+                if (sect->usectID)
                     ids.emplace_back(sect, IDType::unsectable);
             }
         }

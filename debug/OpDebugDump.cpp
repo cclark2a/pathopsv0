@@ -1890,8 +1890,15 @@ void OpEdge::dumpSet(const char*& str) {
     startT = OpDebugReadNamedFloat(str, "startT");
     ASSERT_ORDERED(startT, endT);
     endT = OpDebugReadNamedFloat(str, "endT");
-    // id up front
-    ASSERT_ORDERED(endT, id);
+    ASSERT_ORDERED(endT, preStartT);
+    preStartT = OpDebugReadNamedFloat(str, "preStartT");
+    ASSERT_ORDERED(preStartT, preEndT);
+    preEndT = OpDebugReadNamedFloat(str, "preEndT");
+    ASSERT_ORDERED(preEndT, postStartT);
+    postStartT = OpDebugReadNamedFloat(str, "postStartT");
+    ASSERT_ORDERED(postStartT, postEndT);
+    postEndT = OpDebugReadNamedFloat(str, "postEndT");
+    ASSERT_ORDERED(postEndT, id);  // id up front
     ASSERT_ORDERED(id, ccUnsectID);
     ccUnsectID = strID("ccUnsectID");
     ASSERT_ORDERED(ccUnsectID, whichEnd_impl);
@@ -3132,7 +3139,9 @@ void OpIntersection::dumpSet(const char*& str) {
 #endif
     if (OpDebugOptional(str, "callerPt"))
         callerPt.dumpSet(str);
-    ASSERT_ORDERED(callerPt, coincidenceID);
+    ASSERT_ORDERED(callerPt, unalignedT);
+    unalignedT = OpDebugReadNamedFloat(str, "unalignedT");
+    ASSERT_ORDERED(unalignedT, coincidenceID);
     coincidenceID = OpDebugReadNamedInt(str, "coincidenceID");
     ASSERT_ORDERED(coincidenceID, usectID);
     usectID = OpDebugReadNamedInt(str, "usectID");
@@ -3155,7 +3164,6 @@ void OpIntersection::dumpSet(const char*& str) {
 	DEBUG_SET_BOOL(ccLine, ccSect);
 	DEBUG_SET_BOOL(ccSect, ccUnsectable);
 	DEBUG_SET_BOOL(ccUnsectable, collapsed);
-	DEBUG_SET_BOOL(collapsed, oppErased);
 #if OP_DEBUG
     id = OpDebugReadNamedInt(str, "id");
     debugSrcID = OpDebugReadNamedInt(str, "debugSrcID");

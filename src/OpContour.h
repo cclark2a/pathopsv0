@@ -88,7 +88,8 @@ struct OpContour {
     void clear();
     void clearEdges();
     void clearSegments();
-	bool detachIfLoop(OpJoiner* , OpEdge* , std::vector<OpEdge*>* erasures, EdgeMatch loopEnd);
+	bool detachIfLoop(OpJoiner* , OpEdge* , std::vector<OpEdge*>* erasures, EdgeMatch loopEnd,
+            bool isLoop);
 	bool disabledPal(OpPoint, OpPoint) const;  // !!! bare minimum to fix cubic129075 (experiment)
 	bool eraseLinks(std::vector<OpEdge*>& );
 	bool fixCCSects();

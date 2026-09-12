@@ -381,7 +381,7 @@ OpEdge* OpTree::addFiller(OpSegment* seg, OpPoint pt1, OpPoint pt2, FillerGap fi
 	if (FillerGap::yes == fillGap) {
 		float fillerLength = (pt1 - pt2).length();
 		if (!gap(fillerLength)) {
-			OP_DEBUG_CODE(OpDebugOut("\n" + context->debugData.testname + "\n"));
+			OP_DEBUG_CODE(OpDebugOut(STR("\n") + context->debugData.testname + "\n"));
 			OP_DEBUG_DUMP_CODE(dump());
 			context->setError(PathOpsV0Lib::ContextError::gap  OP_DEBUG_PARAMS(id));
 			// !!! dump file here?
@@ -1075,8 +1075,8 @@ bool OpJoiner::matchLinks(OpContour* contour, bool popLast) {
 		return false;
 	// adding gap edge in unsect pair case
 #if OP_TEST_RASTER
-    OpPoint firstPt;
-    OpPoint lastPt;
+    OpPoint firstPt(SetToNaN::dummy);
+    OpPoint lastPt(SetToNaN::dummy);
 #endif
 	if (!tree.bestLimb) {
 		OpLimb* gap = tree.bestGapLimb;
@@ -1105,7 +1105,7 @@ bool OpJoiner::matchLinks(OpContour* contour, bool popLast) {
     }
 	bool result = tree.join(*this);
 #if OP_TEST_RASTER
-    if (firstPt != lastPt)
+    if (firstPt.isFinite() && lastPt.isFinite() && firstPt != lastPt)
         context->addRasterFiller(firstPt, lastPt, edge->segment);
 #endif
     return result;

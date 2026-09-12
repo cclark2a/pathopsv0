@@ -413,14 +413,16 @@ FindCept SectRay::findCept(OpEdge* test, AllowTooManyRetries allow) {
 		return FindCept::retry;
 	if (test->disabled && test->coinPals.empty())
 		return FindCept::ok;
-	if (test->curve.start.isFinite() || test->curve.end.isFinite()) {
+    if (test->curve.start.isFinite() || test->curve.end.isFinite()) {
 		// check if axis at normal is between ends of nearly coincident edges (testQuad2558209)
         // !!! can coin pals have opposite edge instead of segment ?
 		for (const CoinPal& pal : test->coinPals) {
 			bool palsReversed = pal.coinID < 0;
 			for (const OpEdge& palEdge : pal.opp->edgeList) {
+#if 0  // edges may cancel and both be disabled (looking for one edge slightly longer)
 				if (palEdge.disabled)
 					continue;
+#endif
 #if 0  // !!! not sure; this seems like overreach; disallows truly coincident edges (op/testRect2)
 				if (&palEdge == home)
 					return FindCept::retry;
@@ -471,8 +473,17 @@ FindCept SectRay::findCept(OpEdge* test, AllowTooManyRetries allow) {
 	if (1 != roots.count())
 		return pushUsectDist();  // preferable for thread_cubics157381
 	root = roots.get(0);
+#if 0
 	if (OpMath::IsNaN(root) || 0 == root || root == 1)
 		return pushUsectDist();
+#else
+    if (OpMath::IsNaN(root))
+		return pushUsectDist();
+    if (OpMath::Between(test->preStartT, root, test->postStartT))
+        return pushUsectDist();
+    if (OpMath::Between(test->preEndT, root, test->postEndT))
+        return pushUsectDist();
+#endif
 	OpVector tangent = test->curve.tangent(root).normalize();
 	if (!tangent.isFinite() || tangent == OpVector{ 0, 0 } )
 		return pushUsectDist();

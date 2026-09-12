@@ -75,6 +75,7 @@ struct CutRangeT {
 
 struct OpIntersection {
 	void pair(OpIntersection* o);
+	void pairPoint(OpIntersection* o);
 
 	void set(const OpPtT& pt_t, OpSegment* seg  OP_LINE_FILE_DEF(int srcID, int oppID)) {
 		segment = seg;
@@ -82,6 +83,7 @@ struct OpIntersection {
 		OP_ASSERT(OpMath::Between(0, pt_t.t, 1));
 		ptT = pt_t;
 		callerPt = pt_t.pt;
+        unalignedT = pt_t.t;
         OP_LINE_FILE_SET(debugSetMaker);
 #if OP_DEBUG
 		debugSrcID = srcID;
@@ -142,10 +144,11 @@ struct OpIntersection {
 #if CHECK_SNIP
     CutRangeT snipTs;  // range excluded from ray casting because intersections were discarded
 #endif
-	OpPoint callerPt;  // returned by caller's curve at this t
+	OpPoint callerPt;  // returned by caller's curve at aligned t
+    float unalignedT = OpNaN;  // original t found (used to disallow rays in aligned region)
 	int coincidenceID = 0;  // if non-zero, intersection marks range where edges completely overlap
 	int usectID = 0;  // if non-zero, intersection marks range where edges are too close to call
-	int mergeID = 0;  // if non-zero, intersection pt is nearly equal to adjacent intersection
+	int mergeID = 0;  // if non-zero, one of all equal intersection pts
 #if CHECK_SNIP
     int snipID = 0;  // if non-zero, another sect is found in snip in line/curve sect test
 #endif
@@ -158,7 +161,6 @@ struct OpIntersection {
 	bool ccSect = false;  // set if curve-curve created coins/unsectables (if possibly out-of-order)
 	bool ccUnsectable = false;  // set if curve-curve created or set unsectables (to treat as coin)
 	bool collapsed = false;  // set if coincidence or unsect pair collapsed to a point
-    bool oppErased = false;  // set if merging via point aliasing erased opposite from sects
 #if OP_DEBUG || OP_DEBUGGER
 	int id = 0;
 	int debugSrcID = 0;	// pair of edges or segments that intersected (!!! only useful if edges?)
@@ -215,7 +217,7 @@ struct OpIntersections {
 //	bool outOfOrder() const;
 //	void range(const OpSegment* , std::vector<OpIntersection*>& );
     void removeCollapsed();
-    void removeOne(OpIntersection* , OpIntersection*);  // pair sharing segment was erased by opp
+    OpIntersection* removeOne(OpIntersection* , OpIntersection*);  // pair sharing segment was erased by opp
 	bool simpleEnd() const;  // true if array has only one entry with t equal to one
 	bool simpleStart() const;  // true if array has only one entry with t equal to zero
 #if CHECK_SNIP

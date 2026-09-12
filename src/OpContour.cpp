@@ -355,13 +355,16 @@ EdgesLoop OpContour::IsLoop(std::vector<LoopCheck>& edges, OpEdge* e, EdgeMatch 
 // to be resolved later. 
 // !!! TODO : find direction of loop at add 'reverse' param to output if needed
 //     direction should consider whether edge normal points to inside or outside
-bool OpContour::detachIfLoop(OpJoiner* joiner, OpEdge* e, std::vector<OpEdge*>* erasures,
-		EdgeMatch loopMatch) {
+bool OpContour::detachIfLoop(OpJoiner* joiner, OpEdge* first, std::vector<OpEdge*>* erasures,
+		EdgeMatch loopMatch, bool isLoop) {
     if (context->windingCallbacks.windingWoundFuncPtr)
         return false;
-    OpEdge* first = e->advanceToEnd(EdgeMatch::start);
+    if (!isLoop) {
+        first = first->advanceToEnd(EdgeMatch::start);
+        isLoop = first->whichCurvePt() == first->lastEdge->whichCurvePt(EdgeMatch::end);
+    }
     // if this forms a loop, there's nothing to detach, return success
-	if (first->whichCurvePt() == first->lastEdge->whichCurvePt(EdgeMatch::end)) {	
+	if (isLoop) {	
         EdgeOutput edgeOutput(context, first, true);
 		OP_DEBUG_VALIDATE_CODE(joiner->debugValidate());
 		return true;
@@ -575,8 +578,8 @@ void OpContour::linkUp(OpJoiner* joiner, OpEdge* e) {
 		}
 		FoundEdge foundOne = foundEdges.front();
 		OP_DEBUG_VALIDATE_CODE(joiner->debugValidate());
-		e->linkToEdge(foundOne, linkMatch);
-		if (detachIfLoop(joiner, e, nullptr, linkMatch))
+		bool isLoop = e->linkToEdge(foundOne, linkMatch);
+		if (detachIfLoop(joiner, e, nullptr, linkMatch, isLoop))
 			return; // 4) found loop, nothing leftover; caller to move on to next edge
 		OP_DEBUG_VALIDATE_CODE(joiner->debugValidate());
 		// move to the front or back edge depending on link match
@@ -710,7 +713,8 @@ RelinkJoins OpContour::relinkUnambiguous(OpJoiner* joiner, size_t link) {
 	}
 	context->linkErased = false;
     OP_DEBUG_VALIDATE_CODE(joiner->debugValidate());
-	detachIfLoop(joiner, edge->advanceToEnd(EdgeMatch::start), &linkupsErasures, EdgeMatch::end);
+	detachIfLoop(joiner, edge->advanceToEnd(EdgeMatch::start), &linkupsErasures, EdgeMatch::end,
+            false);
     OP_DEBUG_VALIDATE_CODE(joiner->debugValidate());
 	bool somethingWasErased = eraseLinks(linkupsErasures);
 	if (!somethingWasErased && !context->linkErased)

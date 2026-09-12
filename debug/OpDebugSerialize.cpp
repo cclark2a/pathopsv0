@@ -2068,7 +2068,15 @@ std::string OpEdge::debugDump(DebugLevel l, DebugBase b) const {
     s += strFloat(EdgeFilter::startT, "startT", startT);
     ASSERT_ORDERED(startT, endT);
     s += strFloat(EdgeFilter::endT, "endT", endT);
-    ASSERT_ORDERED(endT, id);
+    ASSERT_ORDERED(endT, preStartT);
+    s += strFloat(EdgeFilter::startT, "preStartT", preStartT);
+    ASSERT_ORDERED(preStartT, preEndT);
+    s += strFloat(EdgeFilter::endT, "preEndT", preEndT);
+    ASSERT_ORDERED(preEndT, postStartT);
+    s += strFloat(EdgeFilter::startT, "postStartT", postStartT);
+    ASSERT_ORDERED(postStartT, postEndT);
+    s += strFloat(EdgeFilter::endT, "postEndT", postEndT);
+    ASSERT_ORDERED(postEndT, id);
     ASSERT_ORDERED(id, ccUnsectID);
     s += strID(EF::ccUnsectID, "ccUnsectID", ccUnsectID);
     ASSERT_ORDERED(ccUnsectID, whichEnd_impl);
@@ -2260,6 +2268,8 @@ std::string OpIntersection::debugDump(DebugLevel l, DebugBase b) const {
             return s;
         }
         s += ptT.debugDump(id ? l : DebugLevel::error, b) + " ";   // !!! may be uninitialized?
+        if (OpMath::IsFinite(unalignedT) && unalignedT != ptT.t)
+            s += "unalignedT:" + STR(unalignedT) + " ";
         if (!callerPt.debugIsUninitialized() && callerPt != ptT.pt)
             s += "callerPt:" + callerPt.debugDump(l, b) + " ";
         std::string segmentID = segment ? segment->debugDumpID() : "-";
@@ -2309,7 +2319,10 @@ std::string OpIntersection::debugDump(DebugLevel l, DebugBase b) const {
     #endif
         if (!callerPt.debugIsUninitialized() && callerPt != ptT.pt)
             s += "callerPt:" + callerPt.debugDump(l, b) + " ";
-        ASSERT_ORDERED(callerPt, coincidenceID);
+        ASSERT_ORDERED(callerPt, unalignedT);
+        if (OpMath::IsFinite(unalignedT))
+            s += "unalignedT:" + OpDebugDumpHex(unalignedT) + " ";
+        ASSERT_ORDERED(unalignedT, coincidenceID);
         if (coincidenceID)
             s += "coincidenceID:" + STR(coincidenceID) + " ";
         ASSERT_ORDERED(coincidenceID, usectID);
@@ -2340,7 +2353,6 @@ std::string OpIntersection::debugDump(DebugLevel l, DebugBase b) const {
 	DEBUG_DUMP_BOOL(ccLine, ccSect);
 	DEBUG_DUMP_BOOL(ccSect, ccUnsectable);
 	DEBUG_DUMP_BOOL(ccUnsectable, collapsed);
-	DEBUG_DUMP_BOOL(collapsed, oppErased);
 #if OP_DEBUG
     if (DebugLevel::file == l && id)
         s += "id:" + STR(id) + " ";

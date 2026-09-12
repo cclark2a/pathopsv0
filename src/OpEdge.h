@@ -375,6 +375,10 @@ private:
         , endDist(SetToNaN::dummy)
 		, startT(OpNaN)
 		, endT(OpNaN)
+		, preStartT(OpNaN)
+		, preEndT(OpNaN)
+		, postStartT(OpNaN)
+		, postEndT(OpNaN)
 		, ccUnsectID(0)
 		, whichEnd_impl(EdgeMatch::none)
 		, rayFail(EdgeFail::none)
@@ -470,7 +474,7 @@ public:
 		return Unsortable::none == unsortable; }
 	bool isSummable() const {
 		return !unsummable; }
-	void linkToEdge(FoundEdge& , EdgeMatch );
+	bool linkToEdge(FoundEdge& , EdgeMatch );  // return true if loop
 	MatchReverse matchEnds(const LinePts& linePts) const {
 		return curve.matchEnds(linePts); }
 	float margin() const;
@@ -569,6 +573,10 @@ public:
     EdgeDist endDist;  // distance from end to opposite in curve-curve intersection
 	float startT;  // used to be ptT; needs sect to find unsectable
 	float endT;
+    float preStartT;  // sm t prior to merge (diallow ray in interval between original and aligned)
+    float preEndT;
+    float postStartT;  // lg t prior to merge (diallow ray in interval between original and aligned)
+    float postEndT;
 	int id;
 	int ccUnsectID;  // filler made to connect pair of unsectables
 	EdgeMatch whichEnd_impl;  // if 'start', prior end equals start; if 'end' prior end matches end

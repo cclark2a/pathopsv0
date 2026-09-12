@@ -18,6 +18,17 @@ void OpIntersection::pair(OpIntersection* o) {
 	o->opp = this;
 }
 
+#if 0
+void OpIntersection::pairPoint(OpIntersection* o) {
+    pair(o);
+    if (o->ptT.pt == ptT.pt)
+        return;
+    OP_ASSERT(0 == usectID && 0 == o->usectID);  // unsectable pairs need not have equal ends
+    o->ptT.pt = ptT.pt;  // !!! instead of meet in middle, just pick one?
+    // !!! does this need to have a merge id?
+}
+#endif
+
 void OpIntersection::setCoin(int cid, MatchEnds end, CoinOpp co) {
 	setCoincidenceID(cid);
 	coinEnd = end;
@@ -122,11 +133,11 @@ void OpIntersections::clear() {
 }
 
 void OpIntersections::ClearPairs(OpIntersection* testSect, OpIntersection* visited) {
-    if (testSect->usectID == visited->usectID) {
+    if (testSect->usectID && testSect->usectID == visited->usectID) {
         testSect->zeroUnsect();
         visited->zeroUnsect();
     }
-    if (testSect->coincidenceID == visited->coincidenceID) {
+    if (testSect->coincidenceID && testSect->coincidenceID == visited->coincidenceID) {
         testSect->zeroCoincidence();
         visited->zeroCoincidence();
     }
@@ -287,10 +298,22 @@ void OpIntersections::makeEdges(OpSegment* segment) {
 	};
 	std::vector<CoinPal> coincidences;
 	OpIntersection* first = i.front();
+    OP_ASSERT(0 == first->ptT.t);
+    float smallT = 0;
+    float largeT = first->unalignedT;
 	for (OpIntersection* sectPtr : i) {
 		if (first->ptT.t != sectPtr->ptT.t) {
 			segment->edgeList.emplace_back(first, sectPtr  OP_LINE_FILE_PARGS());
 			OpEdge& newEdge = segment->edgeList.back();
+            newEdge.preStartT = smallT;
+            newEdge.postStartT = largeT;
+            if (segment->edgeList.size() > 1) {
+                OpEdge& priorEdge = *(&segment->edgeList.back() - 1);
+                priorEdge.preEndT = smallT;
+                priorEdge.postEndT = largeT;
+            }
+            smallT = std::min(sectPtr->ptT.t, sectPtr->unalignedT);
+            largeT = std::max(sectPtr->ptT.t, sectPtr->unalignedT);
 			newEdge.unsectableStart = !!first->usectID;
 			newEdge.unsectableEnd = !!sectPtr->usectID;
 		// if edge is between a pair of coincident edges, mark it unsortable
@@ -319,10 +342,18 @@ void OpIntersections::makeEdges(OpSegment* segment) {
 				newEdge.unSects = unsectables;
 			if (!coincidences.empty())
 				newEdge.coinPals = coincidences;
-		}
+		} else {
+            smallT = std::min(smallT, sectPtr->unalignedT);
+            largeT = std::max(largeT, sectPtr->unalignedT);
+        }
 		stackUnsects(sectPtr);
 		stackCoins(coincidences, sectPtr);
 	}
+    OP_ASSERT(segment->edgeList.size());
+    OpEdge& lastEdge = segment->edgeList.back();
+    OP_ASSERT(1 == lastEdge.endT);
+    lastEdge.preEndT = smallT;
+    lastEdge.postEndT = largeT;
 #if CHECK_SNIP
     if (!hasSnips)
         return;
@@ -707,12 +738,19 @@ void OpIntersections::removeCollapsed() {
 }
 
 // opposite will be erased, but this pair was not erased because they were too far apart
-void OpIntersections::removeOne(OpIntersection* one, OpIntersection* two) {
+OpIntersection* OpIntersections::removeOne(OpIntersection* one, OpIntersection* two) {
+    OP_ASSERT(one->segment == two->segment);
     ClearPairs(one, two);
+    if (2 == i.size()) {
+        one->segment->setDisabled(OP_LINE_FILE_NPARGS());
+        return one;
+    }
     OpIntersection* toErase = 1 == one->ptT.t || 0 == one->ptT.t ? two : one;
+    OpIntersection* kept = one == toErase ? two : one;
     auto index = std::find(i.begin(), i.end(), toErase);
     OP_ASSERT(index != i.end());
     i.erase(index);
+    return kept;
 }
 
 bool OpIntersections::simpleEnd() const {
@@ -923,6 +961,8 @@ void OpIntersections::sort() {
 	} while (++index < i.size());
 	if (rangeStart + 2 <= index)
 		processEnd(index);
+    if (i.front()->ptT.t == i.back()->ptT.t)
+        i.front()->segment->setDisabled(OP_LINE_FILE_NPARGS());
 }
 
 #if 0

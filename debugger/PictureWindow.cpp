@@ -59,6 +59,12 @@ void PictureWindow::addBounds() {
                 addRect(poly, poly.opType.segment->c.aliasBounds());
         }
     }
+    if (debuggerState->showIntersections) {
+        for (DebuggerPoly& poly : intersections) {
+            addRect(poly, 
+                    OpRect(poly.opType.intersection->ptT.pt, poly.opType.intersection->ptT.pt));
+        }
+    }
     if (debuggerState->showContours) {
         for (DebuggerPoly& poly : contours) {
             addRect(poly, poly.opType.contour->bounds);
@@ -709,6 +715,9 @@ void PictureWindow::colorPolys() {
 #else
         poly.color = poly.contour->debugColor;
 #endif
+    }
+    for (DebuggerPoly& poly : intersections) {
+        poly.color = poly.opType.intersection->segment->debugColor;
     }
     for (DebuggerPoly& poly : segments) {
         poly.color = poly.opType.segment->debugColor;  // !!! convert this to context callout
