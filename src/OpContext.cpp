@@ -637,7 +637,7 @@ bool OpContext::setError(PathOpsV0Lib::ContextError e  OP_DEBUG_PARAMS(int eID, 
 			&& PathOpsV0Lib::ContextError::toVertical != e
 			&& PathOpsV0Lib::ContextError::gap != e
 			&& OpDebugExpect::fail != debugExpect)
-		OpDebugOut("fatal error in " + debugData.testname + "\n");
+		OpDebugOut(STR("fatal error in ") + debugData.testname + "\n");
 #endif
 	fatalError = PathOpsV0Lib::ContextError::gap != e;
 	if (!fatalError && PathOpsV0Lib::ContextError::none != error)

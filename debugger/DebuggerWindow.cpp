@@ -237,18 +237,7 @@ void DebuggerWindow::add(std::vector<OpPoint>& pts ) {
     for (OpPoint pt : pts) {
         if (last == pt)
             continue;
-#if 0
-        polyPoints.emplace_back();
-        DebuggerPoly& back = polyPoints.back();
-        back.cData.start = last;
-        back.cData.end = pt;
-        back.c = { (ContextPtr) context(), &back.cData, sizeof(back.cData), 0 }; 
-        OP_ASSERT(back.c.context);
-        OpCurve curve(back.c, Rotated::no);
-        add(curve, nullptr);
-#else
         addLine(last, pt);
-#endif
         last = pt;
     }
     OP_DEBUG_VALIDATE_CODE(validate());
@@ -373,6 +362,7 @@ void DebuggerWindow::clearWindow() {
     edges.clear();
     contours.clear();
     intersections.clear();
+    limits.clear();
     segments.clear();
     output.clear();
     rects.clear();
@@ -436,13 +426,15 @@ std::vector<DebuggerPoly>& DebuggerWindow::findPolys(OpType opType) {
     switch (opType.type) {
         case IDType::edge:
             return edges;
-       case IDType::contour:
+        case IDType::contour:
            return contours;
-       case IDType::segment:
+        case IDType::segment:
            return segments;
-       case IDType::intersection:
+        case IDType::intersection:
             return intersections;
-       case IDType::output:
+        case IDType::limit:
+            return limits;
+        case IDType::output:
            return output;
        default:
            OP_ASSERT(0);
@@ -495,7 +487,7 @@ std::string DebuggerWindow::recordCommon() {
     if (0 == (SDL_GetWindowFlags(window) & SDL_WINDOW_HIDDEN))
         s += "windowVisible ";
     if (!OpMath::IsDebugNaN((float) scale))
-        s += debugValue(DebugLevel::error, b, "scale", (float) scale) + " ";
+        s += debugErrorValue(l, b, "scale", (float) scale);
     s += "fontSize:" + STR(fontSize) + " ";
     return s;
 }

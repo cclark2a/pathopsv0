@@ -796,7 +796,7 @@ void OpContext::dumpSet(const char*& str) {
     if (OpDebugOptional(str, "maxBounds"))
         maxBounds.dumpSet(str);
     ASSERT_ORDERED(maxBounds, threshold);
-    if (OpDebugOptional(str, "threshold"))
+    if (OpDebugStrictOptional(str, "threshold"))
         threshold.dumpSet(str);
     ASSERT_ORDERED(threshold, thresholdLength);
     thresholdLength = OpDebugReadNamedFloat(str, "thresholdLength");
@@ -1839,7 +1839,13 @@ void OpEdge::dumpSet(const char*& str) {
     ASSERT_ORDERED(upright_impl, linkBounds);
     if (OpDebugOptional(str, "linkBounds"))
         linkBounds.dumpSet(str);
-    ASSERT_ORDERED(linkBounds, winding);
+    ASSERT_ORDERED(linkBounds, startOpp);
+    if (OpDebugOptional(str, "startOpp"))
+        startOpp.dumpSet(str);
+    ASSERT_ORDERED(startOpp, endOpp);
+    if (OpDebugOptional(str, "endOpp"))
+        endOpp.dumpSet(str);
+    ASSERT_ORDERED(endOpp, winding);
     if (OpDebugOptional(str, "winding"))
         winding.dumpSet(dumpContext, str);
     ASSERT_ORDERED(winding, sum);
@@ -2718,8 +2724,8 @@ void dmp(std::array<CoinEnd, 4>& coinEndArray) {
 void EdgeRun::dumpSet(const char*& str) {
     OpDebugRequired(str, "edgePtT:");
     edgePtT.dumpSet(str);
-    OpDebugRequired(str, "oppPtT:");
-    oppPtT.dumpSet(str);
+    if (OpDebugOptional(str, "oppPtT:"))
+        oppPtT.dumpSet(str);
     oppDist = OpDebugReadNamedFloat(str, "oppDist");
     fromFoundT = OpDebugOptional(str, "fromFoundT") ? LimitFrom::yes : LimitFrom::no;
     byZero = OpDebugOptional(str, "byZero");
@@ -2739,12 +2745,13 @@ void FoundLimit::dumpSet(const char*& str) {
     segPtT.dumpSet(str);
     OpDebugRequired(str, "oppPtT");
     oppPtT.dumpSet(str);
+    rawDistance = OpDebugReadNamedFloat(str, "rawDistance");
     fromFoundT = OpDebugOptional(str, "fromFoundT") ? LimitFrom::yes : LimitFrom::no;
     oppOutOfOrder = OpDebugOptional(str, "oppOutOfOrder") ? Unordered::yes : Unordered::no;
     used = OpDebugOptional(str, "used") ? LimitUsed::yes : LimitUsed::no;
     match = OpDebugOptional(str, "match") ? LimitMatch::yes : LimitMatch::no;
     swapped = OpDebugOptional(str, "swapped") ? LimitSwapped::yes : LimitSwapped::no;
-    bettered = OpDebugOptional(str, "bettered") ? LimitBettered::yes : LimitBettered::no;
+//    bettered = OpDebugOptional(str, "bettered") ? LimitBettered::yes : LimitBettered::no;
     edgeLine = OpDebugOptional(str, "edgeLine") ? LimitLine::yes : LimitLine::no;
     oppLine = OpDebugOptional(str, "oppLine") ? LimitLine::yes : LimitLine::no;
 #if OP_DEBUG_MAKER
@@ -2760,8 +2767,7 @@ void FoundLimit::dumpResolveAll(OpContext* c) {
 
 void FoundLimits::dumpSet(const char*& str) {
 	DEBUG_SET_FIRST_VECTOR(i);
-	DEBUG_SET_VECTOR(i, lastSnips);
-	DEBUG_SET_VECTOR(lastSnips, snips);
+	DEBUG_SET_VECTOR(i, snips);
     ASSERT_ORDERED(snips, cc);
     DEBUG_SET_OPTIONAL_VALUE(cc, unique);
 	DEBUG_SET_BOOL(unique, smSegT);
@@ -3127,8 +3133,8 @@ void OpIntersection::dumpSet(const char*& str) {
     if (OpDebugOptional(str, "opp"))
         opp = (OpIntersection*) OpDebugReadSizeT(str);
     ASSERT_ORDERED(opp, ptT);
-    OpDebugRequired(str, "ptT");
-    ptT.dumpSet(str);
+    if (OpDebugOptional(str, "ptT"))
+        ptT.dumpSet(str);
 #if CHECK_SNIP
     ASSERT_ORDERED(ptT, snipTs);
     if (OpDebugOptional(str, "snipTs"))
@@ -3487,9 +3493,9 @@ void HullSect::dumpSet(const char*& str) {
     OpDebugRequired(str, "sect");
     sect.dumpSet(str);
     if (OpDebugOptional(str, "oppDist"))
-        oppDist.dumpSet(str);
+        oppDistance.dumpSet(str);
     else
-        oppDist.opp.t = OpNaN;   // !!! hacky
+        oppDistance.opp.t = OpNaN;   // !!! hacky
     type = SectTypeStr(str, "type", SectType::none);
 }
 

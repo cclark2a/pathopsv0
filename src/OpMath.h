@@ -85,6 +85,12 @@ enum class RootFail {
 	rootIsNaN,
 };
 
+enum class RootEnd {
+    none,
+    start,
+    end
+};
+
 // always assume a maximum of (and reserve space for) five roots
 // lines, cubics, and quads only need 2 but reserving three simplifies things,
 // just as all curves reserve 4 points, even though all but cubics need 2 or 3
@@ -125,6 +131,8 @@ struct OpRoots {
 	void add(float root) {
 		roots.push_back(root);
 	}
+
+    void add(float root, RootEnd end);
 
 	void add(const OpRoots& );
 
@@ -175,9 +183,16 @@ struct OpRoots {
 		std::sort(roots.begin(), roots.end());
 	}
 
+    void trackEnds() {
+        start = -1;
+        end = -1;
+    }
+
 	DUMP_DECLARATIONS
 
 	std::vector<float> roots;
+    int start;
+    int end;
 	RootFail fail;
 };
 
@@ -385,6 +400,9 @@ struct OpVector {
 	}
 
 	DUMP_DECLARATIONS
+#if OP_DEBUG_SERIALIZE
+    std::string debugError(DebugLevel l, DebugBase b, std::string label) const;
+#endif
 
 	float dx;
 	float dy;
@@ -574,6 +592,9 @@ struct OpPoint {
 
 #if OP_DEBUG || OP_DEBUGGER
 	bool debugIsUninitialized() const;
+#endif
+#if OP_DEBUG_SERIALIZE
+    std::string debugError(DebugLevel l, DebugBase b, std::string label) const;
 #endif
 
 	float x;
@@ -998,6 +1019,9 @@ struct OpPtT {
 
 #if OP_DEBUG || OP_DEBUGGER
 	bool debugIsUninitialized() const;
+#endif
+#if OP_DEBUG_SERIALIZE
+    std::string debugError(DebugLevel l, DebugBase b, std::string label) const;
 #endif
 
 	OpPoint pt;

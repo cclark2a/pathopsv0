@@ -42,6 +42,8 @@ void DebuggerWindow::pentrek_draw(char* bits, int width, int height, int scan) {
     drawPolys(output);
     drawPolys(edges);
     drawPolys(segments);
+    drawPolys(intersections);
+    drawPolys(limits);
     drawPolys(rects);
     drawPolys(polyPoints);
     drawPolys(lines);

@@ -34,6 +34,8 @@ enum class DebugSprite {
     diamond,
     square,
     triangle,
+    leftTri,
+    rightTri
 };
 
 enum class DrawLevel {
@@ -56,6 +58,7 @@ enum class IDType {
     edge,
     intersection,
     coincident,
+    limit,
     unsectable,  // intersection
     unsectID,  // edge
     distance,
@@ -79,14 +82,15 @@ struct NativeTextCache {
 
 struct OpType {
     OpType() { contour = nullptr; }
-    OpType(const OpEdge* e);
-    OpType(const OpSegment* s);
-    OpType(const OpContour* c, int cIndex);
-    OpType(const OpIntersection* i, IDType t = IDType::intersection);
-    OpType(const struct Distance* d);
-    OpType(const struct EdgePal* p);
-    OpType(const struct OpTree* t);
-    OpType(const struct OpLimb* l);
+    OpType(const OpEdge* );
+    OpType(const OpSegment* );
+    OpType(const OpContour* , int cIndex);
+    OpType(const OpIntersection* , IDType t = IDType::intersection);
+    OpType(const struct Distance* );
+    OpType(const struct EdgePal* );
+    OpType(const struct FoundLimit& );
+    OpType(const struct OpTree* );
+    OpType(const struct OpLimb* );
 #if DEBUG_CLIP
     std::string debugDump(DebugLevel, DebugBase) const;
 #endif
@@ -100,6 +104,7 @@ struct OpType {
         const OpIntersection* intersection;
         const Distance* distance;
         const EdgePal* pal;
+        const FoundLimit* limit;
         const OpTree* tree;
         const OpLimb* limb;
     };

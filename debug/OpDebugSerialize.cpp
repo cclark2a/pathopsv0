@@ -475,16 +475,21 @@ static std::string debugLabel(DebugLevel l, std::string label) {
     return DebugLevel::brief == l ? label.substr(0, 1) : label;
 }
 
-std::string debugValue(DebugLevel l, DebugBase b, std::string label, float value) {
+std::string debugXYValue(DebugLevel l, DebugBase b, std::string label, float value) {
     std::string s;
-    if (DebugLevel::error != l && DebugLevel::file != l && !OpMath::IsFinite(value))
-        return s;
+    OP_ASSERT(!label.empty());
     s = debugLabel(l, label) + ":";
     return s + debugFloat(b, value);
 }
 
-static std::string debugErrorValue(DebugLevel l, DebugBase b, std::string label, float value) {
-    return debugValue(DebugLevel::file == l ? l : DebugLevel::error, b, label, value);
+std::string debugValue(DebugLevel l, DebugBase b, std::string label, float value) {
+    return debugXYValue(l, DebugLevel::file == l ? b : DebugBase::dec, label, value);
+}
+
+std::string debugErrorValue(DebugLevel l, DebugBase b, std::string label, float value) {
+    if (DebugLevel::file != l && !OpMath::IsFinite(value))
+        return "";
+    return debugValue(l, b, label, value) + " ";
 }
 
 static std::string BoolToStr(DebugLevel l, int8_t b, const char* label, const char* brief) {
@@ -549,8 +554,9 @@ std::string CcCurves::debugDump(DebugLevel l, DebugBase b) const {
 
 std::string CoinEnd::debugDump(DebugLevel l, DebugBase b) const { 
     std::string s;
-    s += "seg:" + STR(seg->id) + " opp:" + STR(opp->id) + " ptT:" + ptT.debugDump(l, b);
-    s += " oppT:" + oppT.debugDump(DebugLevel::error, b);
+    s += "seg:" + STR(seg->id) + " opp:" + STR(opp->id) + " ptT:" + ptT.debugDump(l, b) + " ";
+    s += oppT.debugError(l, b, "oppT");
+    debugPopMatching(s, ' ');
     return s;
 }
 
@@ -596,7 +602,7 @@ std::string Curve_DebugDump(PathOpsV0Lib::Curve c, DebugLevel l, DebugBase b) {
 		        pt = c.data->end;
 	        else
                 pt = context.callback(c.type).curveHullFuncPtr(c, i);
-            s += pt.debugDump(DebugLevel::error, b) + ", ";
+            s += pt.debugError(l, b, "") + ", ";
         }
         debugPopMatching(s, ' ');
         debugPopMatching(s, ',');
@@ -784,7 +790,7 @@ std::string Distance::debugDump(DebugLevel l, DebugBase b) const {
     std::string s;
     s += "{edge[" + debugDumpID() + "] ";
     if (!OpMath::IsDebugNaN(cept))
-        s += debugValue(l, b, "cept", cept) + " ";
+        s += debugXYValue(l, b, "cept", cept) + " ";
     if (!OpMath::IsDebugNaN(edgeInsideT))
         s += debugValue(l, b, "edgeInsideT", edgeInsideT) + " ";
     if (RayOrder::uninitialized != rayOrder)
@@ -807,7 +813,8 @@ std::string EdgeDist::debugDump(DebugLevel l, DebugBase b) const {
     std::string s;
     if (isSet()) 
 		s += "opp:" + opp.debugDump(l, b) + " ";
-    s += debugValue(DebugLevel::error, b, "dist", dist) + " ";
+    s += debugErrorValue(l, b, "dist", dist);
+    debugPopMatching(s, ' ');
     return s;
 }
 
@@ -837,8 +844,8 @@ std::string EdgePal::debugDumpID() const {
 std::string EdgeRun::debugDump(DebugLevel l, DebugBase b) const {
     std::string s;
     s += "edgePtT:" + edgePtT.debugDump(l, b) + " ";
-    s += "oppPtT:" + oppPtT.debugDump(DebugLevel::error, b) + " ";
-    s += debugErrorValue(l, b, "oppDist", oppDist) + " ";
+    s += oppPtT.debugError(l, b, "oppPtT");
+    s += debugErrorValue(l, b, "oppDist", oppDist);
     if (LimitFrom::yes == fromFoundT)
         s += "fromFoundT ";
     if (byZero)
@@ -886,6 +893,7 @@ std::string FoundLimit::debugDump(DebugLevel l, DebugBase b) const {
         s += "parentOpp:" + STR(parentOpp->id) + " ";
     s += "segPtT:" + segPtT.debugDump(l, b) + " ";
     s += "oppPtT:" + oppPtT.debugDump(l, b) + " ";
+    s += debugErrorValue(l, b, "rawDistance", rawDistance);
     if (LimitFrom::yes == fromFoundT)
         s += "fromFoundT ";
     if (Unordered::yes == oppOutOfOrder)
@@ -896,8 +904,8 @@ std::string FoundLimit::debugDump(DebugLevel l, DebugBase b) const {
         s += "match ";
     if (LimitSwapped::yes == swapped)
         s += "swapped ";
-    if (LimitBettered::yes == bettered)
-        s += "bettered ";
+//    if (LimitBettered::yes == bettered)
+//        s += "bettered ";
     if (LimitLine::yes == edgeLine)
         s += "edgeLine ";
     if (LimitLine::yes == oppLine)
@@ -924,8 +932,7 @@ std::string FoundLimits::debugDump(DebugLevel l, DebugBase b) const {
         }
     } else {
         DEBUG_DUMP_FIRST_VECTOR(i);
-        DEBUG_DUMP_VECTOR(i, lastSnips);
-        DEBUG_DUMP_VECTOR(lastSnips, snips);
+        DEBUG_DUMP_VECTOR(i, snips);
         ASSERT_ORDERED(snips, cc);
         DEBUG_DUMP_OPTIONAL_POS_VALUE(cc, unique);
         DEBUG_DUMP_BOOL(unique, smSegT);
@@ -943,8 +950,8 @@ std::string HullSect::debugDump(DebugLevel l, DebugBase b) const {
     else if (opp)
         s += "[" + STR(opp->id) + "] ";
     s += "sect:" + sect.debugDump(l, b) + " ";
-	if (oppDist.isSet())
-		s += "oppDist:" + oppDist.debugDump(l, b) + " ";
+	if (oppDistance.isSet())
+		s += "oppDist:" + oppDistance.debugDump(l, b) + " ";
     s += "type:" + SectTypeName(type) + " ";
     return debugPopMatching(s, ' ');
 }
@@ -1345,10 +1352,9 @@ std::string OpContext::debugDump(DebugLevel l, DebugBase b, DumpRaster dumpRaste
         s += maxBounds.debugDump(l, b) + "\n"; 
     }
     ASSERT_ORDERED(maxBounds, threshold);
-    s += "threshold:" + threshold.debugDump(DebugLevel::error, b) + " ";
+    s += threshold.debugError(l, b, "threshold");
     ASSERT_ORDERED(threshold, thresholdLength);
-    if (!OpMath::IsDebugNaN(thresholdLength))
-        s += debugValue(DebugLevel::error, b, "thresholdLength", thresholdLength) + " ";
+    s += debugErrorValue(l, b, "thresholdLength", thresholdLength);
     ASSERT_ORDERED(thresholdLength, error);
     if (PathOpsV0Lib::ContextError::none != error)
         s += "error:" + PathOpsV0Lib::contextErrorName(error) + "\n";
@@ -1917,7 +1923,6 @@ std::string OpEdge::debugDump(DebugLevel l, DebugBase b) const {
     DebugLevel debugLevelRay = l;
     if (DebugLevel::ray == debugLevelRay)
         l = DebugLevel::normal;
-    DebugLevel error = DebugLevel::file != l ? DebugLevel::error : DebugLevel::file;
     auto strLabel = [l](std::string label) {
         return debugLabel(l, label);
     };
@@ -1936,22 +1941,25 @@ std::string OpEdge::debugDump(DebugLevel l, DebugBase b) const {
         }
         return strLabel(label) + ":" + (edge ? STR(edge->id) : std::string("-")) + "/";
     };
-    auto strFloat = [b, error](EdgeFilter match, std::string label, float t) {
-        if (!OpMath::IsFinite(t))
-            return std::string("");
-        return debugValue(error, b, label, t) + " ";
+     auto strT = [b, l](EdgeFilter match, std::string label, float t) {
+        return debugErrorValue(l, b, label, t);
     };
- #if 0
+#if 0
     auto strPoint = [b, error, strLabel](EdgeFilter match, std::string label, OpPoint pt) {
         if (!pt.isFinite())
             return std::string("");
         return strLabel(label) + pt.debugDump(error, b) + " ";
     };
 #endif
-    auto strPtT = [b, error, strLabel](EdgeFilter match, std::string label, OpPtT ptT) {
+    auto strPt = [b, l, strLabel](EdgeFilter match, std::string label, OpPoint pt) {
+        if (!pt.isFinite())
+            return std::string("");
+        return strLabel(label) + "{" + pt.debugError(l, b, "") + "} ";
+    };
+    auto strPtT = [b, l, strLabel](EdgeFilter match, std::string label, OpPtT ptT) {
         if (!ptT.pt.isFinite() || !OpMath::IsFinite(ptT.t))
             return std::string("");
-        return strLabel(label) + "{" + ptT.debugDump(error, b) + "} ";
+        return strLabel(label) + "{" + ptT.debugError(l, b, "") + "} ";
     };
     auto strID = [strLabel](EdgeFilter match, std::string label, int ID) {
         if (!ID)
@@ -2008,7 +2016,13 @@ std::string OpEdge::debugDump(DebugLevel l, DebugBase b) const {
     }
     ASSERT_ORDERED(upright_impl, linkBounds);
     s += strBounds(EF::linkBounds, "linkBounds", linkBounds);
-    ASSERT_ORDERED(linkBounds, winding);
+    ASSERT_ORDERED(linkBounds, startOpp);
+	if (!startOpp.debugIsUninitialized())
+		s += strPt(EdgeFilter::startOpp, "startOpp", startOpp);
+    ASSERT_ORDERED(startOpp, endOpp);
+	if (!endOpp.debugIsUninitialized())
+		s += strPt(EdgeFilter::endOpp, "endOpp", endOpp);
+    ASSERT_ORDERED(endOpp, winding);
     s += strWinding(EdgeFilter::winding, "winding", winding);
     ASSERT_ORDERED(winding, sum);
     s += strWinding(EdgeFilter::sum, "sum", sum);
@@ -2065,17 +2079,17 @@ std::string OpEdge::debugDump(DebugLevel l, DebugBase b) const {
     if (endDist.debugIsSet())
         s += "endDist{" + endDist.debugDump(l, b) + "} ";
     ASSERT_ORDERED(endDist, startT);
-    s += strFloat(EdgeFilter::startT, "startT", startT);
+    s += strT(EdgeFilter::startT, "startT", startT);
     ASSERT_ORDERED(startT, endT);
-    s += strFloat(EdgeFilter::endT, "endT", endT);
+    s += strT(EdgeFilter::endT, "endT", endT);
     ASSERT_ORDERED(endT, preStartT);
-    s += strFloat(EdgeFilter::startT, "preStartT", preStartT);
+    s += strT(EdgeFilter::startT, "preStartT", preStartT);
     ASSERT_ORDERED(preStartT, preEndT);
-    s += strFloat(EdgeFilter::endT, "preEndT", preEndT);
+    s += strT(EdgeFilter::endT, "preEndT", preEndT);
     ASSERT_ORDERED(preEndT, postStartT);
-    s += strFloat(EdgeFilter::startT, "postStartT", postStartT);
+    s += strT(EdgeFilter::startT, "postStartT", postStartT);
     ASSERT_ORDERED(postStartT, postEndT);
-    s += strFloat(EdgeFilter::endT, "postEndT", postEndT);
+    s += strT(EdgeFilter::endT, "postEndT", postEndT);
     ASSERT_ORDERED(postEndT, id);
     ASSERT_ORDERED(id, ccUnsectID);
     s += strID(EF::ccUnsectID, "ccUnsectID", ccUnsectID);
@@ -2151,19 +2165,20 @@ std::string OpEdge::debugDump(DebugLevel l, DebugBase b) const {
 }
 
 std::string OpEdge::debugDumpPoints() const {
-    std::string s = "[" + STR(id) + "]";
-    s += " " + debugValue(DebugLevel::error, defaultBase, "startT", startT);
-    s += " " + debugValue(DebugLevel::error, defaultBase, "endT", endT);
-    s += " curve:" + curve.debugDump(defaultLevel, defaultBase);
-    s += " which:" + EdgeMatchName(which());
+    std::string s = "[" + STR(id) + "] ";
+    s += debugErrorValue(defaultLevel, defaultBase, "startT", startT);
+    s += debugErrorValue(defaultLevel, defaultBase, "endT", endT);
+    s += "curve:" + curve.debugDump(defaultLevel, defaultBase) + " ";
+    s += "which:" + EdgeMatchName(which()) + " ";
     const OpEdge* startE = debugAdvanceToEnd(EdgeMatch::start);
     if (startE != this)
-        s += " start[" + STR(startE->id) + "] " + startE->whichSect()
-                .debugDump(defaultLevel, defaultBase);
+        s += "start[" + STR(startE->id) + "] " + startE->whichSect()
+                .debugDump(defaultLevel, defaultBase) + " ";
     const OpEdge* endE = debugAdvanceToEnd(EdgeMatch::end);
     if (endE != this)
-        s += " end[" + STR(endE->id) + "] " + endE->whichSect(!endE->which())
-                .debugDump(defaultLevel, defaultBase);
+        s += "end[" + STR(endE->id) + "] " + endE->whichSect(!endE->which())
+                .debugDump(defaultLevel, defaultBase) + " ";
+    debugPopMatching(s, ' ');
     return s;
 }
 
@@ -2267,7 +2282,7 @@ std::string OpIntersection::debugDump(DebugLevel l, DebugBase b) const {
             s += "seg:" + segment->debugDumpID();
             return s;
         }
-        s += ptT.debugDump(id ? l : DebugLevel::error, b) + " ";   // !!! may be uninitialized?
+        s += ptT.debugError(l, b, "ptT");   // !!! may be uninitialized?
         if (OpMath::IsFinite(unalignedT) && unalignedT != ptT.t)
             s += "unalignedT:" + STR(unalignedT) + " ";
         if (!callerPt.debugIsUninitialized() && callerPt != ptT.pt)
@@ -2308,7 +2323,7 @@ std::string OpIntersection::debugDump(DebugLevel l, DebugBase b) const {
         if (opp)
             s += "opp:" + opp->debugDumpID() + " ";
         ASSERT_ORDERED(opp, ptT);
-        s += "ptT:" + ptT.debugDump(id ? l : DebugLevel::error, b) + " ";
+        s += ptT.debugError(l, b, "ptT");
     #if CHECK_SNIP
         ASSERT_ORDERED(ptT, snipTs);
         if (!snipTs.lo.debugIsUninitialized())
@@ -2580,21 +2595,40 @@ std::string OpLimbStorage::debugDump(DebugLevel l, DebugBase b) const {
 }
 
 std::string OpPoint::debugDump(DebugLevel l, DebugBase b) const {
-    if (DebugLevel::error != l && !isFinite())
-        return "";
     return "{" + debugFloat(b, x) + ", " + debugFloat(b, y) + "}";
 }
 
-std::string OpPtT::debugDump(DebugLevel l, DebugBase b) const {
-    if (DebugLevel::error != l && !pt.debugIsUninitialized() && !pt.isFinite() 
-            && !OpMath::IsDebugNaN(t) && !OpMath::IsFinite(t))
+std::string OpPoint::debugError(DebugLevel l, DebugBase b, std::string label) const {
+    if (!isFinite())
         return "";
     std::string s;
+    if (!label.empty())
+        s += label + ":";
+    s += debugDump(l, b) ;
+    if (!label.empty())
+        s += " ";
+    return s;
+}
+
+std::string OpPtT::debugDump(DebugLevel l, DebugBase b) const {
+    std::string s;
     if (!pt.debugIsUninitialized())
-        s += pt.debugDump(DebugLevel::error, b) + " ";
+        s += pt.debugDump(l, b) + " ";
     if (!OpMath::IsDebugNaN(t))
-        s += debugValue(DebugLevel::error, b, "t", t) + " ";
+        s += debugErrorValue(l, b, "t", t) + " ";
     debugPopMatching(s, ' ');
+    return s;
+}
+
+std::string OpPtT::debugError(DebugLevel l, DebugBase b, std::string label) const {
+    if (!pt.debugIsUninitialized() && !pt.isFinite() 
+            && !OpMath::IsDebugNaN(t) && !OpMath::IsFinite(t))
+        return "";
+    std::string s = debugDump(l, b);
+    if (s.empty())
+        return s;
+    if (!label.empty())
+        s = label + ":" + s + " ";
     return s;
 }
 
@@ -2773,9 +2807,19 @@ std::string OpTree::debugDump(DebugLevel l, DebugBase b) const {
 }
 
 std::string OpVector::debugDump(DebugLevel l, DebugBase b) const {
-    if (DebugLevel::error != l && !isFinite())
-        return "";
     return "{" + debugFloat(b, dx) + ", " + debugFloat(b, dy) + "}";
+}
+
+std::string OpVector::debugError(DebugLevel l, DebugBase b, std::string label) const {
+    if (!isFinite())
+        return "";
+    std::string s;
+    if (!label.empty())
+        s += label + ":";
+    s += debugDump(l, b) ;
+    if (!label.empty())
+        s += " ";
+    return s;
 }
 
 std::string OpWinding::debugDump(DebugLevel l, DebugBase b) const {
@@ -2848,19 +2892,19 @@ std::string SectRay::debugDumpHeader(DebugLevel l, DebugBase b) const {
         s += "home:" + STR(home->id) + " "; 
     ASSERT_ORDERED(home, normal);
 	if (OpMath::IsFinite(normal))
-		s += debugValue(l, b, "normal", normal) + " ";
+		s += debugXYValue(l, b, "normal", normal) + " ";
     ASSERT_ORDERED(normal, homeCept);
 	if (OpMath::IsFinite(homeCept))
-	    s += debugValue(l, b, "homeCept", homeCept) + " ";
+	    s += debugXYValue(l, b, "homeCept", homeCept) + " ";
     ASSERT_ORDERED(homeCept, homeT);
 	if (OpMath::IsFinite(homeT))
 	    s += debugValue(l, b, "homeT", homeT) + " ";
     ASSERT_ORDERED(homeT, mid);
 	if (.5 != mid)
-	    s += debugValue(l, b, "mid", mid) + " ";
+	    s += debugXYValue(l, b, "mid", mid) + " ";
     ASSERT_ORDERED(mid, midEnd);
 	if (.5 != midEnd)
-	    s += debugValue(l, b, "midEnd", midEnd) + " ";
+	    s += debugXYValue(l, b, "midEnd", midEnd) + " ";
     ASSERT_ORDERED(midEnd, axis);
 	if (Axis::neither != axis)
 		s += "axis:" + AxisName(axis) + " ";

@@ -479,12 +479,22 @@ FindCept SectRay::findCept(OpEdge* test, AllowTooManyRetries allow) {
 #else
     if (OpMath::IsNaN(root))
 		return pushUsectDist();
-    if (OpMath::Between(test->preStartT, root, test->postStartT))
+    if (AllowTooManyRetries::no == allow && OpMath::Between(test->preStartT, root, test->postStartT))
         return pushUsectDist();
-    if (OpMath::Between(test->preEndT, root, test->postEndT))
+    if (AllowTooManyRetries::no == allow && OpMath::Between(test->preEndT, root, test->postEndT))
         return pushUsectDist();
 #endif
-	OpVector tangent = test->curve.tangent(root).normalize();
+	OpPoint testPt = test->curve.ptAtT(root);
+    auto closeToOpp = [testPt](OpPoint homePt, OpPoint oppPt) {
+        float homeOpp = (homePt - oppPt).lengthSquared();
+        float homeTest = (homePt - testPt).lengthSquared();
+        return homeTest < homeOpp;
+    };
+    if (closeToOpp(test->startPt(), test->startOpp))
+        return pushUsectDist();
+    if (closeToOpp(test->endPt(), test->endOpp))
+        return pushUsectDist();
+    OpVector tangent = test->curve.tangent(root).normalize();
 	if (!tangent.isFinite() || tangent == OpVector{ 0, 0 } )
 		return pushUsectDist();
 	OpVector ray = Axis::horizontal == axis ? OpVector{ 1, 0 } : OpVector{ 0, 1 };
@@ -492,18 +502,17 @@ FindCept SectRay::findCept(OpEdge* test, AllowTooManyRetries allow) {
 	float tNxR = tangent.cross(backRay);
 	if (fabs(tNxR) < home->segment->c.normalLimit())
 		return pushUsectDist();
-	OpPoint pt = test->curve.ptAtT(root);
 	Axis perpendicular = !axis;
-	testXY = pt.choice(perpendicular);
+	testXY = testPt.choice(perpendicular);
     // If intersection of ray with test edge is very close to edge end, it may produce a false 
     // result. The ray may slip between the actual end and miss another edge with an end very close
     // by.  There needs to be a multipler on threshold (ex. chalkboard 16634438230468487913)
     OpContext* context = test->context();
     PathOpsV0Lib::CurveConst rayEndFun = context->callbacks[test->curve.c.type].rayEndFuncPtr;
 	OpVector threshold = context->threshold * (rayEndFun ? rayEndFun(test->curve.c) : 4.f);
-	if (pt.isNearly(test->curve.c.data->start, threshold))
+	if (testPt.isNearly(test->curve.c.data->start, threshold))
 		return pushUsectDist();
-	if (pt.isNearly(test->curve.c.data->end, threshold))
+	if (testPt.isNearly(test->curve.c.data->end, threshold))
 		return pushUsectDist();
 	bool reversed = tangent.dot(homeTangent) < 0;
 	addDistance(test, testXY, root, reversed  OP_DEBUG_PARAMS(home));

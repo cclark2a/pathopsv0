@@ -178,7 +178,12 @@ void TextWindow::innerUpdate(int& safetyCheck) {
     // find window height available
     // 
     auto addWrapped = [this](std::string s) {
-        s = stringFormat(s, 100, 50);
+        int windowWidth, windowHeight;
+        int charWidth = 100;
+        if (SDL_GetWindowSize(window, &windowWidth, &windowHeight)) {
+            charWidth = windowWidth / 9;
+        }
+        s = stringFormat(s, charWidth, 150);
         const NativeTextCache& cache = getCache(addClipped(s, 
                 { 10, (float) (detailHeight - scrollPos) }, black, detailFont).cacheIndex);
         detailHeight += (int) cache.size.dy;
@@ -296,7 +301,7 @@ void TextWindow::innerUpdate(int& safetyCheck) {
         if (s.empty())
             addWrapped("(no links)");
         else
-            addWrapped("links\n" + s);
+            addWrapped(STR("links\n") + s);
     }
     if (debuggerState->showOutput) {
         DebugRaster* raster = debuggerState->context->debugRaster;
@@ -331,7 +336,7 @@ void TextWindow::innerUpdate(int& safetyCheck) {
             addWrapped(testFormat);
         std::string outFormat = format(debuggerState->context->debugOutPath);
         if (!outFormat.empty())
-            addWrapped("output:\n" + outFormat);
+            addWrapped(STR("output:\n") + outFormat);
     }
     if (lastDetailHeight != detailHeight) {
         (void) scroll(0);

@@ -260,7 +260,7 @@ struct HullSect {
 	HullSect(const OpEdge* o, const OpPtT& ptT, SectType st)
 		: opp(o)
 		, sect(ptT)
-        , oppDist(SetToNaN::dummy)
+        , oppDistance(SetToNaN::dummy)
 		, type(st) {
 	}
 
@@ -269,9 +269,9 @@ struct HullSect {
 #endif
 	DUMP_DECLARATIONS
 	const OpEdge* opp;
-	OpPtT sect;			// point and t of intersection with hull on this edge
-	EdgeDist oppDist;	// if sect came from edge end: the point closest on the opposite curve
-	SectType type;		// separate from match: intersection origin (or near origin)
+	OpPtT sect;			    // point and t of intersection with hull on this edge
+	EdgeDist oppDistance;	// if sect came from edge end: the point closest on the opposite curve
+	SectType type;		    // separate from match: intersection origin (or near origin)
 };
 
 struct OpHulls {
@@ -563,6 +563,8 @@ public:
 	OpCurve vertical_impl;	// only access through set vertical function
 	LinePts upright_impl;   //  "
 	OpPointBounds linkBounds;
+    OpPoint startOpp;   // opposite intersection (if different, ray cannot hit in bounds)
+    OpPoint endOpp;     //    "
 	OpWinding winding;	// contribution: always starts as 1, 0 (or 0, 1)
 	OpWinding sum;  // total incl. normal side of edge for operands (fill count in normal direction)
 	std::vector<CoinPal> coinPals;  // track coincidences bracketing edge by ID

@@ -116,13 +116,14 @@ struct DebuggerWindow {
 
     DebuggerState* debuggerState;
     DebuggerAddPoly addPoly;
-    std::array<std::vector<DebuggerPoly>*, 7> allPolys { &edges, &contours, &intersections, &segments,
-            &rects, &polyPoints, &lines };
+    std::array<std::vector<DebuggerPoly>*, 8> allPolys { &edges, &contours, &intersections, 
+            &limits, &segments, &rects, &polyPoints, &lines };
     std::array<std::vector<DebuggerPoly>*, 4> polyIDs { &edges, &contours, &intersections, &segments };
     std::array<std::vector<DebuggerPoly>*, 2> touchIDs { &edges, &segments };
     std::vector<DebuggerPoly> edges;
     std::vector<DebuggerPoly> contours;
     std::vector<DebuggerPoly> intersections;
+    std::vector<DebuggerPoly> limits;
     std::vector<DebuggerPoly> segments;
     std::vector<DebuggerPoly> output;
     std::vector<DebuggerPoly> rects;

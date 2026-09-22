@@ -36,6 +36,7 @@ struct PictureWindow : public DebuggerWindow {
     void addIDs();
     void addIntersections();
     void addLabel(std::string , OpType , OpPoint , uint32_t color);
+    void addLimits();
     void addOutput();
     void addPointLabel(OpPoint , OpType& );
     void addPoints();

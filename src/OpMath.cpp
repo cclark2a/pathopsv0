@@ -8,6 +8,22 @@ void OpRoots::add(const OpRoots& toAdd) {
 	}
 }
 
+void OpRoots::add(float root, RootEnd rootEnd) {
+    if (RootEnd::none != rootEnd) {
+        int& endSet = RootEnd::start == rootEnd ? start : end;
+        if (-1 == endSet)
+            endSet = (int) roots.size();
+        else if (RootEnd::start == rootEnd) {
+            if (0 == roots[start]) 
+                return;
+        } else if (1 == root) {
+            roots[end] = root;
+            return;
+        }
+    }
+    add(root);
+}
+
 float OpRoots::average() const {
 	if (empty())
 		return OpNaN;

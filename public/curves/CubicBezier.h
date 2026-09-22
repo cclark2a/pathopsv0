@@ -463,6 +463,7 @@ inline OpRoots cubicRotatedT(Curve c, Axis axis, float intercept
         ptTs[idx + 1] = { CubicPtAtT(start, controls, end, tValues.get(idx)), tValues.get(idx) }; 
     } 
 	OpRoots result;
+    result.trackEnds();
 	unsigned lastIndex = (unsigned) (ptTs.size() - 1);
     for (unsigned index = 0; index < lastIndex; ++index) {
         OpPoint curveData[4] { ptTs[index].pt, ptTs[index + 1].pt };
@@ -470,12 +471,12 @@ inline OpRoots cubicRotatedT(Curve c, Axis axis, float intercept
 		float endT = ptTs[index + 1].t;
         float startXY = curveData[0].choice(axis);
 		if (OpMath::Equal(intercept, startXY)) {
-			result.add(startT);
+			result.add(startT, RootEnd::start);
 			continue;
 		}
         float endXY = curveData[1].choice(axis);
 		if (OpMath::Equal(intercept, endXY)) {
-			result.add(endT);
+			result.add(endT, RootEnd::end);
 			continue;
 		}
 		if ((startXY - intercept) * (endXY - intercept) > 0)
@@ -485,8 +486,9 @@ inline OpRoots cubicRotatedT(Curve c, Axis axis, float intercept
 		Curve part { c.context, (CurveData*) curveData, c.size, c.type };
 		OpRoots partRoot = cubicAxisT(part, axis, intercept  OP_DEBUG_PARAMS(debugAdded));
 		for (float root : partRoot.roots)
-			result.add(startT + root * (endT - startT));
+			result.add(startT + root * (endT - startT), RootEnd::none);
 	}
+
 	return result;
 }
 

@@ -476,6 +476,7 @@ uint8_t OpDebugByteToInt(const char*& str);
 int32_t OpDebugHexToInt(const char*& str);
 std::string OpDebugLabel(const char*& str);
 bool OpDebugOptional(const char*& str, const char* match);
+bool OpDebugStrictOptional(const char*& str, const char* match);
 float OpDebugReadNamedFloat(const char*& str, const char* label);
 float OpDebugReadRequiredFloat(const char*& str, const char* label);
 size_t OpDebugReadSizeT(const char*& str);

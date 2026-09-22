@@ -31,7 +31,7 @@ bool OpHulls::add(const OpPtT& ptT, OpVector threshold, const EdgeDist& dist,
 	if (!foundNear || SectType::endHull == sectType) {
 		h.emplace_back(opp, ptT, sectType);
 		if (SectType::endHull == sectType && dist.isSet())
-			h.back().oppDist = dist;
+			h.back().oppDistance = dist;
 		return false;
 	}
 	return nearEnd;

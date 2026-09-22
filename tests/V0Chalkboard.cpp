@@ -80,7 +80,7 @@ return TestDone::yes == options->testOne(path);
 
 #define ULL(x) x##ULL  // allows copy/paste of 'testlines' value from watch window
 static void chalkboard_test_one(TestOptions* options) {
-    chalkboard(options, ULL(2424117475181740304));  // when test fails, testlines value goes here
+    chalkboard(options, ULL(562958543355904));  // when test fails, testlines value goes here
 }
 
 static void chalkboard_threaded(TestOptions* options) {

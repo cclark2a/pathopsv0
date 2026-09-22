@@ -127,6 +127,32 @@ void PictureWindow::addHulls() {
     OP_DEBUG_VALIDATE_CODE(validate());
 }
 
+void PictureWindow::addLimits() {
+    OpCurveCurve* cc = context()->debugCurveCurve;
+    if (!cc)
+        return;
+    auto add = [this](FoundLimit& limit, OpPoint local, CurveRef curveRef) {
+        limits.push_back({ });
+        if (!local.isFinite())
+            return;
+        if (!focus.contains(local))
+            return;
+        OpPoint device = toDevice(local);
+        if (points.end() == std::find_if(points.begin(), points.end(),
+                [device](auto& test) { return device == test.device; } )) {
+            OpType opType(limit);
+            points.push_back({ opType, local, device, 1, 
+                    CurveRef::edge == curveRef ? DebugSprite::leftTri : DebugSprite::rightTri });
+            if (drawValues)
+                addPointLabel(local, opType);
+        }
+    };
+    for (FoundLimit& limit : cc->limits.i) {
+        add(limit, limit.segPtT.pt, CurveRef::edge);
+        add(limit, limit.oppPtT.pt, CurveRef::opp);
+    }
+}
+
 void PictureWindow::clear() {
     clearWindow();
     scale = 0;
@@ -572,6 +598,12 @@ void PictureWindow::addPoints() {
             add(poly.opType, poly.opType.intersection->ptT.pt);
         }
     }
+    if (debuggerState->showLimits) {
+        for (auto& poly : limits) {
+            add(poly.opType, poly.opType.limit->segPtT.pt);
+            add(poly.opType, poly.opType.limit->oppPtT.pt);
+        }
+    }
     if (debuggerState->showContours) {
         // !!! add contours : may require some thought for poly-to-contour-curve mapping
         for (auto& poly : contours) {
@@ -680,6 +712,8 @@ void PictureWindow::resolvePoints() {
             }
             if (DebuggerPoly* ePoly = findPolyByID(dPt.opType.id))
 	            return addDevice(path, *ePoly);
+            if (IDType::limit == dPt.opType.type)
+                return addDevice(path, limits.front());
         };
         switch (dPt.sprite) {
             case DebugSprite::circle: {
@@ -700,6 +734,14 @@ void PictureWindow::resolvePoints() {
                 } break;
             case DebugSprite::triangle: {
 	            std::vector<OpPoint> path {{ 0, -4 }, { 4, 4 }, { -4, 4 }, { 0, -4 }};
+                adder(path);
+                } break;
+            case DebugSprite::leftTri: {
+	            std::vector<OpPoint> path {{ 4, -4 }, { 4, 4 }, { -4, 0 }, { 4, -4 }};
+                adder(path);
+                } break;
+            case DebugSprite::rightTri: {
+	            std::vector<OpPoint> path {{ -4, -4 }, { -4, 4 }, { 4, 0 }, { -4, -4 }};
                 adder(path);
                 } break;
             default:
@@ -839,6 +881,7 @@ void PictureWindow::update() {
     addEdgeHulls();
     addIDs();
     addIntersections();
+    addLimits();
     addPoints();
     addPtAtT();
     addTangents();

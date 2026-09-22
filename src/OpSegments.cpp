@@ -98,6 +98,9 @@ FoundIntersections OpSegments::addLineCurveIntersection(OpSegment* opp, OpSegmen
 	OP_ASSERT(opp != seg);
 	OP_ASSERT(seg->c.debugIsLine());
 	OpCurveCurve cc(seg, opp, matchingSects, ForCurveLineSect::dummy);
+#if OP_DEBUG_DUMP
+	OP_ASSERT(cc.debugBreak(CcBreak::atDepth));
+#endif
 	if (cc.overflowFail)
 			return FoundIntersections::fail;
 	OpRoots oppRoots = seg->c.lineIntersection(opp->c);
@@ -223,6 +226,9 @@ FoundIntersections OpSegments::addLineCurveIntersection(OpSegment* opp, OpSegmen
 		opp->addUnsectable(oEnd->ptT, usectId, endFromT(oStart, oEnd, MatchEnds::end), seg
 				OP_LINE_FILE_PARGS());
 	}
+#if OP_DEBUG_DUMP
+	OP_ASSERT(cc.debugBreak(CcBreak::atEnd));
+#endif
 	return FoundIntersections::yes;
 }
 
@@ -460,16 +466,18 @@ bool OpSegments::findIntersection(OpSegment* seg, OpSegment* opp) {
 		return true;
 	}
 	SectFound ccResult = cc.divideAndConquer();
-#if OP_DEBUG_DUMP
-	OP_ASSERT(cc.debugBreak(CcBreak::atEnd));
-#endif
 	// search runs for small opp distances; turn found into limits
 	SectFound limitsResult = cc.runsToLimits();
+    cc.limits.cull();
 	if (SectFound::add == limitsResult)
 		ccResult = limitsResult;
 	if (SectFound::add == ccResult || cc.limits.size())
 		cc.findUnsectable();
 //    OP_ASSERT(cc.limits.size() < 4);
+#if OP_DEBUG_DUMP
+    cc.debugDumpFile();
+	OP_ASSERT(cc.debugBreak(CcBreak::atEnd));
+#endif
 	cc.context->release(cc.context->ccStorage);
 	cc.context->ccStorage = nullptr;
 	OP_DEBUG_CODE(cc.context->debugCurveCurve = nullptr);

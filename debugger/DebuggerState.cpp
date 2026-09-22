@@ -205,7 +205,8 @@ void DebuggerState::playback() {
     // !!! need some way to call a custom set function ?
     defaultBase = showHex ? DebugBase::hex : DebugBase::dec;
     DEBUG_SET_BOOL(showHex, showIntersections);
-    DEBUG_SET_BOOL(showIntersections, showOutput);
+    DEBUG_SET_BOOL(showIntersections, showLimits);
+    DEBUG_SET_BOOL(showLimits, showOutput);
     DEBUG_SET_BOOL(showOutput, showRays);
     DEBUG_SET_BOOL(showRays, showSegments);
     DEBUG_SET_BOOL(showSegments, showHelp);
@@ -237,7 +238,8 @@ void DebuggerState::record() {
     DEBUG_DUMP_BOOL(showEdgeCurve, hideEdges);
     DEBUG_DUMP_BOOL(hideEdges, showHex);
     DEBUG_DUMP_BOOL(showHex, showIntersections);
-    DEBUG_DUMP_BOOL(showIntersections, showOutput);
+    DEBUG_DUMP_BOOL(showIntersections, showLimits);
+    DEBUG_DUMP_BOOL(showLimits, showOutput);
     DEBUG_DUMP_BOOL(showOutput, showRays);
     DEBUG_DUMP_BOOL(showRays, showSegments);
     DEBUG_DUMP_BOOL(showSegments, showHelp);
@@ -365,6 +367,11 @@ void DebuggerState::setIDTypes() {
 	    for (int index = 0; index < tree->totalUsed; ++index) {
 		    const OpLimb& limb = context->nthLimb(index);
             ids.emplace_back(&limb);
+        }
+    }
+    if (const OpCurveCurve* cc = context->debugCurveCurve) {
+        for (auto limit : cc->limits.i) {
+            ids.emplace_back(limit);
         }
     }
     std::sort(ids.begin(), ids.end(), [](const OpType& a, const OpType& b) {

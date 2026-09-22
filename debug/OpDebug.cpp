@@ -138,6 +138,18 @@ bool OpDebugOptional(const char*& str, const char* match) {
     return false;
 }
 
+bool OpDebugStrictOptional(const char*& str, const char* match) {
+    const char* restore = str;
+    bool result = OpDebugOptional(str, match);
+    if (!result)
+        return false;
+    if (isalnum(str[0])) {
+        str = restore;
+        return false;
+    }
+    return true;
+}
+
 int OpDebugReadNamedInt(const char*& str, const char* label) {
     while (' ' >= str[0] && '\0' != str[0])
         ++str;
@@ -749,12 +761,16 @@ void OpCurveCurve::debugSaveState() {
 // return false for caller to assert
 
 #if OP_DEBUG_DUMP
-bool OpCurveCurve::debugBreak(CcBreak atDepth) {
-    OpDebugData& debugData = context->debugData;
+bool OpCurveCurve::debugCurvesMatch() const {
+    const OpDebugData& debugData = context->debugData;
     bool curvesMatch = (debugData.curveCurve1 == seg->id && debugData.curveCurve2 == opp->id)
             || (debugData.curveCurve1 == opp->id && debugData.curveCurve2 == seg->id);
-    if (CcBreak::atEnd == atDepth && (debugData.dumpAllCcs || curvesMatch))
-        context->dumpFile("curve:" + STR(seg->id) + " curve:" + STR(opp->id));
+    return curvesMatch;
+}
+
+bool OpCurveCurve::debugBreak(CcBreak atDepth) const {
+    const OpDebugData& debugData = context->debugData;
+    bool curvesMatch = debugCurvesMatch();
     if (!curvesMatch)
         return true;
     if (debugData.defeatBreak)
@@ -765,6 +781,11 @@ bool OpCurveCurve::debugBreak(CcBreak atDepth) {
             && (0 == debugData.curveCurveDepth || depth < debugData.curveCurveDepth))
         return true;
     return false;
+}
+
+void OpCurveCurve::debugDumpFile() const {
+    if (context->debugData.dumpAllCcs || debugCurvesMatch())
+        context->dumpFile("curve:" + STR(seg->id) + " curve:" + STR(opp->id));
 }
 #endif
 

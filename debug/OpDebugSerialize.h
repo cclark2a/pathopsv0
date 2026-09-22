@@ -21,8 +21,7 @@ enum class DebugLevel {
 	normal,
     ray,  // normal + extra linefeeds for distance array
 	detailed,
-	file,
-    error      // displays uninitialized and error conditions like nan and infinities
+	file
 };
 
 inline const std::string DumpFile = "Dump";  // filenames are "Dump#.txt" where # is 1 or greater
@@ -42,6 +41,7 @@ extern std::string debugFloat(DebugLevel , float );
 extern std::string debugPopMatching(std::string& s, char match);
 extern bool debugIfMatching(std::string& s, char match);
 extern std::string debugValue(DebugLevel l, DebugBase b, std::string label, float value);
+extern std::string debugErrorValue(DebugLevel l, DebugBase b, std::string label, float value);
 extern std::vector<const OpIntersection*> findCoincidence(int id);
 extern const OpContour* findContour(int id);
 extern OpEdge* findEdge(int id);
@@ -107,6 +107,8 @@ std::string debugDumpID() const;
 	OP_X(upright_impl) \
 	OP_X(bounds) \
 	OP_X(linkBounds) \
+	OP_X(startOpp) \
+	OP_X(endOpp) \
 	OP_X(winding) \
 	OP_X(sum) \
 	OP_X(palMany) \
@@ -263,17 +265,17 @@ struct EdgeFilterName {
 #define DEBUG_DUMP_FLOAT(lastField, thisFloat) \
     ASSERT_ORDERED(lastField, thisFloat); \
     if (!OpMath::IsDebugNaN(thisFloat)) \
-        s += debugValue(DebugLevel::error, b, #thisFloat, thisFloat) + " "
+        s += debugErrorValue(l, b, #thisFloat, thisFloat) + " "
 
 #define DEBUG_DUMP_START_REQUIRED_FLOAT(thisFloat) \
-    s += debugValue(DebugLevel::error, b, #thisFloat, thisFloat) + " "
+    s += debugErrorValue(l, b, #thisFloat, thisFloat) + " "
 
 #define DEBUG_DUMP_REQUIRED_FLOAT(lastField, thisFloat) \
     ASSERT_ORDERED(lastField, thisFloat); \
     DEBUG_DUMP_START_REQUIRED_FLOAT(thisFloat)
 
 #define DEBUG_DUMP_START_REQUIRED_DOUBLE(thisFloat) \
-    s += debugValue(DebugLevel::error, b, #thisFloat, (float) thisFloat) + " "
+    s += debugErrorValue(l, b, #thisFloat, (float) thisFloat) + " "
 
 #define DEBUG_DUMP_REQUIRED_DOUBLE(lastField, thisFloat) \
     ASSERT_ORDERED(lastField, thisFloat); \

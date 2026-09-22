@@ -44,6 +44,11 @@ OpType::OpType(const EdgePal* p)
     , type(IDType::pal) {
 }
 
+OpType::OpType(const FoundLimit& f)
+    : limit(&f)
+    , type(IDType::limit) {
+}
+
 OpType::OpType(const OpTree* t)
     : tree(t)
     , id(t->id)

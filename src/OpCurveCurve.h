@@ -77,6 +77,7 @@ struct EdgeRun {
 	OpPtT edgePtT;	// should be sorted by t in cc curves' runs (e.g., cc curves check mid)
 	OpPtT oppPtT;
 	float oppDist  OP_DEBUG_INIT_FLOAT();
+	float rawDist  OP_DEBUG_INIT_FLOAT();
 	LimitFrom fromFoundT  OP_DEBUG_INIT(LimitFrom);
 	bool byZero  OP_DEBUG_INIT_BOOL();
 	// !!! may need to add line limit (see found limit) -- wait for test case
@@ -179,11 +180,13 @@ enum class LimitSwapped : int8_t {
     yes = true
 };
 
+#if 0
 enum class LimitBettered : int8_t {
 	OP_DEBUG_ENUM()
     no = false,
     yes = true
 };
+#endif
 
 enum class LimitLine : int8_t {
 	OP_DEBUG_ENUM()
@@ -195,7 +198,7 @@ struct FoundLimit {
 #if OP_DEBUG_DUMP
 	FoundLimit() {}
 #endif
-	FoundLimit(OpEdge* edge, OpEdge* oEdge, const OpPtT& edgePtT, const OpPtT& oppPtT
+	FoundLimit(OpEdge* edge, OpEdge* oEdge, const OpPtT& edgePtT, const OpPtT& oppPtT, float rawDist
 			OP_LINE_FILE_ARGS());
 	DUMP_DECLARATIONS
 
@@ -203,12 +206,13 @@ struct FoundLimit {
 	const OpEdge* parentOpp  OP_DEBUG_INIT_PTR(OpEdge);  // may be null
 	OpPtT segPtT;
 	OpPtT oppPtT;
+    float rawDistance  OP_DEBUG_INIT_FLOAT();
 	LimitFrom fromFoundT  OP_DEBUG_INIT(LimitFrom);  // if set, don't add segment intersections
 	Unordered oppOutOfOrder  OP_DEBUG_INIT(Unordered);  // if set, opp t not ordered (skip this)  !!! detect error earlier
     LimitUsed used  OP_DEBUG_INIT(LimitUsed);
     LimitMatch match  OP_DEBUG_INIT(LimitMatch);
 	LimitSwapped swapped  OP_DEBUG_INIT(LimitSwapped);
-	LimitBettered bettered  OP_DEBUG_INIT(LimitBettered);
+//	LimitBettered bettered  OP_DEBUG_INIT(LimitBettered);
 	LimitLine edgeLine  OP_DEBUG_INIT(LimitLine);  // curve degenerated to a line
 	LimitLine oppLine  OP_DEBUG_INIT(LimitLine); 
 	OP_LINE_FILE_DECLARE(debugMaker)
@@ -231,8 +235,10 @@ struct FoundLimits {
 	bool addSnipCommon(OpIntersection* , SnipPtTs& snipLo, SnipPtTs& snipHi);
 	bool addSnipRange(size_t oldCount);
 	bool alreadyIn(const OpPtT& edgePtT, const OpPtT& oppPtT) const;
+    void cull();
 	bool cutPair(SnipPtTs& lo, SnipPtTs& hi) const;
 	bool empty() const { return i.empty(); }
+    bool isClose(const FoundLimit& ) const;
 	void markOutOfOrder();
 	bool setEnds(std::vector<OpIntersection*>& matchingSects);
 	void setEdge(const OpEdge* );
@@ -246,7 +252,7 @@ struct FoundLimits {
 	DUMP_DECLARATIONS
 
 	std::vector<FoundLimit> i;
-	std::vector<SnipPtTs> lastSnips;
+//	std::vector<SnipPtTs> lastSnips;
 	std::vector<SnipPtTs> snips;
 	OpCurveCurve* cc;
 	int unique = -1;  // cached count; set negative if invalid
@@ -312,8 +318,9 @@ struct OpCurveCurve {
 	void findUnsectable();
 	bool ifExactly(OpEdge& edge, const OpPtT& edgePtT, OpEdge& opp, const OpPtT& oppPtT);
 	bool ifNearly(OpEdge& edge, const OpPtT& edgePtT, OpEdge& opp, const OpPtT& oppPtT);
-	void recordSect(OpEdge* edge, OpEdge* opp, const OpPtT& edgePtT, const OpPtT& oppPtT
-			OP_LINE_FILE_ARGS());
+//    bool limitBettered(FoundLimit& );
+	void recordSect(OpEdge* edge, OpEdge* opp, const OpPtT& edgePtT, const OpPtT& oppPtT, 
+			float rawDistance  OP_LINE_FILE_ARGS());
 	bool reduceDistFlipped();  // replace edges with dist runs that change sign
 	bool rotatedIntersect(OpEdge& edge, OpEdge& opp, bool sharesPoint);
 	SectFound runsToLimits();
@@ -330,7 +337,9 @@ struct OpCurveCurve {
 	OpCurveCurve(OpContext* c) 
 		: limits(this) { 
 		context = c; }
-	bool debugBreak(CcBreak );
+	bool debugBreak(CcBreak ) const;
+    bool debugCurvesMatch() const;
+    void debugDumpFile() const;
 	void drawClosest(const OpPoint& originalPt) const;
 	void dumpClosest(const OpPoint& pt) const;
 #endif

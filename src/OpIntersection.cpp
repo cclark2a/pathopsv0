@@ -307,10 +307,12 @@ void OpIntersections::makeEdges(OpSegment* segment) {
 			OpEdge& newEdge = segment->edgeList.back();
             newEdge.preStartT = smallT;
             newEdge.postStartT = largeT;
+            newEdge.startOpp = first->opp->ptT.pt;
             if (segment->edgeList.size() > 1) {
                 OpEdge& priorEdge = *(&segment->edgeList.back() - 1);
                 priorEdge.preEndT = smallT;
                 priorEdge.postEndT = largeT;
+                priorEdge.endOpp = first->opp->ptT.pt;
             }
             smallT = std::min(sectPtr->ptT.t, sectPtr->unalignedT);
             largeT = std::max(sectPtr->ptT.t, sectPtr->unalignedT);
@@ -354,6 +356,7 @@ void OpIntersections::makeEdges(OpSegment* segment) {
     OP_ASSERT(1 == lastEdge.endT);
     lastEdge.preEndT = smallT;
     lastEdge.postEndT = largeT;
+    lastEdge.endOpp = i.back()->opp->ptT.pt;
 #if CHECK_SNIP
     if (!hasSnips)
         return;
@@ -750,6 +753,8 @@ OpIntersection* OpIntersections::removeOne(OpIntersection* one, OpIntersection* 
     auto index = std::find(i.begin(), i.end(), toErase);
     OP_ASSERT(index != i.end());
     i.erase(index);
+    if (0 != i.front()->ptT.t || 1 != i.back()->ptT.t) 
+        kept->segment->setDisabled(OP_LINE_FILE_NPARGS());
     return kept;
 }
 

@@ -191,9 +191,15 @@ KeyResult DebuggerState::keyEvent(const DebuggerEvent& debuggerEvent, KeyAction 
         case 'j': if (textTop) flip(textWindow.showJoin, "join"); break;
         case 'k': if (picTop) flip(pictureWindow.drawControls, "controls"); break;
         case 'l': 
-        case 'L':
             if (textTop && isLower) flip(textWindow.showLinks, "links"); 
             if (compareTop) bump(compareWindow.leftLabel); 
+        break;
+        case 'L': 
+            if (picTop) {
+                std::string s = context->debugCurveCurve ?  
+                        STR(context->debugCurveCurve->limits.i.size()) : STR("0");
+                flip(showLimits, STR("limits (") + s + STR(")")); 
+            }
         break;
         case 'o': 
             if (compareTop)

@@ -139,6 +139,7 @@ struct DebuggerState {
     bool hideEdges = false;
     bool showHex = false;
     bool showIntersections = false;
+    bool showLimits = false;
     bool showOutput = false;
     bool showRays = false;
     bool showSegments = false;
