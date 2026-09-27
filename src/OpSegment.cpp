@@ -883,7 +883,7 @@ needsMerge:
 				masterPt = sect->opp->segment->c.start;
         }
 		if (!mergeId)
-			mergeId = contour->nextID();
+			mergeId = -contour->nextID();
 		// mark all matching t with merge id
 		for (int index = initial; index != final; index += delta) {
 			OP_ASSERT(0 <= index && index < (int) sects.i.size());
@@ -892,6 +892,8 @@ needsMerge:
 				break;
 			if (mergeId == sect->mergeID)
 				continue;
+            OP_ASSERT(mergeId < 0);
+            OP_ASSERT(sect->ptT.onEnd());
 			sect->setMerge(mergeId, masterPt, MergeType::endPoint);
 			sect->opp->segment->setEndsUnmerged();
 			rerun = true;

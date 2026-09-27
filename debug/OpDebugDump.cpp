@@ -2727,6 +2727,7 @@ void EdgeRun::dumpSet(const char*& str) {
     if (OpDebugOptional(str, "oppPtT:"))
         oppPtT.dumpSet(str);
     oppDist = OpDebugReadNamedFloat(str, "oppDist");
+    rawDist = OpDebugReadNamedFloat(str, "rawDist");
     fromFoundT = OpDebugOptional(str, "fromFoundT") ? LimitFrom::yes : LimitFrom::no;
     byZero = OpDebugOptional(str, "byZero");
 #if OP_DEBUG

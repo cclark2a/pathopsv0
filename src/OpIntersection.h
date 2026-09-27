@@ -216,7 +216,7 @@ struct OpIntersections {
 	void orderPairs();
 //	bool outOfOrder() const;
 //	void range(const OpSegment* , std::vector<OpIntersection*>& );
-    void removeCollapsed();
+    bool removeCollapsed();  // returns true if segment did not collapse to a point
     OpIntersection* removeOne(OpIntersection* , OpIntersection*);  // pair sharing segment was erased by opp
 	bool simpleEnd() const;  // true if array has only one entry with t equal to one
 	bool simpleStart() const;  // true if array has only one entry with t equal to zero

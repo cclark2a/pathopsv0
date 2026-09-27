@@ -6,10 +6,10 @@
 #error "OpDebug header must precede"
 #endif
 
-#define SKIP_TO_FILE ""  // "chalkboard" // e.g.,  "tiger"   one file
-#define TEST_SUITE_FIRST "opRect"  // e.g., "simplifyFail" skip suites prior to this one
+#define SKIP_TO_FILE "" // "simplify" // e.g.,  "tiger"   one file
+#define TEST_SUITE_FIRST "opFail"  // e.g., "simplifyFail" skip suites prior to this one
 #if !OP_DEBUG_ALTW
-#define TEST_FIRST "loops172053"  // e.g.,  "simplifyQuads14942304"   if file, one test (can be skipped test)
+#define TEST_FIRST "loops3556" // e.g., "dean4" if file, one test (can be skipped test)
                         // !!! "loop8478" fails sometimes (san/valgrind found no error)
                         // cubic9092  cubic454498  cubic327361 troublesome unsectables
                         // only single tested files get full debugger dumps
@@ -17,6 +17,10 @@
 #define TEST_FIRST ""  // for debugging two different tests simultaneously (test first & test alt)
 #endif
 #define TEST_EXTENDED 1
+
+
+// defer debugging for now: "fuzz763_2c" in "opFail"  think about how segments collapse and disable
+//  "        "      "   "   "dean4" in "simplify"  look for simpler failure
 
 // switches that decide which tests to run and how to run them
 // these may be moved to command line parameters at some point
@@ -29,11 +33,11 @@
 #define TEST_DEFEAT_BREAK 0  // set to one to disallow debug breakpoints
 #define TEST_DEFEAT_DUMPS 0  // set to one to disallow rewriting dumps
 
-#define CURVE_CURVE_1 9  // id of segment 1 to break in divide and conquer
-#define CURVE_CURVE_2 3  // id of segment 2 to break in divide and conquer
-#define CURVE_CURVE_DEPTH 0  // min depth for break (-1 to disable; INT_MAX for line/curve)
+#define CURVE_CURVE_1 147  // id of segment 1 to break in divide and conquer
+#define CURVE_CURVE_2 161  // id of segment 2 to break in divide and conquer
+#define CURVE_CURVE_DEPTH -1  // min depth for break (-1 to disable; INT_MAX for line/curve)
 #define CURVE_CURVE_DUMP 0  // 1: dump all ccs; 0: only dump matching curve (for very large tests)
-#define UNAMBIGUOUS_DUMP 1  // 1: dump all unamibiguous joins; 0: no dumps (for very large tests)
+#define UNAMBIGUOUS_DUMP 0  // 1: dump all unamibiguous joins; 0: no dumps (for very large tests)
 
 #define TEST_PATH_SKIP_TESTS { "grshapearc", "grshapearcs1" }  /* , "release_13", "pentrek10" */
 // when these tests are encountered, it and the remaining tests in the file are skipped

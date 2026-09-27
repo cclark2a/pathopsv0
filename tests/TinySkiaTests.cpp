@@ -47,7 +47,7 @@ std::vector<TinySuite> tinySuites = {
     { V0Op, "op" },
     { V0OpCircles, "circle" },
     { V0OpCubics, "cubic" },
-    { V0OpFail, "opFail" },
+    { V0OpFail, "opFail", 2000 },
     { V0OpLoops, "loop" },
     { V0OpRects, "opRect" },
     { V0Simplify, "simplify" },
@@ -120,7 +120,9 @@ void TinyState::addADot(const OpDebugData& debugData) {
     ++testsRun;
 	if (debugData.error >= debugData.maxError && debugData.showError) {
 	    std::string testname = debugData.testname;
-	    OpDebugOut(testname + " raster errors:" + STR(debugData.error) + "\n");
+	    OpDebugOut(testname + " raster errors:" + STR(debugData.error) + 
+                STR("(max error:") + STR(debugData.maxError) + STR(")\n"));
+        OpNop();
     }
     if (debugData.error > tinyErrors[0].error) {
         tinyErrors[0].testname = debugData.testname;

@@ -905,6 +905,9 @@ bool OpJoiner::linkRemaining(OpContour* contour) {
 					singleLinks.push_back(linkup);
 				}
 			}
+    #if 0   // !!! test is overly general; if edge touches filler and filler is tiny, edge is
+            // removed. Disable code to find better example of link / filler overlap that requires
+            // removing edge from contour's link ups
 			for (;;) {  // assume there are possibly many fillers, but few unlinked linkables
 				OpEdge* fillerEdge = context->fillerStorage->edgeIndex(fillerIndex);
 				if (!fillerEdge)
@@ -920,6 +923,7 @@ bool OpJoiner::linkRemaining(OpContour* contour) {
 				}
 				++fillerIndex;
 			}
+    #endif
 			if (!erasures.empty()) {
 				contour->eraseLinks(erasures);
 				std::vector<OpEdge*>& unsortables = contour->unsortables;
@@ -1074,8 +1078,11 @@ bool OpJoiner::matchLinks(OpContour* contour, bool popLast) {
 	OpTree tree(edge);
 	bool treeFailed = !tree.makeTrunk(edge) && tree.exhausted();
 	OP_DEBUG_DUMP_CODE(context->dumpFile("treeMade"));
-	if (treeFailed)
+	if (treeFailed) {
+        OP_DEBUG_CODE(OP_ASSERT(context->debugFail()));
+        context->setError(PathOpsV0Lib::ContextError::tree, edge->id);
 		return false;
+    }
 	if (PathOpsV0Lib::ContextError::none != context->error)
 		return false;
 	// adding gap edge in unsect pair case

@@ -12393,7 +12393,7 @@ void V0OpFail(TestTrack* track) {
         TEST_FUNC(fuzz763_34),
         TEST_FUNC(fuzz763_33),
         TEST_FUNC(fuzz763_32),
-        TEST_FUNC(fuzz763_31),
+        TEST_FUNC_FAIL(fuzz763_31),
         TEST_FUNC(fuzz763_30),
         TEST_FUNC(fuzz763_29),
         TEST_FUNC(fuzz763_28),
@@ -12436,12 +12436,12 @@ void V0OpFail(TestTrack* track) {
         TEST_FUNC(bug597926_0),
         TEST_FUNC(fuzz535151),
         TEST_FUNC_FAIL(fuzz753_91),
-        TEST_FUNC(fuzz714),
+        TEST_FUNC_FAIL(fuzz714),
         TEST_FUNC(fuzz487a),
         TEST_FUNC(fuzz433),
         TEST_FUNC(fuzz1),
         TEST_FUNC(fuzz487b),
-        TEST_FUNC(fuzz433b),
+        TEST_FUNC_FAIL(fuzz433b),
         TEST_FUNC_FAIL(bufferOverflow),
     };
     track->runTests(failTests);

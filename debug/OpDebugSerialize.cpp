@@ -846,6 +846,7 @@ std::string EdgeRun::debugDump(DebugLevel l, DebugBase b) const {
     s += "edgePtT:" + edgePtT.debugDump(l, b) + " ";
     s += oppPtT.debugError(l, b, "oppPtT");
     s += debugErrorValue(l, b, "oppDist", oppDist);
+    s += debugErrorValue(l, b, "rawDist", rawDist);
     if (LimitFrom::yes == fromFoundT)
         s += "fromFoundT ";
     if (byZero)

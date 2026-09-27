@@ -404,6 +404,19 @@ FindCept SectRay::findCept(OpEdge* test, AllowTooManyRetries allow) {
 		return FindCept::ok;
 	if (test == home)
 		return FindCept::ok;
+    OpRoots roots = test->curve.axisRayHit(axis, normal);  // get the normal at the intersect point	
+    bool hasSingleRoot = 1 == roots.count();
+    // if test is to the right / below home, skip it (regardless of other special conditions)
+	float root = hasSingleRoot ? roots.get(0) : OpNaN;
+	OpPoint testPt = hasSingleRoot ? test->curve.ptAtT(root) : OpPoint(SetToNaN::dummy);
+	Axis perpendicular = !axis;
+	float testXY = hasSingleRoot ? testPt.choice(perpendicular) : OpNaN;
+	bool uSectPair = test->isPal(home);
+    OpContext* context = test->context();
+    if (!uSectPair && hasSingleRoot) {
+	    if (homeCept + home->margin() < testXY)
+            return FindCept::ok;
+    }
 	// !!! loop11661 fails if too many retries is allowed -- find test that requires this
 	// !!! grshapearc fais if test enabled. 
 	if (!test->isSortable() && (AllowTooManyRetries::no == allow 
@@ -455,12 +468,8 @@ FindCept SectRay::findCept(OpEdge* test, AllowTooManyRetries allow) {
 	}
 	if (test->disabled)
 		return FindCept::ok;
-	bool uSectPair = test->isPal(home);
 //	if (uSectPair)
 //		return FindCept::unsectable;
-	OpRoots roots = test->curve.axisRayHit(axis, normal);  // get the normal at the intersect point	
-	float root = OpNaN;
-	float testXY = OpNaN;
 	auto pushUsectDist = [this, test, &testXY, &root, uSectPair]() {
 		if (uSectPair) {
 			addDistance(test, testXY, root, false  OP_DEBUG_PARAMS(home));
@@ -472,7 +481,6 @@ FindCept SectRay::findCept(OpEdge* test, AllowTooManyRetries allow) {
 	};
 	if (1 != roots.count())
 		return pushUsectDist();  // preferable for thread_cubics157381
-	root = roots.get(0);
 #if 0
 	if (OpMath::IsNaN(root) || 0 == root || root == 1)
 		return pushUsectDist();
@@ -484,7 +492,6 @@ FindCept SectRay::findCept(OpEdge* test, AllowTooManyRetries allow) {
     if (AllowTooManyRetries::no == allow && OpMath::Between(test->preEndT, root, test->postEndT))
         return pushUsectDist();
 #endif
-	OpPoint testPt = test->curve.ptAtT(root);
     auto closeToOpp = [testPt](OpPoint homePt, OpPoint oppPt) {
         float homeOpp = (homePt - oppPt).lengthSquared();
         float homeTest = (homePt - testPt).lengthSquared();
@@ -502,12 +509,9 @@ FindCept SectRay::findCept(OpEdge* test, AllowTooManyRetries allow) {
 	float tNxR = tangent.cross(backRay);
 	if (fabs(tNxR) < home->segment->c.normalLimit())
 		return pushUsectDist();
-	Axis perpendicular = !axis;
-	testXY = testPt.choice(perpendicular);
     // If intersection of ray with test edge is very close to edge end, it may produce a false 
     // result. The ray may slip between the actual end and miss another edge with an end very close
     // by.  There needs to be a multipler on threshold (ex. chalkboard 16634438230468487913)
-    OpContext* context = test->context();
     PathOpsV0Lib::CurveConst rayEndFun = context->callbacks[test->curve.c.type].rayEndFuncPtr;
 	OpVector threshold = context->threshold * (rayEndFun ? rayEndFun(test->curve.c) : 4.f);
 	if (testPt.isNearly(test->curve.c.data->start, threshold))

@@ -728,7 +728,8 @@ void OpContour::removeCollapsed() {
             continue;
 		if (!segment.sects.oppCollapsed)
 			continue;
-		segment.sects.removeCollapsed();
+		if (!segment.sects.removeCollapsed())
+            segment.setDisabled(OP_LINE_FILE_NPARGS());
 	}
 }
 
@@ -788,10 +789,10 @@ OpIntersection* OpContour::addEdgeSect(const OpPtT& t, OpSegment* seg
 }
 #endif
 
-OpIntersection* OpContour::addSegSect(const OpPtT& t, OpSegment* seg  
+OpIntersection* OpContour::addSegSect(const OpPtT& ptT, OpSegment* seg  
 		OP_LINE_FILE_DEF(const OpSegment* oSeg)) {
 	OpIntersection* next = context->allocateIntersection();
-	next->set(t, seg  OP_LINE_FILE_CALLER(seg->id, oSeg->id));
+	next->set(ptT, seg  OP_LINE_FILE_CALLER(seg->id, oSeg->id));
 	return next;
 }
 

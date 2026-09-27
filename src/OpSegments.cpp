@@ -151,6 +151,7 @@ FoundIntersections OpSegments::addLineCurveIntersection(OpSegment* opp, OpSegmen
 			continue;
 		OpIntersection* sect = seg->addSegBase(edgePtT  OP_LINE_FILE_PARAMS(opp));
 		OpIntersection* oSect = opp->addSegBase(oppPtT  OP_LINE_FILE_PARAMS(seg));
+        oSect->ptT.pt = edgePtT.pt;
 		sect->pair(oSect);
 	}
 	// if pair share two intersections, and mid t is close, mark intersections as unsectable

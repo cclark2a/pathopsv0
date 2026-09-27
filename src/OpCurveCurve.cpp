@@ -76,17 +76,19 @@ void EdgeRun::setOppDist(const OpSegment* segment, float scaledMax) {
 		return;
 	}
 	OpVector oppV = edgePtT.pt - oppPtT.pt;
+	OpVector normal = segment->c.normal(edgePtT.t);
+	float nDotOpp = normal.dot(oppV);
 	oppDist = oppV.length();
     rawDist = oppDist;
-	if (OpMath::IsNaN(oppDist))
+    if (nDotOpp < 0)
+        rawDist = -rawDist;
+    if (OpMath::IsNaN(oppDist))
 		return;
 	if (oppDist <= scaledMax) {
 		oppDist = 0;
 //		OpAssert(OpMath::NearlyEndT(edgePtT.t) && OpMath::NearlyEndT(oppPtT.t));
 		return;
 	}
-	OpVector normal = segment->c.normal(edgePtT.t);
-	float nDotOpp = normal.dot(oppV);
 	if (nDotOpp < -OpEpsilon)
 		oppDist = -oppDist;
 	else if (nDotOpp <= OpEpsilon)
@@ -292,6 +294,18 @@ bool FoundLimits::alreadyIn(const OpPtT& edgePtT, const OpPtT& oppPtT) const {
 		if (bounds.contains(oppPtT.pt))
 			return true;
 	}
+    if (!i.empty()) {
+        float dist = (edgePtT.pt - oppPtT.pt).length() - cc->context->thresholdLength;
+        bool smallDistance = true;
+        for (const FoundLimit& limit : i) {
+            if (fabsf(limit.rawDistance) >= dist) 
+                continue;
+            smallDistance = false;
+            break;
+        }
+        if (smallDistance)
+            return false;
+    }
     for (auto snip : snips) {
         if (OpMath::Between(snip.segCut.lo.t, edgePtT.t, snip.segCut.hi.t))
             return true;
@@ -452,31 +466,47 @@ bool FoundLimits::cutPair(SnipPtTs& snipLo, SnipPtTs& snipHi) const {
 void FoundLimits::cull() {
     if (1 >= i.size())
         return;
-     for (const SnipPtTs& snip : snips) {
-        int lastIndex = -1;
-        for (int index = (int) i.size(); index-- > 0; ) {
-            FoundLimit& limit = i[index];
-            if (!OpMath::Between(snip.segCut.lo.t, limit.segPtT.t, snip.segCut.hi.t)
-                    && !OpMath::Between(snip.oppCut.lo.t, limit.oppPtT.t, snip.oppCut.hi.t))
-                continue;
-            if (lastIndex < 0) {
-                lastIndex = index;
-                continue;
+    std::sort(i.begin(), i.end(), [](const FoundLimit& a, const FoundLimit& b) {
+				return a.segPtT.t < b.segPtT.t; } );
+    for (const SnipPtTs& snip : snips) {
+        int index = (int) i.size();
+    // check for zero crossing; if distance sign changes, don't discard limit
+        do {
+            int lastIndex = -1;
+            float lastDist = OpNaN;
+            float distanceSign = OpNaN;  // negative if any distance is negative prior to crossing
+            while (index-- > 0) {
+                FoundLimit& limit = i[index];
+                if (!OpMath::Between(snip.segCut.lo.t, limit.segPtT.t, snip.segCut.hi.t)
+                        && !OpMath::Between(snip.oppCut.lo.t, limit.oppPtT.t, snip.oppCut.hi.t))
+                    continue;
+                if (lastIndex < 0) {
+                    lastIndex = index;
+                    lastDist = limit.rawDistance;
+                    distanceSign = limit.rawDistance;
+                    continue;
+                }
+                FoundLimit& last = i[lastIndex];
+                if (limit.rawDistance * distanceSign < 0 && 0 == lastDist) {  // distance sign flipped
+                    ++index;
+                    break;
+                }
+                distanceSign += limit.rawDistance;  // if last or limit is < 0, sign is < 0
+                if (fabsf(limit.rawDistance) < fabsf(last.rawDistance)) {
+                    i.erase(i.begin() + lastIndex); 
+                    lastIndex = index;
+                    lastDist = limit.rawDistance;
+                } else {
+                    i.erase(i.begin() + index);
+                    lastIndex--;
+                }
             }
-            FoundLimit& last = i[lastIndex];
-            if (limit.rawDistance < last.rawDistance) {
-                i.erase(i.begin() + lastIndex); 
-                lastIndex = index;
-            } else {
-                i.erase(i.begin() + index);
-                lastIndex--;
-            }
-        }
+        } while (index > 0);
     }
 }
 
 bool FoundLimits::isClose(const FoundLimit& candidate) const {
-    float canDist = candidate.rawDistance;
+    float canDist = fabsf(candidate.rawDistance);
 	for (const FoundLimit& test : i) {
         auto closeTo = [test, canDist](OpPoint pt) {
             float segDist = (test.segPtT.pt - pt).length();
@@ -1959,7 +1989,7 @@ bool OpCurveCurve::limitBettered(FoundLimit& foundLimit) {
 
 // defer meet in the middle stuff until all intersections are found
 void OpCurveCurve::recordSect(OpEdge* edge, OpEdge* oEdge, const OpPtT& edgePtT, 
-			const OpPtT& oppPtT, float rawDistance  OP_LINE_FILE_ARGS()) {
+			const OpPtT& oppPtT, float distance  OP_LINE_FILE_ARGS()) {
 	OP_ASSERT(parentEdge->segment == edge->segment);
 	OP_ASSERT(parentOpp->segment == oEdge->segment);
     OP_ASSERT(edgePtT.isFinite());
@@ -1968,7 +1998,7 @@ void OpCurveCurve::recordSect(OpEdge* edge, OpEdge* oEdge, const OpPtT& edgePtT,
 		return;
 	OP_ASSERT(edge->curve.isLineSet);
 	OP_ASSERT(oEdge->curve.isLineSet);
-	FoundLimit newLimit(edge, oEdge, edgePtT, oppPtT, rawDistance  OP_LINE_FILE_CARGS());
+	FoundLimit newLimit(edge, oEdge, edgePtT, oppPtT, distance  OP_LINE_FILE_CARGS());
 #if 0
     if (limitBettered(newLimit))
         return;

@@ -730,7 +730,7 @@ SectCleanup OpIntersections::moveSects(const OpPtT& match, OpPoint destination,
 			: SectCleanup::none;
 }
 
-void OpIntersections::removeCollapsed() {
+bool OpIntersections::removeCollapsed() {
     std::vector<OpIntersection*> condensed;
     for (OpIntersection* sect : i) {
         if (!sect->opp->segment->disabled)
@@ -738,6 +738,7 @@ void OpIntersections::removeCollapsed() {
     }
     OP_ASSERT(condensed.size() < i.size());
     std::swap(condensed, i);
+    return !i.empty() && 0 == i.front()->ptT.t && 1 == i.back()->ptT.t;
 }
 
 // opposite will be erased, but this pair was not erased because they were too far apart
@@ -751,8 +752,10 @@ OpIntersection* OpIntersections::removeOne(OpIntersection* one, OpIntersection* 
     OpIntersection* toErase = 1 == one->ptT.t || 0 == one->ptT.t ? two : one;
     OpIntersection* kept = one == toErase ? two : one;
     auto index = std::find(i.begin(), i.end(), toErase);
-    OP_ASSERT(index != i.end());
-    i.erase(index);
+    if (index != i.end())
+        i.erase(index);
+    else
+        OP_ASSERT(one->segment->disabled);
     if (0 != i.front()->ptT.t || 1 != i.back()->ptT.t) 
         kept->segment->setDisabled(OP_LINE_FILE_NPARGS());
     return kept;
