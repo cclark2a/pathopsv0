@@ -391,7 +391,7 @@ bool OpContour::detachIfLoop(OpJoiner* joiner, OpEdge* first, std::vector<OpEdge
                 return loopIndex;
             loopLast = loopTest;
         }
-        return 0UL;
+        return (size_t) 0UL;
     };
     size_t startTail = checkEndsForLoop(startEdges, EdgeMatch::end);
     size_t endTail = checkEndsForLoop(endEdges, EdgeMatch::start);

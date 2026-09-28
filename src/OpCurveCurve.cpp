@@ -744,6 +744,7 @@ void CcCurves::checkOneSign(const EdgeRun* start, const EdgeRun* end, CurveRef c
 	float startDist = start->oppDist;
 	float endDist = end->oppDist;
 	EdgeRun run;
+    bool runInitialized = false;
 	OP_LINE_FILE_SET_IMMED(run.debugSetMaker);
 	do {
 		float rangeT = endT - startT;
@@ -762,6 +763,7 @@ void CcCurves::checkOneSign(const EdgeRun* start, const EdgeRun* end, CurveRef c
 			if (endT == midT)
 				break;
 		}
+        runInitialized = true;
 		run.fromFoundT = LimitFrom::no;
 		run.edgePtT = seg->c.ptTAtT(midT);
 		run.oppPtT = seg->distance(run.edgePtT, opp);
@@ -786,7 +788,7 @@ void CcCurves::checkOneSign(const EdgeRun* start, const EdgeRun* end, CurveRef c
 			startT = midT;
 		}
 	} while (startT + OpEpsilon < endT);
-	if (LimitFrom::uninitialized == run.fromFoundT)
+	if (!runInitialized)
 		return;
 	if (OpMath::IsNaN(run.oppDist)) 
 		return;

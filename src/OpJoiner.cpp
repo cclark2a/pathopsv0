@@ -1080,7 +1080,7 @@ bool OpJoiner::matchLinks(OpContour* contour, bool popLast) {
 	OP_DEBUG_DUMP_CODE(context->dumpFile("treeMade"));
 	if (treeFailed) {
         OP_DEBUG_CODE(OP_ASSERT(context->debugFail()));
-        context->setError(PathOpsV0Lib::ContextError::tree, edge->id);
+        context->setError(PathOpsV0Lib::ContextError::tree  OP_DEBUG_PARAMS(edge->id));
 		return false;
     }
 	if (PathOpsV0Lib::ContextError::none != context->error)

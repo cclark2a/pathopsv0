@@ -697,7 +697,7 @@ bool OpEdge::output(bool closed) {
 		OpEdge* iEdge = inner->edge;
 	//	OP_ASSERT(!iEdge->inOutput);  // triggered by cubic1810520
 		if (iEdge->inOutput && !iEdge->hasPals() && Unsortable::none == iEdge->unsortable) {  // defer dealing with this until we find an easier test case
-			OpDebugOut(context()->debugData.testname + " !!! edge already output\n");
+			OP_DEBUG_CODE(OpDebugOut(context()->debugData.testname + " !!! edge already output\n"));
 			abort = true;
 			return true;
 		}

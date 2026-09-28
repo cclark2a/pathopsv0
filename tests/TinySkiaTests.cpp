@@ -350,12 +350,12 @@ TestDone TestOptions::testPart(SkPath& a, SkPath& b, TinyOps op, SkPath* outPtr)
                 BinaryOperand::right  OP_DEBUG_PARAMS(&b));
         AddSkiaPath(context, right, b);
     }
-#if OP_TEST_RASTER
+#if OP_TEST_RASTER && OP_DEBUG && !TEST_DEFEAT_RASTER
     DebugRaster debugRaster((OpContext*) context);
 #endif
 	ContextError contextError = Error(context);
 	if (ContextError::none == contextError) {
-#if OP_TEST_RASTER
+#if OP_TEST_RASTER && OP_DEBUG && !TEST_DEFEAT_RASTER
         if (OpDebugExpect::success == debugRef.expect)    
             debugRaster.in();
 #endif
@@ -366,7 +366,7 @@ TestDone TestOptions::testPart(SkPath& a, SkPath& b, TinyOps op, SkPath* outPtr)
 	}
     contextError = Error(context);
 	testTrack.tinyState->trackError(contextError);
-#if OP_TEST_RASTER
+#if OP_TEST_RASTER && OP_DEBUG && !TEST_DEFEAT_RASTER
     if (ContextError::none == contextError && OpDebugExpect::success == debugRef.expect)
         debugRef.error = debugRaster.out();
 #endif

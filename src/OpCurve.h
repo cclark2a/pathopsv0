@@ -114,7 +114,7 @@ struct OpCurve {
 	float normalLimit() const;
 	bool normalize();
 	PathOpsV0Lib::WindKeep output(PathOpsV0Lib::Winding , bool firstPt, bool lastPt  
-			OP_DEBUG_RASTER_PARAMS(OpEdge* ));
+			OP_DEBUG_RASTER_PARAMS(struct OpEdge* ));
 	void pinCtrl();
 	OpPoint ptAtT(float t) const;
 	OpPtT ptTAtT(float t) const {

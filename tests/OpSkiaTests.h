@@ -7,9 +7,9 @@
 #endif
 
 #define SKIP_TO_FILE "" // "simplify" // e.g.,  "tiger"   one file
-#define TEST_SUITE_FIRST "opFail"  // e.g., "simplifyFail" skip suites prior to this one
+#define TEST_SUITE_FIRST ""  // e.g., "simplifyFail" skip suites prior to this one
 #if !OP_DEBUG_ALTW
-#define TEST_FIRST "loops3556" // e.g., "dean4" if file, one test (can be skipped test)
+#define TEST_FIRST "" // e.g., "dean4" if file, one test (can be skipped test)
                         // !!! "loop8478" fails sometimes (san/valgrind found no error)
                         // cubic9092  cubic454498  cubic327361 troublesome unsectables
                         // only single tested files get full debugger dumps
@@ -32,6 +32,7 @@
 #define USE_DOUBLE_CONICS 0  // set to one to use conics with double calculations intead of float
 #define TEST_DEFEAT_BREAK 0  // set to one to disallow debug breakpoints
 #define TEST_DEFEAT_DUMPS 0  // set to one to disallow rewriting dumps
+#define TEST_DEFEAT_RASTER 1  // set to one to disallow raster bitmap comparison test
 
 #define CURVE_CURVE_1 147  // id of segment 1 to break in divide and conquer
 #define CURVE_CURVE_2 161  // id of segment 2 to break in divide and conquer

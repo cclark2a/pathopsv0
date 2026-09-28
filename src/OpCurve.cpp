@@ -794,8 +794,8 @@ PathOpsV0Lib::WindKeep OpCurve::output(PathOpsV0Lib::Winding w,
         PathOpsV0Lib::Curve curve { c.context, c.data, c.size, context().nativeCurveTypes[curveType] };
         PathOpsV0Lib::LoopAttribute attr = loopAttribute(firstPt, lastPt, reversed);
 #if OP_TEST_RASTER
-		OP_ASSERT(context().debugRaster);
-		context().debugRaster->addOutput({ curve, w, attr }, edge);
+		if (context().debugRaster)
+		    context().debugRaster->addOutput({ curve, w, attr }, edge);
 #endif
 	    return (*curveOutput)({ curve, w, attr });
     }
