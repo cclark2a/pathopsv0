@@ -204,9 +204,9 @@ enum class LimitLine : int8_t {
 };
 
 enum class LimitEnd : int8_t {
-	OP_DEBUG_ENUM()
-    no = false,
-    yes = true
+	uninitialized = -1,
+    no,
+    yes
 };
 
 struct FoundLimit {
@@ -231,7 +231,7 @@ struct FoundLimit {
 //	LimitBettered bettered  OP_DEBUG_INIT(LimitBettered);
 	LimitLine edgeLine  OP_DEBUG_INIT(LimitLine);  // curve degenerated to a line
 	LimitLine oppLine  OP_DEBUG_INIT(LimitLine); 
-    LimitEnd fromEnd  OP_DEBUG_INIT(LimitEnd); 
+    LimitEnd fromEnd = LimitEnd::uninitialized; 
 	OP_LINE_FILE_DECLARE(debugMaker)
 };
 

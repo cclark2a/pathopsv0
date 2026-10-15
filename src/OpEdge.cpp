@@ -685,7 +685,8 @@ bool OpEdge::output(bool closed) {
 	bool abort = false;
 	// returns true if reverse/no reverse criteria found
 	// if all loop edges are unsectable, there may be no valid reverse criteria (testQuads5343280)
-	auto test = [&reverse, &abort, this](const Distance* outer, const Distance* inner) {
+	auto test = [&reverse, &abort  OP_DEBUG_PARAMS(this)](
+            const Distance* outer, const Distance* inner) {
 		if (!outer->edge->inOutput && !outer->edge->inLinkups)
 			return false;
 		// reverse iff normal direction of inner and outer match and outer normal points to nonzero
