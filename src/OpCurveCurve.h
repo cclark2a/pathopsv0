@@ -80,6 +80,7 @@ struct EdgeRun {
 	float rawDist  OP_DEBUG_INIT_FLOAT();
 	LimitFrom fromFoundT  OP_DEBUG_INIT(LimitFrom);
 	bool byZero  OP_DEBUG_INIT_BOOL();
+    bool midFlip  OP_DEBUG_INIT_BOOL();  // if set, mid of snip flipped distance sign from ends 
 	// !!! may need to add line limit (see found limit) -- wait for test case
 #if 0 && OP_DEBUG
 	int debugBetween = INT_MAX;  // incremented if edge t is between, and oppDist is between
@@ -111,9 +112,16 @@ struct LoHi {
 	DiffIntersect diffSect;
 };
 
+struct CutRangePtT {
+	DUMP_DECLARATIONS
+
+	OpPtT lo;
+	OpPtT hi;
+};
+
 struct CcCurves {
 	EdgeRun* addEdgeRun(OpEdge* edge, EdgeMatch , ClampDist  OP_LINE_FILE_ARGS());
-	EdgeRun* addEdgeRun(EdgeRun& , EdgeMatch , ClampDist);
+	EdgeRun* addEdgeRun(EdgeRun& );
     void baseInit(OpCurveCurve* , CcCurves* );
     bool checkMid(float midT, float startDist, float endDist);
     bool checkMidEdge(OpEdge* );
@@ -124,7 +132,7 @@ struct CcCurves {
     void complementRun(OpEdge* opp);
     std::vector<Interval> continuous(const OpPtT& lower, const OpPtT& upper) const;  // true if edges link lower to upper
 	bool deletedT(float t) const;  // true if t is in deleted -- deleted need not be sorted
-	std::vector<CutRangeT> findGaps() const;
+	std::vector<CutRangePtT> findGaps() const;
     void init(OpCurveCurve* , CcCurves* oppCurves, float scaledMax, OpEdge* parent, OpSegment* opp);
 	void initialEdgeRun(OpEdge* edge);
     int insertPos(std::vector<EdgeRun>& , EdgeRun& );
@@ -134,7 +142,7 @@ struct CcCurves {
 	int overlaps() const;
 	float perimeter() const;
     void shareDistance();
-	void snipAndGo(const CutRangeT& );
+	void snipAndGo(const CutRangePtT& );
     OpEdge* twoHulls(OpPtT& lower, OpPtT& upper);
 	DUMP_DECLARATIONS
     OP_DEBUG_CODE(void debugAdd(EdgeRun& ));
@@ -145,7 +153,8 @@ struct CcCurves {
     OpCurveCurve* cc;
 	std::vector<OpEdge*> c;  // !!! is this sorted?
 	std::vector<EdgeRun> runs;  // sorted culled runs, keeping extreme distances
-	std::vector<CutRangeT> deleted;  // pairs of t ranges
+    std::vector<EdgeRun> mids;  // mid runs kept to detect double crossings
+	std::vector<CutRangePtT> deleted;  // pairs of t ranges
     OpSegment* seg  OP_DEBUG_INIT_PTR(OpSegment);
     OpSegment* opp  OP_DEBUG_INIT_PTR(OpSegment);
 	CcCurves* oppCurves  OP_DEBUG_INIT_PTR(CcCurves);
@@ -194,12 +203,19 @@ enum class LimitLine : int8_t {
     yes = true
 };
 
+enum class LimitEnd : int8_t {
+	OP_DEBUG_ENUM()
+    no = false,
+    yes = true
+};
+
 struct FoundLimit {
 #if OP_DEBUG_DUMP
 	FoundLimit() {}
 #endif
 	FoundLimit(OpEdge* edge, OpEdge* oEdge, const OpPtT& edgePtT, const OpPtT& oppPtT, float rawDist
 			OP_LINE_FILE_ARGS());
+	FoundLimit(const OpPtT& edgePtT, const OpPtT& oppPtT, float rawDist  OP_LINE_FILE_ARGS());
 	DUMP_DECLARATIONS
 
 	const OpEdge* parentEdge  OP_DEBUG_INIT_PTR(OpEdge);
@@ -215,6 +231,7 @@ struct FoundLimit {
 //	LimitBettered bettered  OP_DEBUG_INIT(LimitBettered);
 	LimitLine edgeLine  OP_DEBUG_INIT(LimitLine);  // curve degenerated to a line
 	LimitLine oppLine  OP_DEBUG_INIT(LimitLine); 
+    LimitEnd fromEnd  OP_DEBUG_INIT(LimitEnd); 
 	OP_LINE_FILE_DECLARE(debugMaker)
 };
 
@@ -222,8 +239,8 @@ struct SnipPtTs {
     OpIntersection* sect = nullptr;  // origin of snip
     OpPtT segPtT;
     OpPtT oppPtT;
-	CutRangeT segCut;
-	CutRangeT oppCut;
+	CutRangePtT segCut;
+	CutRangePtT oppCut;
 
 	DUMP_DECLARATIONS
 };
@@ -235,6 +252,7 @@ struct FoundLimits {
 	bool addSnipCommon(OpIntersection* , SnipPtTs& snipLo, SnipPtTs& snipHi);
 	bool addSnipRange(size_t oldCount);
 	bool alreadyIn(const OpPtT& edgePtT, const OpPtT& oppPtT) const;
+    OpRect availableBounds(CurveRef ) const;
     void cull();
 	bool cutPair(SnipPtTs& lo, SnipPtTs& hi) const;
 	bool empty() const { return i.empty(); }
@@ -283,6 +301,7 @@ enum class CcBreak {
 	atEnd,
 	atDepth,
 	dumpFile,
+    match
 };
 #endif
 

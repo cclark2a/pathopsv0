@@ -37,6 +37,15 @@ OpSegment::OpSegment(PathOpsV0Lib::Contour* libContour, PathOpsV0Lib::AddCurve a
     , id(contour->nextID())
 {
     init();
+    // for intersections: find minimum step in t to meaningfully different points
+    auto calcScale = [](float s, float e) {
+        float minValue = s * e <= 0 ? 1.f : std::min(fabsf(s), fabsf(e));
+        float span = fabsf(s - e);
+        return std::max(1.f, minValue / span);
+    };
+    float xScale = calcScale(c.start.x, c.end.x);
+    float yScale = calcScale(c.start.y, c.end.y);
+    tScale = !OpMath::IsFinite(yScale) || xScale < yScale ? xScale : yScale; 
 }
 
 // !!! optimization:  if called from opedge linkup, could abort if >1 active found?
@@ -488,7 +497,7 @@ void OpSegment::disableSmall() {
 
 // !!! this was lineIntersect which could miss if normal line points away from seg
 //     but it was changed without fixing the root bug, so may make things less stable ...
-OpPtT OpSegment::distance(const OpPtT& segPtT, OpSegment* opp) {
+OpPtT OpSegment::distance(const OpPtT& segPtT, const OpSegment* opp) const {
 	for (OpIntersection* oppSect : opp->sects.i) {
 		if (oppSect->opp->ptT.pt == segPtT.pt)
 			return oppSect->ptT;
@@ -502,14 +511,29 @@ OpPtT OpSegment::distance(const OpPtT& segPtT, OpSegment* opp) {
 	OpRoots roots = opp->c.rayIntersect(normLine, oppEnds);
 	float bestSq = OpInfinity;
 	OpPtT bestPtT(SetToNaN::dummy);
+#if OP_DEBUG_PROFILE && OP_DEBUG_DUMP
+    std::string oppStr;
+#endif
 	for (float root : roots.roots) {
 		OpPtT oppPtT = opp->c.ptTAtT(root);
+#if OP_DEBUG_PROFILE && OP_DEBUG_DUMP
+        oppStr += " root:" + STR(root) + " oppPtT:" + oppPtT.debugDump(defaultLevel, defaultBase);
+#endif
 		float distSq = (segPtT.pt - oppPtT.pt).lengthSquared();
 		if (bestSq > distSq) {
 			bestSq = distSq;
 			bestPtT = oppPtT;
 		}
 	}
+#if OP_DEBUG_PROFILE && OP_DEBUG_DUMP
+    if (false && 4 == id && 7 == opp->id) {
+        defaultBase = DebugBase::hex;
+        std::string s = "segPtT:" + segPtT.debugDump(defaultLevel, defaultBase);
+        s += oppStr;
+        OpDebugOut(s + "\n");
+    }
+    ++debugSnipTrack;
+#endif
 	return bestPtT;
 }
 
@@ -1244,6 +1268,17 @@ bool OpSegment::simpleStart(const OpEdge* edge) const {
 	if (!sects.simpleStart())
 		return false;
 	return edge == &edgeList.front();
+}
+
+SignedDistance OpSegment::signedDistance(const OpPtT& s, const OpPtT& e) const {
+	if (OpMath::IsNaN(s.t))
+		return { OpNaN, OpNaN, OpNaN } ;
+    if (s.pt == e.pt)
+        return { 0, 0, 0 };
+    OpVector oppV = s.pt - e.pt;
+	float nDotOpp = c.normal(s.t).dot(oppV);
+	float absDistance = oppV.length();
+    return { std::copysign(absDistance, nDotOpp), absDistance, fabsf(nDotOpp) };
 }
 
 OpVector OpSegment::threshold() const {

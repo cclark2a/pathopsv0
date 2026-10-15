@@ -363,6 +363,9 @@ TestDone TestOptions::testPart(SkPath& a, SkPath& b, TinyOps op, SkPath* outPtr)
 #if OP_DEBUG_SERIALIZE
         ((OpContext*) context)->dumpFile("testOp resolved");
 #endif
+#if OP_DEBUG_PROFILE
+        ((OpContext*) context)->debugCheckCounters();  // code counters suggested by profiling
+#endif
 	}
     contextError = Error(context);
 	testTrack.tinyState->trackError(contextError);

@@ -305,11 +305,13 @@ inline bool dConicsEqual(Curve one, Curve two) {
     return ctrl1.pt.x == ctrl2.pt.x && ctrl1.pt.y == ctrl2.pt.y && ctrl1.weight == ctrl2.weight;
 }
 
+#if 0
 inline void dConicPin(Curve c, OpPoint newStart, OpPoint newEnd) {
     SPointWeight control(c);
     control.pt.pin(newStart, newEnd);
     control.copyTo(c);
  }
+ #endif
 
 inline OpVector dConicTangent(Curve c, float t) {
     SPointWeight control(c);
@@ -384,7 +386,6 @@ inline std::string dConicDebugDumpName() {
     OP_TAGGED_FUNCTION(dConicIsFinite), \
     OP_TAGGED_FUNCTION(dConicIsLine), \
     OP_TAGGED_FUNCTION(dConicSetBounds), \
-    OP_TAGGED_FUNCTION(dConicPin), \
     OP_TAGGED_FUNCTION(dConicTangent), \
     OP_TAGGED_FUNCTION(dConicsEqual), \
     OP_TAGGED_FUNCTION(dConicPtAtT), \
@@ -398,7 +399,7 @@ inline std::string dConicDebugDumpName() {
 
 inline void dConicCallbacks(Context* context, int nativeCurveType) {
     SetCurveCallbacks(context, nativeCurveType, { dConicAxisT,
-			dConicRotatedT, dConicHull, dConicIsFinite, dConicIsLine, dConicSetBounds, dConicPin,
+			dConicRotatedT, dConicHull, dConicIsFinite, dConicIsLine, dConicSetBounds,
 			dConicTangent, dConicsEqual, dConicPtAtT, dConicHullPtCount, dConicRotate, 
 			dConicSubDivide, dConicXYAtT });
 #if OP_TEST

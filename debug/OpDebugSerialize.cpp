@@ -525,7 +525,8 @@ std::string CcCurves::debugDump(DebugLevel l, DebugBase b) const {
         ASSERT_FIRST(cc);   // skip
         DEBUG_DUMP_VECTOR_IDS(cc, c);
         DEBUG_DUMP_VECTOR(c, runs);
-        DEBUG_DUMP_VECTOR(runs, deleted);
+        DEBUG_DUMP_VECTOR(runs, mids);
+        DEBUG_DUMP_VECTOR(mids, deleted);
         DEBUG_DUMP_ID(deleted, seg);
         DEBUG_DUMP_ID(seg, opp);
         ASSERT_SERIAL(*this, opp, oppCurves);  // skip
@@ -649,7 +650,19 @@ std::string CurveDataStorage::debugDump(PathOpsV0Lib::CurveData* curveData) cons
     return STR(result);
 }
 
+#if 0
 std::string CutRangeT::debugDump(DebugLevel l, DebugBase b) const {
+    std::string s;
+    if (!OpMath::IsDebugNaN(lo))
+        s += debugErrorValue(l, b, "lo", lo) + " ";
+    if (!OpMath::IsDebugNaN(hi))
+        s += debugErrorValue(l, b, "hi", hi) + " ";
+    debugPopMatching(s, ' ');
+    return s;
+}
+#endif
+
+std::string CutRangePtT::debugDump(DebugLevel l, DebugBase b) const {
     DEBUG_DUMP_FIRST_STRUCT(lo);
     DEBUG_DUMP_LAST_STRUCT(lo, hi);
 }
@@ -851,6 +864,8 @@ std::string EdgeRun::debugDump(DebugLevel l, DebugBase b) const {
         s += "fromFoundT ";
     if (byZero)
         s += "byZero ";
+    if (midFlip)
+        s += "midFlip ";
  //   OP_DEBUG_CODE(s += "debugBetween:" + STR(debugBetween) + " ");
 #if OP_DEBUG_MAKER
     s += debugSetMaker.debugDump();
@@ -911,6 +926,8 @@ std::string FoundLimit::debugDump(DebugLevel l, DebugBase b) const {
         s += "edgeLine ";
     if (LimitLine::yes == oppLine)
         s += "oppLine ";
+    if (LimitEnd::yes == fromEnd)
+        s += "fromEnd ";
 #if OP_DEBUG_MAKER
     s += "debugMaker:" + debugMaker.debugDump() + " ";
 #endif
@@ -1209,8 +1226,7 @@ std::string OpContext::debugDump(DebugLevel l, DebugBase b, DumpRaster dumpRaste
 	    DEBUG_FIND_TAG(callback, curveHullFuncPtr,      curveIsFiniteFuncPtr);
 	    DEBUG_FIND_TAG(callback, curveIsFiniteFuncPtr,  curveIsLineFuncPtr);
 	    DEBUG_FIND_TAG(callback, curveIsLineFuncPtr,    setBoundsFuncPtr);
-	    DEBUG_FIND_TAG(callback, setBoundsFuncPtr,      curvePinFuncPtr);
-	    DEBUG_FIND_TAG(callback, curvePinFuncPtr,       curveTangentFuncPtr);
+	    DEBUG_FIND_TAG(callback, setBoundsFuncPtr,      curveTangentFuncPtr);
 	    DEBUG_FIND_TAG(callback, curveTangentFuncPtr,   curvesEqualFuncPtr);
 	    DEBUG_FIND_TAG(callback, curvesEqualFuncPtr,    ptAtTFuncPtr);
 	    DEBUG_FIND_TAG(callback, ptAtTFuncPtr,          ptCountFuncPtr);
@@ -2284,10 +2300,11 @@ std::string OpIntersection::debugDump(DebugLevel l, DebugBase b) const {
             return s;
         }
         s += ptT.debugError(l, b, "ptT");   // !!! may be uninitialized?
-        if (OpMath::IsFinite(unalignedT) && unalignedT != ptT.t)
-            s += "unalignedT:" + STR(unalignedT) + " ";
+
         if (!callerPt.debugIsUninitialized() && callerPt != ptT.pt)
             s += "callerPt:" + callerPt.debugDump(l, b) + " ";
+        if (OpMath::IsFinite(unalignedT) && unalignedT != ptT.t)
+            s += "unalignedT:" + STR(unalignedT) + " ";
         std::string segmentID = segment ? segment->debugDumpID() : "-";
         const OpSegment* oppParent = opp ? opp->segment : nullptr;
         std::string oppID = opp ? opp->debugDumpID() : "-";
@@ -2325,14 +2342,14 @@ std::string OpIntersection::debugDump(DebugLevel l, DebugBase b) const {
             s += "opp:" + opp->debugDumpID() + " ";
         ASSERT_ORDERED(opp, ptT);
         s += ptT.debugError(l, b, "ptT");
-    #if CHECK_SNIP
+#if 0
         ASSERT_ORDERED(ptT, snipTs);
-        if (!snipTs.lo.debugIsUninitialized())
+        if (!snipTs.debugIsUninitialized())
             s += "snipTs:" + snipTs.debugDump(l, b) + " ";
         ASSERT_ORDERED(snipTs, callerPt);
-    #else
+#else
         ASSERT_ORDERED(ptT, callerPt);
-    #endif
+#endif
         if (!callerPt.debugIsUninitialized() && callerPt != ptT.pt)
             s += "callerPt:" + callerPt.debugDump(l, b) + " ";
         ASSERT_ORDERED(callerPt, unalignedT);
@@ -2367,8 +2384,7 @@ std::string OpIntersection::debugDump(DebugLevel l, DebugBase b) const {
 	DEBUG_DUMP_BOOL(coinOpp, betweenCoins);
 	DEBUG_DUMP_BOOL(betweenCoins, ccLine);
 	DEBUG_DUMP_BOOL(ccLine, ccSect);
-	DEBUG_DUMP_BOOL(ccSect, ccUnsectable);
-	DEBUG_DUMP_BOOL(ccUnsectable, collapsed);
+	DEBUG_DUMP_BOOL(ccSect, collapsed);
 #if OP_DEBUG
     if (DebugLevel::file == l && id)
         s += "id:" + STR(id) + " ";
@@ -2716,7 +2732,9 @@ std::string OpSegment::debugDump(DebugLevel l, DebugBase b) const {
         }
         ASSERT_ORDERED(edgeList, winding);
         s += "winding:" + winding.debugDump(l, b) + " ";
-        ASSERT_ORDERED(winding, id);  // write at front
+        ASSERT_ORDERED(winding, tScale);
+        s += "tScale:" + debugFloat(l, tScale) + " ";
+        ASSERT_ORDERED(tScale, id);  // write at front
         DEBUG_DUMP_BOOL(id, disabled);
         DEBUG_DUMP_BOOL(disabled, endsMerged);
         DEBUG_DUMP_BOOL(endsMerged, hasCoin);

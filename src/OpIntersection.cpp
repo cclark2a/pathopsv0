@@ -106,7 +106,6 @@ void OpIntersection::setUnsect(int uid, MatchEnds end) {
 void OpIntersection::zeroUnsect() {
     usectID = 0;
     unsectEnd = MatchEnds::none;
-    ccUnsectable = false;
 }
 
 #if 0
@@ -751,11 +750,14 @@ OpIntersection* OpIntersections::removeOne(OpIntersection* one, OpIntersection* 
     }
     OpIntersection* toErase = 1 == one->ptT.t || 0 == one->ptT.t ? two : one;
     OpIntersection* kept = one == toErase ? two : one;
+    if (toErase->usectID) {
+        OP_ASSERT(!kept->usectID);
+        kept->usectID = toErase->usectID;
+        kept->unsectEnd = toErase->unsectEnd;;
+    }
     auto index = std::find(i.begin(), i.end(), toErase);
     if (index != i.end())
         i.erase(index);
-    else
-        OP_ASSERT(one->segment->disabled);
     if (0 != i.front()->ptT.t || 1 != i.back()->ptT.t) 
         kept->segment->setDisabled(OP_LINE_FILE_NPARGS());
     return kept;

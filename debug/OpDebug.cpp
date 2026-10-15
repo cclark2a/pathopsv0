@@ -775,6 +775,8 @@ bool OpCurveCurve::debugBreak(CcBreak atDepth) const {
         return true;
     if (debugData.defeatBreak)
 		return true;
+    if (CcBreak::match == atDepth)
+        return false;
     if (debugData.curveCurveDepth < 0)
         return true;
     if (CcBreak::atDepth == atDepth 
@@ -1087,6 +1089,19 @@ void OpContext::debugValidateIntersections() const {
 #endif  // OP_DEBUG_VALIDATE
 
 #endif // OP_DEBUG
+
+#if OP_DEBUG_PROFILE
+void OpContext::debugCheckCounters() {
+    int total = 0;
+	for (const auto contour : contours) {
+		for (const auto& segment : contour->segments) {
+            total += segment.debugSnipTrack;
+        }
+    }
+    if (total > 400)
+        OpNop();
+}
+#endif
 
 #if OP_TEST
 

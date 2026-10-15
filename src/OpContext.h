@@ -291,6 +291,9 @@ struct OpContext {
 #if OP_TEST_RASTER
     void addRasterFiller(OpPoint , OpPoint , OpSegment* );
 #endif
+#if OP_DEBUG_PROFILE
+    void debugCheckCounters();
+#endif
 #include "OpDebugDeclarations.h"
 
 	std::vector<PathOpsV0Lib::CurveCallbacks> callbacks;

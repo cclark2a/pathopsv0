@@ -93,8 +93,11 @@ inline OpPair ConicXYAtT(OpPoint s, PointWeight c, OpPoint e, OpPair t, XyChoice
 
 inline PointWeight ConicControl(OpPoint start, PointWeight control, OpPoint end, OpPtT ptT1, 
         OpPtT ptT2  OP_DEBUG_DUMP_PARAMS(bool debugSubDivide = false)) {
-    if (0 == ptT1.t && 1 == ptT2.t)
+    if (0 == ptT1.t && 1 == ptT2.t) {
+        if (ptT1.pt.isFinite() && ptT2.pt.isFinite()  OP_DEBUGGER_CODE(&& !debugSubDivide))
+            control.pt.pin(ptT1.pt, ptT2.pt);
         return control;
+    }
     auto subWeight = [start, control, end, ptT1, ptT2](float t) {
         if (t == 0)
             return PointWeight(ptT1.pt, 1);
@@ -232,7 +235,7 @@ inline size_t AddConics(Contour* contour, AddCurve curve) {
             PointWeight control;
         } curveData { { ptTs[index].pt, ptTs[index + 1].pt },
                 ConicControl(start, control, end, ptTs[index], ptTs[index + 1]) };
-            Add(contour, { curve.context, curveData.endPts, curve.size, curve.type } );
+        Add(contour, { curve.context, curveData.endPts, curve.size, curve.type } );
     }
     return curvesAdded;
 }
@@ -293,11 +296,13 @@ inline bool conicsEqual(Curve one, Curve two) {
     return ctrl1.pt == ctrl2.pt && ctrl1.weight == ctrl2.weight;
 }
 
+#if 0
 inline void conicPin(Curve c, OpPoint newStart, OpPoint newEnd) {
     PointWeight control(c);
     control.pt.pin(newStart, newEnd);
     control.copyTo(c);
  }
+ #endif
 
 inline OpVector conicTangent(Curve c, float t) {
     PointWeight control(c);
@@ -376,7 +381,6 @@ inline std::string conicDebugDumpName() {
     OP_TAGGED_FUNCTION(conicIsFinite), \
     OP_TAGGED_FUNCTION(conicIsLine), \
     OP_TAGGED_FUNCTION(conicSetBounds), \
-    OP_TAGGED_FUNCTION(conicPin), \
     OP_TAGGED_FUNCTION(conicTangent), \
     OP_TAGGED_FUNCTION(conicsEqual), \
     OP_TAGGED_FUNCTION(conicPtAtT), \
@@ -391,7 +395,7 @@ inline std::string conicDebugDumpName() {
 
 inline void conicCallbacks(Context* context, int nativeCurveType) {
     SetCurveCallbacks(context, nativeCurveType, { conicAxisT,
-			conicRotatedT, conicHull, conicIsFinite, conicIsLine, conicSetBounds, conicPin,
+			conicRotatedT, conicHull, conicIsFinite, conicIsLine, conicSetBounds,
 			conicTangent, conicsEqual, conicPtAtT, conicHullPtCount, conicRotate, 
 			conicSubDivide, conicXYAtT });
 #if OP_TEST

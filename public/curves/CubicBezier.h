@@ -515,6 +515,7 @@ inline bool cubicsEqual(Curve one, Curve two) {
             : ctrlPt1.pts[0] == ctrlPt2.pts[1] && ctrlPt1.pts[1] == ctrlPt2.pts[0];
 }
 
+#if 0
 inline void cubicPin(Curve c, OpPoint newStart, OpPoint newEnd) {
     CubicControls controls(c);
 	controls.pts[0] += newStart - c.data->start;
@@ -523,6 +524,7 @@ inline void cubicPin(Curve c, OpPoint newStart, OpPoint newEnd) {
     controls.pts[1].pin(newStart, newEnd);
     controls.copyTo(c);
 }
+#endif
 
 inline OpVector cubicTangent(Curve c, float t) {
     CubicControls controls(c);
@@ -617,7 +619,6 @@ inline std::string cubicDebugDumpName() {
     OP_TAGGED_FUNCTION(cubicIsFinite), \
     OP_TAGGED_FUNCTION(cubicIsLine), \
     OP_TAGGED_FUNCTION(cubicSetBounds), \
-    OP_TAGGED_FUNCTION(cubicPin), \
     OP_TAGGED_FUNCTION(cubicTangent), \
     OP_TAGGED_FUNCTION(cubicsEqual), \
     OP_TAGGED_FUNCTION(cubicPtAtT), \
@@ -633,7 +634,7 @@ inline std::string cubicDebugDumpName() {
 
 inline void cubicCallbacks(Context* context, int nativeCurveType) {
     SetCurveCallbacks(context, nativeCurveType, { cubicAxisT,
-			cubicRotatedT, cubicHull, cubicIsFinite, cubicIsLine, cubicSetBounds, cubicPin,
+			cubicRotatedT, cubicHull, cubicIsFinite, cubicIsLine, cubicSetBounds,
 			cubicTangent, cubicsEqual, cubicPtAtT, cubicHullPtCount, cubicRotate, 
 			cubicSubDivide, cubicXYAtT, cubicReverse });
 #if OP_TEST

@@ -656,8 +656,7 @@ void OpContext::dumpSet(const char*& str) {
 	    DEBUG_FIND_FUNCTION(callback, curveHullFuncPtr,      curveIsFiniteFuncPtr);
 	    DEBUG_FIND_FUNCTION(callback, curveIsFiniteFuncPtr,  curveIsLineFuncPtr);
 	    DEBUG_FIND_FUNCTION(callback, curveIsLineFuncPtr,    setBoundsFuncPtr);
-	    DEBUG_FIND_FUNCTION(callback, setBoundsFuncPtr,      curvePinFuncPtr);
-	    DEBUG_FIND_FUNCTION(callback, curvePinFuncPtr,       curveTangentFuncPtr);
+	    DEBUG_FIND_FUNCTION(callback, setBoundsFuncPtr,      curveTangentFuncPtr);
 	    DEBUG_FIND_FUNCTION(callback, curveTangentFuncPtr,   curvesEqualFuncPtr);
 	    DEBUG_FIND_FUNCTION(callback, curvesEqualFuncPtr,    ptAtTFuncPtr);
 	    DEBUG_FIND_FUNCTION(callback, ptAtTFuncPtr,          ptCountFuncPtr);
@@ -1328,7 +1327,14 @@ void CurveDataStorage::DumpSet(const char*& str, CurveDataStorage** previousPtr)
     }
 }
 
+#if 0
 void CutRangeT::dumpSet(const char*& str) {
+    lo = OpDebugReadNamedFloat(str, "lo");
+    hi = OpDebugReadNamedFloat(str, "hi");
+}
+#endif
+
+void CutRangePtT::dumpSet(const char*& str) {
     DEBUG_SET_FIRST_STRUCT(lo);
     DEBUG_SET_LAST_STRUCT(lo, hi);
 }
@@ -2755,6 +2761,7 @@ void FoundLimit::dumpSet(const char*& str) {
 //    bettered = OpDebugOptional(str, "bettered") ? LimitBettered::yes : LimitBettered::no;
     edgeLine = OpDebugOptional(str, "edgeLine") ? LimitLine::yes : LimitLine::no;
     oppLine = OpDebugOptional(str, "oppLine") ? LimitLine::yes : LimitLine::no;
+    fromEnd = OpDebugOptional(str, "fromEnd") ? LimitEnd::yes : LimitEnd::no;
 #if OP_DEBUG_MAKER
     OpDebugRequired(str, "debugMaker");
     debugMaker.dumpSet(str);
@@ -2950,7 +2957,8 @@ void CcCurves::dumpSet(const char*& str) {
     ASSERT_FIRST(cc);   // skip  (must be set by caller)
     DEBUG_SET_VECTOR_IDS(cc, c);
     DEBUG_SET_VECTOR(c, runs);
-    DEBUG_SET_VECTOR(runs, deleted);
+    DEBUG_SET_VECTOR(runs, mids);
+    DEBUG_SET_VECTOR(mids, deleted);
     DEBUG_SET_ID(deleted, seg);
     DEBUG_SET_ID(seg, opp);
     ASSERT_SERIAL(*this, opp, oppCurves);  // skip  (must be set by caller)
@@ -3136,7 +3144,7 @@ void OpIntersection::dumpSet(const char*& str) {
     ASSERT_ORDERED(opp, ptT);
     if (OpDebugOptional(str, "ptT"))
         ptT.dumpSet(str);
-#if CHECK_SNIP
+#if 0
     ASSERT_ORDERED(ptT, snipTs);
     if (OpDebugOptional(str, "snipTs"))
         snipTs.dumpSet(str);
@@ -3169,8 +3177,7 @@ void OpIntersection::dumpSet(const char*& str) {
 	DEBUG_SET_BOOL(coinOpp, betweenCoins);
 	DEBUG_SET_BOOL(betweenCoins, ccLine);
 	DEBUG_SET_BOOL(ccLine, ccSect);
-	DEBUG_SET_BOOL(ccSect, ccUnsectable);
-	DEBUG_SET_BOOL(ccUnsectable, collapsed);
+	DEBUG_SET_BOOL(ccSect, collapsed);
 #if OP_DEBUG
     id = OpDebugReadNamedInt(str, "id");
     debugSrcID = OpDebugReadNamedInt(str, "debugSrcID");
@@ -3296,7 +3303,9 @@ void OpSegment::dumpSet(const char*& str) {
     ASSERT_ORDERED(edgeList, winding);
     OpDebugRequired(str, "winding");
     winding.dumpSet(contour->context, str);
-    ASSERT_ORDERED(winding, id);  // write at front
+    ASSERT_ORDERED(winding, tScale);
+    tScale = OpDebugReadNamedFloat(str, "tScale:");
+    ASSERT_ORDERED(tScale, id);  // write at front
     DEBUG_SET_BOOL(id, disabled);
     DEBUG_SET_BOOL(disabled, endsMerged);
     DEBUG_SET_BOOL(endsMerged, hasCoin);

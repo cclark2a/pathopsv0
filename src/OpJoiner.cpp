@@ -1117,7 +1117,7 @@ bool OpJoiner::matchLinks(OpContour* contour, bool popLast) {
     }
 	bool result = tree.join(*this);
 #if OP_TEST_RASTER
-    if (firstPt.isFinite() && lastPt.isFinite() && firstPt != lastPt)
+    if (context->debugRaster && firstPt.isFinite() && lastPt.isFinite() && firstPt != lastPt)
         context->addRasterFiller(firstPt, lastPt, edge->segment);
 #endif
     return result;

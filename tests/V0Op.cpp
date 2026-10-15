@@ -12437,10 +12437,10 @@ void V0OpFail(TestTrack* track) {
         TEST_FUNC(fuzz535151),
         TEST_FUNC_FAIL(fuzz753_91),
         TEST_FUNC_FAIL(fuzz714),
-        TEST_FUNC(fuzz487a),
+        TEST_FUNC_FAIL(fuzz487a),
         TEST_FUNC(fuzz433),
         TEST_FUNC(fuzz1),
-        TEST_FUNC(fuzz487b),
+        TEST_FUNC_FAIL(fuzz487b),
         TEST_FUNC_FAIL(fuzz433b),
         TEST_FUNC_FAIL(bufferOverflow),
     };

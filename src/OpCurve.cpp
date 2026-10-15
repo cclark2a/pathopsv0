@@ -565,12 +565,14 @@ float OpCurve::tZeroX(float t1, float t2) const {
 }
 #endif
 
+#if 0
 void OpCurve::pinCtrl() {
 	PathOpsV0Lib::CurvePin funcPtr = context().callback(c.type).curvePinFuncPtr;
 	if (funcPtr)
 		(*funcPtr)(c, start, end);
 	return;
 }
+#endif
 
 // this can fail (if rotated pts are not finite); can happen when input is finite
 // however, callers include sort predicate, which cannot return failure; so don't return failure here
@@ -670,10 +672,12 @@ bool OpCurve::zeroSmall(OpContour& contour, bool zeroStart) {
 	}
 	end.x = zero_small(c.data->end.x, threshold.dx);
 	end.y = zero_small(c.data->end.y, threshold.dy);
+#if 0  // alter start, end, but not data->start, data->end or caller control points
 	if (start != c.data->start || end != c.data->end) {
 		pinCtrl();
 		OP_DEBUG_CODE(debugZeroedSmall = true);
 	}
+#endif
 	isSmall = start.isNearly(end, threshold);
 	if (isSmall)
 		end = start;

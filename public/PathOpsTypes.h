@@ -148,7 +148,7 @@ typedef bool (*CurvesEqual)(Curve , Curve );
 typedef OpPoint (*CurveHull)(Curve, int index);
 
 // map the control points (if any) to lie inside the bounds of the curve (e.g., start and end)
-typedef void (*CurvePin)(Curve, OpPoint oldStart, OpPoint oldEnd);
+// typedef void (*CurvePin)(Curve, OpPoint oldStart, OpPoint oldEnd);
 
 // reverses order of control points, if there is more than one
 typedef void (*CurveReverse)(Curve);
@@ -181,7 +181,7 @@ struct CurveCallbacks {
 	CurveIsFinite curveIsFiniteFuncPtr = nullptr;
 	CurveIsLine curveIsLineFuncPtr = nullptr;
 	SetBounds setBoundsFuncPtr = nullptr;
-	CurvePin curvePinFuncPtr = nullptr;
+//	CurvePin curvePinFuncPtr = nullptr;
 	CurveTangent curveTangentFuncPtr = nullptr;
 	CurvesEqual curvesEqualFuncPtr = nullptr;
 	PtAtT ptAtTFuncPtr = nullptr;

@@ -54,12 +54,18 @@ enum class MergeType {
     midPoint
 };
 
+// span of t excluded when finding curve/curve intersections
+#if 0
 struct CutRangeT {
+#if OP_DEBUG
+    bool debugIsUninitialized() const { return OpMath::IsDebugNaN(lo); }
+#endif
 	DUMP_DECLARATIONS
 
-	OpPtT lo;
-	OpPtT hi;
+    float lo  OP_DEBUG_INIT_FLOAT();
+    float hi  OP_DEBUG_INIT_FLOAT();
 };
+#endif
 
 // Places where a pair of segments cross are recorded as intersections.
 // Pairs of intersections, along with segments' ends, extremas, and inflections,
@@ -141,9 +147,7 @@ struct OpIntersection {
 	OpSegment* segment  OP_DEBUG_CODE(=nullptr);
 	OpIntersection* opp = nullptr;
 	OpPtT ptT;  // pt-at-t may be aligned if it or span is small
-#if CHECK_SNIP
-    CutRangeT snipTs;  // range excluded from ray casting because intersections were discarded
-#endif
+//    CutRangeT snipTs;  // range excluded from ray casting because intersections were discarded
 	OpPoint callerPt;  // returned by caller's curve at aligned t
     float unalignedT = OpNaN;  // original t found (used to disallow rays in aligned region)
 	int coincidenceID = 0;  // if non-zero, intersection marks range where edges completely overlap
@@ -159,7 +163,6 @@ struct OpIntersection {
 	bool betweenCoins = false;  // used to find unsortable edges between coincident pairs
 	bool ccLine = false;  // set if curve-curve flattened to line to find intersection
 	bool ccSect = false;  // set if curve-curve created coins/unsectables (if possibly out-of-order)
-	bool ccUnsectable = false;  // set if curve-curve created or set unsectables (to treat as coin)
 	bool collapsed = false;  // set if coincidence or unsect pair collapsed to a point
 #if OP_DEBUG || OP_DEBUGGER
 	int id = 0;

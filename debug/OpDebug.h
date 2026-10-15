@@ -52,6 +52,10 @@
 #define OP_TEST_RASTER ((!OP_TINY_TEST && OP_TEST) || OP_DEBUGGER)
 #endif
 
+#ifndef OP_DEBUG_PROFILE
+#define OP_DEBUG_PROFILE 1  // set to analyze performance errors detecting while profiling
+#endif
+
 #define OP_ENUM_BASE(member, value) member = value
 #define OP_ENUM_MEMBER(member) member
 

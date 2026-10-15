@@ -115,12 +115,13 @@ struct OpCurve {
 	bool normalize();
 	PathOpsV0Lib::WindKeep output(PathOpsV0Lib::Winding , bool firstPt, bool lastPt  
 			OP_DEBUG_RASTER_PARAMS(struct OpEdge* ));
-	void pinCtrl();
+//	void pinCtrl();
 	OpPoint ptAtT(float t) const;
 	OpPtT ptTAtT(float t) const {
 		return { ptAtT(t), t }; }
 	OpPointBounds fullBounds() const;  // if curve is rotated, may need to consider control points
 	int pointCount() const;
+    OpRect rangeBounds(float start, float end) const;
 	OpRoots rawIntersect(const LinePts& line, MatchEnds ) const;  // requires sect to be on curve
 	OpRoots rayIntersect(const LinePts& line, MatchEnds ) const;
 	void reverse();

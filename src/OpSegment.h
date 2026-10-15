@@ -110,6 +110,12 @@ enum class AllowLinked {
 	yes
 };
 
+struct SignedDistance {
+    float signedDistance;
+    float absDistance;
+    float nDotOpp;
+};
+
 #undef OP_X
 
 struct OpSegment {
@@ -129,7 +135,7 @@ struct OpSegment {
 	void betweenCoincidence();
 	int coinID(bool flipped);
 	void disableSmall();
-	OpPtT distance(const OpPtT& segPtT, OpSegment* opp);
+	OpPtT distance(const OpPtT& segPtT, const OpSegment* opp) const;
 	bool endMoved() const { 
 		return c.end != c.c.data->end; }
 	OpEdge* findEnabled(const OpPtT& , EdgeMatch ) const;
@@ -162,6 +168,7 @@ struct OpSegment {
 	void setUnmerged();
 	bool simpleEnd(const OpEdge* ) const;  // true if edge end connects to only one segment
 	bool simpleStart(const OpEdge* ) const;  // true if edge start connects to only one segment
+    SignedDistance signedDistance(const OpPtT& s, const OpPtT& e) const;
 	bool startMoved() const { 
 		return c.start != c.c.data->start; }
 	OpVector threshold() const;
@@ -200,6 +207,7 @@ struct OpSegment {
 	OpIntersections sects;
 	std::vector<OpEdge> edgeList;
 	OpWinding winding;
+    float tScale = 1;  // factor to advance to significantly different points at adjacent t values
 	int id;     // used to normalize each end point once
 	bool disabled; // winding has canceled this edge out
 	bool endsMerged = false;
@@ -209,6 +217,9 @@ struct OpSegment {
 	bool merged = false;  // set true if each point and t are unique
 #if OP_DEBUGGER
 	uint32_t debugColor = debugBlack;
+#endif
+#if OP_DEBUG_PROFILE
+    mutable int debugSnipTrack = 0;
 #endif
     OP_LINE_FILE_DECLARE(debugSetDisabled)
 };

@@ -1231,6 +1231,10 @@ struct OpMath {
 		return QuadRootsDouble(A, B, C).keepInteriorTs();
 	}
 
+    static float Sign(float A) {
+        return (0 < A) - (A < 0);
+    }
+
 	static OpVector Threshold(OpPoint pt1, OpPoint pt2);
 
 	static float XYRatio(float A, float B, float tween) {

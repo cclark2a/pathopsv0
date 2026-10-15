@@ -274,11 +274,13 @@ inline bool quadsEqual(Curve one, Curve two) {
     return ctrlPt1 == ctrlPt2;
 }
 
+#if 0
 inline void quadPin(Curve c, OpPoint newStart, OpPoint newEnd) {
     OpPoint ctrlPt = quadControlPt(c);
     ctrlPt.pin(newStart, newEnd);
     quadSetControl(c, ctrlPt);
 }
+#endif
 
 inline OpVector quadTangent(Curve c, float t) {
     return QuadTangent(c.data->start, quadControlPt(c), c.data->end, t);
@@ -342,7 +344,6 @@ inline std::string quadDebugDumpName() {
     OP_TAGGED_FUNCTION(quadIsFinite), \
     OP_TAGGED_FUNCTION(quadIsLine), \
     OP_TAGGED_FUNCTION(quadSetBounds), \
-    OP_TAGGED_FUNCTION(quadPin), \
     OP_TAGGED_FUNCTION(quadTangent), \
     OP_TAGGED_FUNCTION(quadsEqual), \
     OP_TAGGED_FUNCTION(quadPtAtT), \
@@ -357,7 +358,7 @@ inline std::string quadDebugDumpName() {
 
 inline void quadCallbacks(Context* context, int nativeCurveType) {
     SetCurveCallbacks(context, nativeCurveType, { quadAxisT, 
-            quadRotatedT, quadHull, quadIsFinite, quadIsLine, quadSetBounds, quadPin, 
+            quadRotatedT, quadHull, quadIsFinite, quadIsLine, quadSetBounds, 
             quadTangent, quadsEqual, quadPtAtT, quadHullPtCount, quadRotate, 
             quadSubDivide, quadXYAtT });
 #if OP_TEST
