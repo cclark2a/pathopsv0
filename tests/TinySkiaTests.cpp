@@ -68,10 +68,17 @@ struct TinyError {
     float error = 0;
 };
 
+
+struct SuiteError {
+    std::string testname;
+    std::string suitename;
+    PathOpsV0Lib::ContextError errorType = PathOpsV0Lib::ContextError::none;
+};
+
 struct TinyState {
     void addADot(const OpDebugData& );
     void test();
-    void trackError(PathOpsV0Lib::ContextError contextError);
+    void trackError(PathOpsV0Lib::ContextError contextError, std::string testName);
     std::string stats();
 
     std::vector<std::string> skipFiles = { TEST_PATH_OP_SKIP_FILES };
@@ -79,10 +86,16 @@ struct TinyState {
     std::string skipToSuite = TEST_SUITE_FIRST;
     std::string largestError;
     std::array<TinyError, 20> tinyErrors;
+    std::array<SuiteError, 100> suiteErrors;
     std::atomic<float> pixelError = 0.f;
     std::atomic_int runIndex = 0; 
-    std::atomic_int intersectionError = 0;
+    std::atomic_int endError = 0;
+    std::atomic_int finiteError = 0;
     std::atomic_int gapError = 0;
+    std::atomic_int intersectionError = 0;
+    std::atomic_int loopError = 0;
+    std::atomic_int missingError = 0;
+    std::atomic_int rootError = 0;
     std::atomic_int testsError = 0;
     std::atomic_int testsRun = 0;
     std::atomic_int testsDot = 0;
@@ -90,7 +103,7 @@ struct TinyState {
     std::atomic_int testsSkipped = 0;
     std::atomic_int testsToSkip = TESTS_TO_SKIP;
     std::atomic_int treeError = 0;
-    std::atomic_int silentError = 0;
+    std::atomic_int verticalError = 0;
     #if OP_DEBUG_FAST_TEST
     std::mutex out_mutex;
     #endif
@@ -151,16 +164,20 @@ void TinyState::addADot(const OpDebugData& debugData) {
 std::string TinyState::stats() {
     std::string s;
     s += "testsRun:" + STR(testsRun) + " testsSkipped:" + STR(testsSkipped) + " ";
-    if (intersectionError)
-        s += "intersectionError:" + STR(intersectionError) + " ";
+    if (finiteError)
+        s += "finiteError:" + STR(finiteError) + " ";
     if (gapError)
         s += "gapError:" + STR(gapError) + " ";
+    if (intersectionError)
+        s += "intersectionError:" + STR(intersectionError) + " ";
+    if (rootError)
+        s += "rootError:" + STR(rootError) + " ";
     if (testsError)
         s += "testsError:" + STR(testsError) + " ";
     if (treeError)
         s += "treeError:" + STR(treeError) + " ";
-    if (silentError)
-        s += "silentError:" + STR(silentError) + " ";
+    if (verticalError)
+        s += "verticalError:" + STR(verticalError) + " ";
     if (pixelError && testsRun)
         s += " avg pixelError:" + STR(pixelError / testsRun) + " ";
     if (baseError < maxError)
@@ -177,33 +194,59 @@ std::string TinyState::stats() {
     return s;
 }
 
-void TinyState::trackError(PathOpsV0Lib::ContextError contextError) {
+void TinyState::trackError(PathOpsV0Lib::ContextError contextError, std::string testName) {
 	if (PathOpsV0Lib::ContextError::none != contextError)
 		++testsError;
+    int errorCount = 20;
+    std::string errStr;
 	switch (contextError) {
 		case PathOpsV0Lib::ContextError::none:
-			break;
+			return;
+        case PathOpsV0Lib::ContextError::end:
+            errorCount = ++endError;
+            errStr = "end";
+            break;
 		case PathOpsV0Lib::ContextError::finite:  // input was not finite
-			++silentError; 
+			errorCount = ++finiteError; 
+            errStr = "finite";
 			break;
-		case PathOpsV0Lib::ContextError::toVertical:  // skewing curve exceeds float range
-			++silentError; 
-			break;
-		case PathOpsV0Lib::ContextError::tree:
-			++treeError;
+		case PathOpsV0Lib::ContextError::gap:
+			errorCount = ++gapError;
+            errStr = "gap";
 			break;
         case PathOpsV0Lib::ContextError::intersection:
-            ++intersectionError;
+            errorCount = ++intersectionError;
+            errStr = "intersection";
             break;
-		case PathOpsV0Lib::ContextError::gap:
-			++gapError;
-			break;
+        case PathOpsV0Lib::ContextError::loop:
+            errorCount = ++loopError;
+            errStr = "loop";
+            break;
+        case PathOpsV0Lib::ContextError::missing:
+            errorCount = ++missingError;
+            errStr = "missing";
+            break;
         case PathOpsV0Lib::ContextError::root:
-            ++silentError;
+            errorCount = ++rootError;
+            errStr = "root";
             break;
+		case PathOpsV0Lib::ContextError::toVertical:  // skewing curve exceeds float range
+			errorCount = ++verticalError; 
+            errStr = "toVertical";
+			break;
+		case PathOpsV0Lib::ContextError::tree:
+			errorCount = ++treeError;
+            errStr = "tree";
+			break;
 		default:
 			OP_ASSERT(0);
 	}
+    if (errorCount >= 20)
+        return;
+#if OP_DEBUG_FAST_TEST
+    std::lock_guard<std::mutex> guard(out_mutex);
+#endif
+    OpDebugOut("error " + errStr + ": " + testName + "\n");
 }
 
 #if OP_DEBUG_SERIALIZE && TEST_ENABLE_V0
@@ -317,7 +360,7 @@ TestDone TestOptions::testPart(SkPath& a, SkPath& b, TinyOps op, SkPath* outPtr)
         int simpleData[] = { 1 };
         Contour* simple = SetSkiaSimplifyCallbacks(context, simpleData, sizeof(simpleData), 
                 isWindingFill(a)  OP_DEBUG_PARAMS(&a));
-#if TEST_ANALYZE
+#if TEST_ANALYZE && OP_DEBUG
         debugRef.limitTest = true;
         debugRef.limitContours = LIMIT_CONTOURS;
         OpRect limitBounds = LIMIT_BOUNDS;
@@ -368,7 +411,7 @@ TestDone TestOptions::testPart(SkPath& a, SkPath& b, TinyOps op, SkPath* outPtr)
 #endif
 	}
     contextError = Error(context);
-	testTrack.tinyState->trackError(contextError);
+	testTrack.tinyState->trackError(contextError, testTrack.testName);
 #if OP_TEST_RASTER && OP_DEBUG && !TEST_DEFEAT_RASTER
     if (ContextError::none == contextError && OpDebugExpect::success == debugRef.expect)
         debugRef.error = debugRaster.out();

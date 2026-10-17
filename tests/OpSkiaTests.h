@@ -6,10 +6,10 @@
 #error "OpDebug header must precede"
 #endif
 
-#define SKIP_TO_FILE "" // "simplify" // e.g.,  "tiger"   one file
-#define TEST_SUITE_FIRST "quad"  // e.g., "simplifyFail" skip suites prior to this one
+#define SKIP_TO_FILE "op" // "simplify" // e.g.,  "tiger"   one file
+#define TEST_SUITE_FIRST ""  // e.g., "simplifyFail" skip suites prior to this one
 #if !OP_DEBUG_ALTW
-#define TEST_FIRST "simplifyQuads6302831" // e.g., "dean4" if file, one test (can be skipped test)
+#define TEST_FIRST "grshapearcs1" // e.g., "dean4" if file, one test (can be skipped test)
                         // !!! "loop8478" fails sometimes (san/valgrind found no error)
                         // cubic9092  cubic454498  cubic327361 troublesome unsectables
                         // only single tested files get full debugger dumps
@@ -46,7 +46,7 @@
 #define TEST_PATH_OP_SKIP_FILES  /* e.g., "battle", "circleOp" */
 #define TEST_ENABLE_V0 1  // set zero to verify all tests are visited exactly once (disables engine)
 
-#define TEST_ANALYZE 0  // set to one to limit bounds and contours of very large tests
+#define TEST_ANALYZE 1  // set to one to limit bounds and contours of very large tests
 #define LIMIT_CONTOURS 165  // when limited, maximum number of contours to check
 #define LIMIT_BOUNDS { 48.0237312, 24.2018681, 50.9992294, 32.9181442 }  // when limited, contours must start in bounds to be checked
 

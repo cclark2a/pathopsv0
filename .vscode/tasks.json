@@ -99,6 +99,26 @@
                 "isDefault": false
             },
             "detail": "cmake"
+        },
+        {
+            "type": "shell",
+            "label": "release drive",
+            "command": "cmake",
+            "args": [
+                "--build",
+                "Release",
+                "-j10",
+                "--target",
+                "test_drive"
+            ],
+            "problemMatcher": [
+                "$gcc"
+            ],
+            "group": {
+                "kind": "build",
+                "isDefault": false
+            },
+            "detail": "cmake"
         }
     ],
     "version": "2.0.0"
