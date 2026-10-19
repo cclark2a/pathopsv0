@@ -27,8 +27,8 @@
 #define OP_DEBUG_FAST_TEST 0
 #endif
 
-#ifndef OP_TINY_TEST
-#define OP_TINY_TEST 0
+#ifndef OP_DEBUG_ONE_TEST
+#define OP_DEBUG_ONE_TEST 0
 #endif
 
 #ifndef OP_DEBUG_ALT
@@ -49,7 +49,7 @@
 #define OP_TEST (OP_DEBUG || OP_RELEASE_TEST || OP_DEBUGGER)  // check test results (e.g., scanline compare)
 
 #ifndef OP_TEST_RASTER
-#define OP_TEST_RASTER ((!OP_TINY_TEST && OP_TEST) || OP_DEBUGGER)
+#define OP_TEST_RASTER (OP_TEST || OP_DEBUGGER)
 #endif
 
 #ifndef OP_DEBUG_PROFILE
@@ -106,6 +106,9 @@ struct OpDebugRaster;
 
 struct OpDebugData {
 	OpDebugData() {}
+    OpDebugData(std::string tn)
+		: testname(tn) {
+	}
 	OpDebugData(std::string tn, OpDebugExpect expected, float maxErr, int cc1, int cc2, int ccDepth, 
 			bool ccAll, bool unambiguous, bool noBreaks, bool noDumps, bool runOne, bool showErr) 
 		: testname(tn)
@@ -141,7 +144,7 @@ struct OpDebugData {
 	bool defeatDumps = false;
 	bool limitTest = false;  // set true to respect limit bounds and limit contours
 	bool limitReached = false;  // for very large tests, set when limit contours is hit
-	bool runOneFile = false;
+	bool runOneFile = true;
 	bool showError = true;
 	bool success = true;
 };
@@ -153,11 +156,7 @@ struct OpDebugData {
 #define OP_DEBUGGER_CODE(...)
 #define OP_DEBUGGER_PARAMS(...)
 
-#if defined OP_TINY_TEST && OP_TINY_TEST
-    #define OP_TINY_MAIN(func) int main() { func(); return 0; }
-#else
-    #define OP_TINY_MAIN(func)
-#endif
+#define OP_TINY_MAIN(func) int main() { func(); return 0; }
 
 #if !OP_DEBUG && !OP_DEBUGGER
 #define OP_DEBUG_INIT(enum_name)
@@ -232,7 +231,7 @@ struct OpDebugData {
 #undef OP_DEBUG_SERIALIZE_PARAMS
 #define OP_DEBUG_SERIALIZE_PARAMS(...) , __VA_ARGS__
 
-#if (!OP_DEBUGGER && OP_DEBUG_FAST_TEST) || (defined OP_TINY_TEST && OP_TINY_TEST)
+#if (!OP_DEBUGGER && OP_DEBUG_FAST_TEST)
 	#define OP_DEBUG_DUMP 0
 	#define OP_DEBUG_MAKER 0
 	#define OP_DEBUG_VALIDATE 0

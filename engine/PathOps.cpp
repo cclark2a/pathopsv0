@@ -119,7 +119,7 @@ void SetCurveCallbacksX(Context* interfaceContext, int nativeCurveType,
 }
 #endif
 
-void SetCurveCallbacks(Context* interfaceContext, int nativeCurveType,
+void SetCurveCallbacks(Context* interfaceContext, CurveType nativeCurveType,
         const CurveCallbacks& curveCallbacks) {
     OpContext* context = toImplementation(interfaceContext);
     context->callbacks.push_back(curveCallbacks);

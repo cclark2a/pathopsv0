@@ -189,9 +189,7 @@ inline bool quadIsLine(Curve c, float threshold) {
     return linePts.ptOnLine(ctrlPt, threshold);
 }
 
-inline OpRoots quadRotatedT(Curve curve, Axis axis, float intercept  
-		OP_DEBUG_PARAMS(const OpRoots& debugAdded)) {
-#if 1
+inline OpRoots quadRotatedT(Curve curve, Axis axis, float intercept) {
     float a = curve.data->end.choice(axis);
     float b = quadControlPt(curve).choice(axis);
     float c = curve.data->start.choice(axis);
@@ -199,61 +197,12 @@ inline OpRoots quadRotatedT(Curve curve, Axis axis, float intercept
     b -= c;            // B = -(b - c)
     OpRoots result = OpMath::QuadRootsDouble(a, 2 * b, c - intercept);  // double req'd: testQuads3759897
     return result;
-#else
-	OpPoint start = curve.data->start;
-	OpPoint end = curve.data->end;
-	OpPoint control = quadControlPt(curve);
-    bool monotonicInX = OpMath::Between(start.x, control.x, end.x);
-    bool monotonicInY = OpMath::Between(start.y, control.y, end.y);
-	std::vector<float> tValues = AddExtrema(start, end, control, monotonicInX, monotonicInY);
-	if (tValues.empty())
-		return quadAxisT(curve, axis, intercept  OP_DEBUG_PARAMS(debugAdded));
-    std::sort(tValues.begin(), tValues.end());
-    std::vector<OpPtT> ptTs(tValues.size() + 2);
-    ptTs.front() = { start, 0 };
-    ptTs.back() = { end, 1 };
-    for (unsigned index = 0; index < tValues.size(); ++index) {
-        ptTs[index + 1] = { QuadPointAtT(start, control, end, tValues[index]), tValues[index] }; 
-    } 
-	OpRoots result;
-	unsigned lastIndex = (unsigned) (ptTs.size() - 1);
-    for (unsigned index = 0; index < lastIndex; ++index) {
-        OpPoint curveData[3] { ptTs[index].pt, ptTs[index + 1].pt };
-		float startT = ptTs[index].t;
-		float endT = ptTs[index + 1].t;
-		if (OpMath::Equal(intercept, curveData[0].choice(axis))) {
-			result.add(startT);
-			continue;
-		}
-		if (OpMath::Equal(intercept, curveData[1].choice(axis))) {
-			result.add(endT);
-			continue;
-		}
-#if OP_DEBUGGER  // !!! I don't know why this isn't required all the time!
-        float top = curveData[0].choice(axis) - intercept;
-        float bottom = curveData[1].choice(axis) - intercept;
-		if (top * bottom > 0)
-			continue;
-#else
-		if (curveData[0].choice(axis) * curveData[1].choice(axis) > 0)
-			continue;
-#endif
-        OP_ASSERT(curveData[0] != curveData[1]);
-        curveData[2] = QuadCtrlPin(start, control, end, ptTs[index], ptTs[index + 1]);
-		Curve part { curve.context, (CurveData*) curveData, curve.size, curve.type };
-		OpRoots partRoot = quadAxisT(part, axis, intercept  OP_DEBUG_PARAMS(debugAdded));
-		for (float root : partRoot.roots)
-			result.add(startT + root * (endT - startT));
-	}
-	return result;
-#endif
 }
 
-inline OpRoots quadAxisT(Curve curve, Axis axis, float axisIntercept
-		OP_DEBUG_PARAMS(const OpRoots& debugAdded)) {
-    OpRoots result = quadRotatedT(curve, axis, axisIntercept  OP_DEBUG_PARAMS(debugAdded));
+inline float quadAxisT(Curve curve, Axis axis, float axisIntercept) {
+    OpRoots result = quadRotatedT(curve, axis, axisIntercept);
     result = result.keepValidT();
-    return result;
+    return result.empty() ? OpNaN : result.roots[0];
 }
 
 inline OpPoint quadPtAtT(Curve c, float t) {

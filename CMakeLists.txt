@@ -46,6 +46,8 @@ include_directories(
 
 set (COMMON_SOURCES
 	"debug/OpDebug.cpp"
+	"debug/OpDebugDump.cpp"
+	"debug/OpDebugRaster.cpp"
     "debug/OpDebugSerialize.cpp"
 	"debug/OpDebugTags.cpp"
 	"src/OpContext.cpp"
@@ -66,11 +68,6 @@ set (COMMON_SOURCES
 
 # Add source to this project's executable.
 set (SKIA_TESTS
-#	"debug/OpDebugColor.cpp"
-	"debug/OpDebugDump.cpp"
-#	"debug/OpDebugGenerator.cpp"
-	"debug/OpDebugRaster.cpp"
-#	"debug/OpDebugRecord.cpp"
 	"public/port/SkiaPaths.cpp"
 	"debug/SkiaPathsDebug.cpp"
     "tests/TinySkia.cpp"
@@ -128,19 +125,19 @@ target_sources (path_2d_test           PUBLIC ${COMMON_SOURCES})
 target_compile_definitions (skia_test              PUBLIC )
 target_compile_definitions (skia_alt               PUBLIC OP_DEBUG_ALT=1)
 target_compile_definitions (test_drive             PUBLIC OP_DEBUG_FAST_TEST=1)
-target_compile_definitions (contains_example       PUBLIC OP_TINY_TEST=1)
-target_compile_definitions (frame_example          PUBLIC OP_TINY_TEST=1)
-target_compile_definitions (html_canvas_example    PUBLIC OP_TINY_TEST=1)
-target_compile_definitions (simplify_example       PUBLIC OP_TINY_TEST=1)
-target_compile_definitions (skia_intersect_example PUBLIC OP_TINY_TEST=1 SKIA_EXAMPLE=1)
-target_compile_definitions (skia_simplify_example  PUBLIC OP_TINY_TEST=1 SKIA_EXAMPLE=1)
-target_compile_definitions (svg_example            PUBLIC OP_TINY_TEST=1)
-target_compile_definitions (cut_test               PUBLIC OP_TINY_TEST=1)
-target_compile_definitions (frame_test             PUBLIC OP_TINY_TEST=1)
-target_compile_definitions (path_2d_test           PUBLIC OP_TINY_TEST=1)
+target_compile_definitions (contains_example       PUBLIC OP_DEBUG_ONE_TEST=1)
+target_compile_definitions (frame_example          PUBLIC OP_DEBUG_ONE_TEST=1)
+target_compile_definitions (html_canvas_example    PUBLIC OP_DEBUG_ONE_TEST=1)
+target_compile_definitions (simplify_example       PUBLIC OP_DEBUG_ONE_TEST=1)
+target_compile_definitions (skia_intersect_example PUBLIC OP_DEBUG_ONE_TEST=1 SKIA_EXAMPLE=1)
+target_compile_definitions (skia_simplify_example  PUBLIC OP_DEBUG_ONE_TEST=1 SKIA_EXAMPLE=1)
+target_compile_definitions (svg_example            PUBLIC OP_DEBUG_ONE_TEST=1)
+target_compile_definitions (cut_test               PUBLIC OP_DEBUG_ONE_TEST=1)
+target_compile_definitions (frame_test             PUBLIC OP_DEBUG_ONE_TEST=1)
+target_compile_definitions (path_2d_test           PUBLIC OP_DEBUG_ONE_TEST=1)
 
 set (DEBUG_COMPILE_OPTIONS
-    -g -Wall -Wpedantic -Wno-unused-parameter -Wno-invalid-offsetof
+    -g -Wall -Wpedantic -Wno-unused-parameter -Wno-invalid-offsetof -D_GLIBCXX_DEBUG=1
 )
 
 set (RELEASE_COMPILE_OPTIONS
@@ -162,9 +159,9 @@ if (CMAKE_CXX_COMPILER_ID STREQUAL "MSVC")
     target_compile_options (frame_test PUBLIC)
     target_compile_options (path_2d_test PUBLIC)
 elseif (CMAKE_BUILD_TYPE MATCHES "Debug")
-    target_compile_options (skia_test PUBLIC ${DEBUG_COMPILE_OPTIONS} -fprofile-update=atomic -D_GLIBCXX_DEBUG=1)
-    target_compile_options (skia_alt PUBLIC ${DEBUG_COMPILE_OPTIONS} -fprofile-update=atomic -D_GLIBCXX_DEBUG=1)
-    target_compile_options (test_drive PUBLIC ${DEBUG_COMPILE_OPTIONS} -fprofile-update=atomic -D_GLIBCXX_DEBUG=1)
+    target_compile_options (skia_test PUBLIC ${DEBUG_COMPILE_OPTIONS} -fprofile-update=atomic)
+    target_compile_options (skia_alt PUBLIC ${DEBUG_COMPILE_OPTIONS} -fprofile-update=atomic)
+    target_compile_options (test_drive PUBLIC ${DEBUG_COMPILE_OPTIONS} -fprofile-update=atomic)
     target_compile_options (contains_example PUBLIC ${DEBUG_COMPILE_OPTIONS} )
     target_compile_options (frame_example PUBLIC ${DEBUG_COMPILE_OPTIONS} )
     target_compile_options (html_canvas_example PUBLIC ${DEBUG_COMPILE_OPTIONS} )

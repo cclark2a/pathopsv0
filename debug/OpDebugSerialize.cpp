@@ -702,7 +702,7 @@ static std::string debugContextCallbacksDump(const PathOpsV0Lib::DebugContextCal
     DEBUG_FIND_TAG(debugContextCallbacks, debugMergeEndsFuncPtr, debugMergeFuncPtr);
     DEBUG_FIND_TAG(debugContextCallbacks, debugMergeFuncPtr, debugDumpWindingOutFuncPtr);
     DEBUG_FIND_TAG(debugContextCallbacks, debugDumpWindingOutFuncPtr, debugDumpWindingSetFuncPtr);
-    DEBUG_FIND_TAG(debugContextCallbacks, debugDumpWindingSetFuncPtr, debugDumpOutFuncPtr);
+//    DEBUG_FIND_TAG(debugContextCallbacks, debugDumpWindingSetFuncPtr, debugDumpOutFuncPtr);  // do not serialize
     DEBUG_FIND_TAG(debugContextCallbacks, debugDumpOutFuncPtr, debugImageWindingOutFuncPtr);
     DEBUG_FIND_TAG(debugContextCallbacks, debugImageWindingOutFuncPtr, debugImageWindingNamesFuncPtr);
     DEBUG_FIND_TAG(debugContextCallbacks, debugImageWindingNamesFuncPtr, debugWindingVisibleFuncPtr);

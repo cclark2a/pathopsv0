@@ -46,7 +46,7 @@ void SetError(Context* , ContextError );
 void SetErrorHandler(Context* , ErrorDispatch );
 
 // curve callbacks; describes geometry between endpoints
-void SetCurveCallbacks(Context* , int nativeType, const CurveCallbacks& );
+void SetCurveCallbacks(Context* , CurveType nativeType, const CurveCallbacks& );
 
 // winding callbacks; specifies which curves are kept and discarded
 void SetWindingCallbacks(Context* , const WindingCallbacks& ); 

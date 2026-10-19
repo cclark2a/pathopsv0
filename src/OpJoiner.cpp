@@ -352,7 +352,8 @@ OpTree::OpTree(DumpSerialization , OpContext* c)
     , id(0)
 	, limbPass(LimbPass::uninitialized)
 //	, disabled(false)
-	, smallGap(false) {
+	, smallGap(false)
+    , allowGap(false) {
 }
 #endif
 
@@ -366,7 +367,9 @@ OpTree::OpTree(OpEdge* edge)
 	, totalUsed(0) 
 	, limbPass(LimbPass::linked)
 //	, disabled(false)
-	, smallGap(false) {
+	, smallGap(false)
+    , allowGap(context->allowError(PathOpsV0Lib::ContextError::missing, &edge->curve.c))
+ {
 	passIndex.push_back(0);
 	OP_ASSERT((size_t) limbPass == passIndex.size());
 	passIndex.push_back(0);
@@ -647,6 +650,8 @@ bool OpTree::makeTrunk(OpEdge* edge) {
 		if (LimbPass::linked != limbPass && totalUsed > baseUsed)
 			limbPass = LimbPass::linked;
 		else {
+            if (allowGap && LimbPass::smallEdge <= limbPass)
+                return false;
 			if (LimbPass::disabled <= limbPass)
 				return false;
 			if ((int) ++limbPass >= (int) passIndex.size())
@@ -656,7 +661,7 @@ bool OpTree::makeTrunk(OpEdge* edge) {
 	return true;
 }
 
-bool OpTree::exhausted() {
+bool OpTree::exhausted(bool allowGap) {
 	// if ineligible edges make up some percentage of the tree, discard it
 	const OpLimb* test = bestGapLimb;
 	float enabledLength = 0;
@@ -670,7 +675,9 @@ bool OpTree::exhausted() {
 	float enabledRatio = fun ? (*fun)((ContextPtr) context) : 1;  // !!! have no idea what this should be
 	if (disabledLength && enabledLength / disabledLength >= enabledRatio)
 		return false;
-	test = bestGapLimb;
+    if (allowGap)
+        return false;
+    test = bestGapLimb;
 	do {
 		if (test->edge->linkHead)
 			test->edge->segment->contour->removeLink(test->edge);
@@ -1076,7 +1083,7 @@ bool OpJoiner::matchLinks(OpContour* contour, bool popLast) {
 //	found.clear();
 //	matchPt = lastLink->whichSect(EdgeMatch::end).pt;
 	OpTree tree(edge);
-	bool treeFailed = !tree.makeTrunk(edge) && tree.exhausted();
+	bool treeFailed = !tree.makeTrunk(edge) && tree.exhausted(tree.allowGap);
 	OP_DEBUG_DUMP_CODE(context->dumpFile("treeMade"));
 	if (treeFailed) {
         OP_DEBUG_CODE(OP_ASSERT(context->debugFail()));
@@ -1090,22 +1097,9 @@ bool OpJoiner::matchLinks(OpContour* contour, bool popLast) {
     OpPoint firstPt(SetToNaN::dummy);
     OpPoint lastPt(SetToNaN::dummy);
 #endif
-	if (!tree.bestLimb) {
-		OpLimb* gap = tree.bestGapLimb;
-		OP_ASSERT(gap);
-		if (context->allowError(PathOpsV0Lib::ContextError::missing, &edge->curve.c)) {
-			OpPtT startI = edge->whichSect();
-			OpPtT gapEnd = gap->lastLimbEdge->whichSect(!gap->match);
-			bool usectLink = unsectableLink(contour, startI.pt, gapEnd.pt);
-			OpEdge* filler = tree.addFiller(gap->lastLimbEdge->segment, gapEnd.pt, startI.pt, 
-					usectLink ? FillerGap::no : FillerGap::yes);
-			OpLimb* branch = tree.makeLimb();
-			branch->set(filler, gap, EdgeMatch::start, nullptr, 0, nullptr);
-			branch->treePass = LimbPass::disjoint;
-			tree.bestLimb = branch;
-		} else {
-			tree.bestLimb = gap;
-		}
+    if (!tree.bestLimb) {
+        OP_ASSERT(tree.bestGapLimb);
+        tree.bestLimb = tree.bestGapLimb;
 	} else {
 #if OP_TEST_RASTER
         firstPt = edge->whichCallerPt();

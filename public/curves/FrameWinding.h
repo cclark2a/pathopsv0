@@ -15,13 +15,12 @@ enum class FrameFill {
 
 struct FrameData {
     FrameData(FrameFill frameFill) 
-		: isFrame(frameFill) {
-        if (FrameFill::frame == frameFill)
-            left = 0;
+		: value(FrameFill::fill == frameFill)  // frame:0 fill:1
+        , isFrame(frameFill) {
 	}
 
-    FrameData(FrameFill frameFill, int windValue) 
-		: left(windValue)
+    FrameData(FrameFill frameFill, int initial) 
+		: value(initial)
 		, isFrame(frameFill) {
 	}
 
@@ -35,8 +34,8 @@ struct FrameData {
 		std::memcpy(w.data, this, sizeof(FrameData));
 	}
 
-    int left = 1;
-	FrameFill isFrame = FrameFill::fill;
+    int value;
+	FrameFill isFrame;
 };
 
 struct FrameWinding {
@@ -49,7 +48,7 @@ struct FrameWinding {
 inline void frameAddFunc(Winding winding, Winding toAdd) {
 	FrameData sum(winding);
 	FrameData addend(toAdd);
-	sum.left += addend.left;
+	sum.value += addend.value;
 	sum.copyTo(winding);
 }
 
@@ -58,18 +57,18 @@ inline WindKeep frameDiscardFunc(Winding winding, Winding sumWinding) {
 	if (FrameFill::fill == wind.isFrame)
 		return WindKeep::Discard;
 	FrameData sum(sumWinding);
-	return !sum.left ? WindKeep::Start : WindKeep::Discard;
+	return !sum.value ? WindKeep::Start : WindKeep::Discard;
 }
 
 inline bool frameWoundFunc(Winding winding) {
 	FrameData wind(winding);
-    return !!wind.left;
+    return !!wind.value;
 }
 
 inline bool frameIntersectFunc(Winding l, Winding r) {
-    FrameData left(l);
+    FrameData value(l);
     FrameData right(r);
-    return FrameFill::fill == left.isFrame || FrameFill::fill == right.isFrame;
+    return FrameFill::fill == value.isFrame || FrameFill::fill == right.isFrame;
 }
 
 // both winding and sumWinding come from the same edge
@@ -78,7 +77,7 @@ inline WindKeep frameKeepFunc(Winding winding, Winding sumWinding) {
 	if (FrameFill::fill == wind.isFrame)
 		return WindKeep::Discard;
 	FrameData sum(sumWinding);
-	return sum.left ? WindKeep::Start : WindKeep::Discard;
+	return sum.value ? WindKeep::Start : WindKeep::Discard;
 }
 
 inline void frameZeroFunc(Winding toZero) {
@@ -89,13 +88,13 @@ inline void frameZeroFunc(Winding toZero) {
 inline void frameSubtractFunc(Winding winding, Winding toSubtract) {
 	FrameData difference(winding);
 	FrameData subtrahend(toSubtract);
-	difference.left -= subtrahend.left;
+	difference.value -= subtrahend.value;
 	difference.copyTo(winding);
 }
 
 inline bool frameVisibleFunc(Winding winding) {
     FrameData test(winding);
-    return FrameFill::frame == test.isFrame || !!test.left;
+    return FrameFill::frame == test.isFrame || !!test.value;
 }
 
 inline void frameCallbacks(Context* context) {
@@ -114,7 +113,7 @@ inline bool frameDebugIsFill(Winding winding) {
 
 inline std::string frameDumpOutFunc(Winding winding) {
     FrameData data(winding);
-    return STR(data.left) + (FrameFill::frame == data.isFrame ? "fr" : "");
+    return STR(data.value) + (FrameFill::frame == data.isFrame ? "fr" : "");
 }
 
 #define FRAME_WINDING_TAGGED_FUNCTIONS \
@@ -130,9 +129,9 @@ inline std::string frameDumpOutFunc(Winding winding) {
     OP_TAGGED_FUNCTION(frameDumpOutFunc), \
 
 inline void frameDumpSetFunc(const char*& str, Winding& winding) {
-    int left = OpDebugReadSizeT(str);
+    int value = OpDebugReadSizeT(str);
     FrameFill frameFill = OpDebugOptional(str, "fr") ? FrameFill::frame : FrameFill::fill;
-    FrameData frameData(frameFill, left);
+    FrameData frameData(frameFill, value);
     frameData.copyTo(winding);
 }
 
@@ -178,7 +177,11 @@ inline uint32_t frameColorFunc(Winding winding, DebugEdgeType edgeType) {
 
 inline Context* frameContext(CurveOutput output = nullptr) {
     Context* context = CreateContext();
+#if OP_DEBUG && OP_DEBUG_ONE_TEST
+    SetDebugData(context, { "frameTest" } );
+#endif
     SetContextCallbacks(context, { output });
+    frameCallbacks(context);
 #if OP_DEBUG
 	SetDebugContextCallbacks(context, { 
         frameDebugIsFill, nullptr, nullptr

@@ -45,20 +45,29 @@ OpRoots OpCurve::axisRawHit(Axis axis, float intercept, MatchEnds matchEnds) con
 		if (s * e > 0)  // if both are on the same half-plane delineated by intercept and axis..
 			return result;  // ..no intersection 
 	}
-	PathOpsV0Lib::AxisT func = Rotated::no == rotated
-			? context().callback(c.type).axisTFuncPtr
-			: context().callback(c.type).rotateTFuncPtr;
-	if (!func) {
+    PathOpsV0Lib::AxisT axisFunc = nullptr;
+    PathOpsV0Lib::RotateT rotateFunc = nullptr;
+	if (Rotated::no == rotated)
+        axisFunc = context().callback(c.type).axisTFuncPtr;
+    else
+        rotateFunc = context().callback(c.type).rotateTFuncPtr;
+    if (!axisFunc && !rotateFunc) {
         if (!result.empty())
             return result;
 		const float* ptr = c.data->start.asPtr(axis);
 		return OpRoots((intercept - ptr[0]) / (ptr[2] - ptr[0]));
 	}
-	OpRoots moreRoots = (*func)(c, axis, intercept  OP_DEBUG_PARAMS(result));
-	for (float root : moreRoots.roots) {
-		if (!OpMath::IsNaN(root))
-			result.addEnd(root);
-	}
+    if (axisFunc) {
+        float root = (*axisFunc)(c, axis, intercept);
+        if (!OpMath::IsNaN(root))
+            result.addEnd(root);
+    } else {
+        OpRoots moreRoots = (*rotateFunc)(c, axis, intercept);
+        for (float root : moreRoots.roots) {
+            if (!OpMath::IsNaN(root))
+                result.addEnd(root);
+        }
+    }
 	result.sort();
 	if (Rotated::yes == rotated && 2 < result.count()) {
 		OpRoots temp(result.roots.front(), result.roots.back());

@@ -1441,15 +1441,3 @@ void SetDebugData(Context* ctext, const OpDebugData& debugData) {
 }  // namespace
 
 #endif
-
-#if OP_TINY_TEST && (!defined SKIA_EXAMPLE || !SKIA_EXAMPLE)
-
-namespace PathOpsV0Lib {
-
-std::string dumpSkiaOutPath(Context* context) {
-    return "";
-}
-
-}
-
-#endif

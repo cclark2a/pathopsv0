@@ -1,4 +1,5 @@
 // (c) 2025, Cary Clark cclark2@gmail.com
+#if 0
 #include "PathOpsTypes.h"
 
 // placeholders for port-specific functions 
@@ -11,3 +12,4 @@ void emptySkPathFunc(Context* ) {
 }
 
 }
+#endif

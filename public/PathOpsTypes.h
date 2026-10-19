@@ -126,8 +126,10 @@ struct Output {
 // curve callbacks
 
 // intersects the curve and axis at the axis intercept
-// !!! move debug roots into context
-typedef OpRoots (*AxisT)(Curve , Axis , float axisIntercept  OP_DEBUG_PARAMS(const OpRoots& ));
+typedef float (*AxisT)(Curve , Axis , float axisIntercept );
+
+// intersects the rotated curve and axis at the axis intercept
+typedef OpRoots (*RotateT)(Curve , Axis , float axisIntercept );
 
 // returns number of points in curve user data that contribute to its hull
 typedef int (*HullPtCount)();
@@ -176,7 +178,7 @@ typedef float (*CurveConst)(Curve );
 // caller defined functions are optional and default to built-in behavior
 struct CurveCallbacks {
 	AxisT axisTFuncPtr = nullptr;  // curve is monotonic
-	AxisT rotateTFuncPtr = nullptr;  // curve was rotated and may require finding extrema
+	RotateT rotateTFuncPtr = nullptr;  // curve was rotated and may require finding extrema
 	CurveHull curveHullFuncPtr = nullptr;
 	CurveIsFinite curveIsFiniteFuncPtr = nullptr;
 	CurveIsLine curveIsLineFuncPtr = nullptr;

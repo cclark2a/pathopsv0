@@ -209,9 +209,7 @@ void TestPath2D(bool debugIt) {
 	OP_ASSERT(svg == "M 10 10 L 15 15 Z M 45 41.25 Q 47.5 45 50 50 Z");
 }
 
-#if defined OP_TINY_TEST && OP_TINY_TEST
 int main() {   // for cmake
     TestPath2D(true);
     return 0; 
 }
-#endif

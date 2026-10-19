@@ -624,7 +624,7 @@ static void debugContextCallbacksDumpSet(PathOpsV0Lib::DebugContextCallbacks& de
     DEBUG_FIND_FUNCTION(debugContextCallbacks, debugMergeEndsFuncPtr, debugMergeFuncPtr);
     DEBUG_FIND_FUNCTION(debugContextCallbacks, debugMergeFuncPtr, debugDumpWindingOutFuncPtr);
     DEBUG_FIND_FUNCTION(debugContextCallbacks, debugDumpWindingOutFuncPtr, debugDumpWindingSetFuncPtr);
-    DEBUG_FIND_FUNCTION(debugContextCallbacks, debugDumpWindingSetFuncPtr, debugDumpOutFuncPtr);
+//    DEBUG_FIND_FUNCTION(debugContextCallbacks, debugDumpWindingSetFuncPtr, debugDumpOutFuncPtr);  // do not serialize
     DEBUG_FIND_FUNCTION(debugContextCallbacks, debugDumpOutFuncPtr, debugImageWindingOutFuncPtr);
     DEBUG_FIND_FUNCTION(debugContextCallbacks, debugImageWindingOutFuncPtr, debugImageWindingNamesFuncPtr);
     DEBUG_FIND_FUNCTION(debugContextCallbacks, debugImageWindingNamesFuncPtr, debugWindingVisibleFuncPtr);
@@ -872,7 +872,7 @@ void OpContext::dumpSet(const char*& str) {
     ASSERT_ORDERED(debugFilename, debugDescription);
     if (OpDebugOptional(str, "debugDescription")) {
         const char* descStart = str;
-        while (*str++ != '\n')
+        while (*str++ >= ' ')
             ;
         debugDescription = std::string(descStart, str - descStart - 1);
     }

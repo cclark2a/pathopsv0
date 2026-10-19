@@ -13,7 +13,7 @@ struct UnaryData {
 	}
 
     UnaryData(int initial)
-		: value(initial) {
+		: value(initial) {  // 1st value provided by caller, e.g. SetSkiaSimplifyCallbacks
 	}
 
     UnaryData(Winding w) {
@@ -85,8 +85,8 @@ inline bool unaryDebugIsFill(Winding winding) {
 #if OP_DEBUG_SERIALIZE
 
 inline void unaryDumpSetFunc(const char*& str, Winding& winding) {
-    int left = OpDebugReadSizeT(str);
-    UnaryData unaryData(left);
+    int value = OpDebugReadSizeT(str);
+    UnaryData unaryData(value);
     unaryData.copyTo(winding);
 }
 

@@ -7,13 +7,6 @@
 #include <filesystem>
 #include <sys/stat.h>
 
-// !!! hackery for now (include a dummy copy of PathOpsV0Lib::dumpSkiaOutPath())
-// probably need to eliminate OpDebugTags from needing this
-namespace PathOpsV0Lib {
-    void dumpSkiaOutPath(Context*) {
-    }
-}
-
 void ReportError(std::string s) {
     const char* sdlError = SDL_GetError();
     if (sdlError[0])

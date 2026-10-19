@@ -7,7 +7,7 @@
 namespace PathOpsV0Lib {
 
 // cut discards frame with end that does not connect, as well as all singly-linked connected frames
-// cut keeps frame with non-zero 'left', and connects it to kept fill 
+// cut keeps frame with non-zero 'value', and connects it to kept fill 
 // keep left connects down/right frame to cw loop formed by fill
 // keep right connects down/right frame to ccw loop formed by fill
 
@@ -16,11 +16,11 @@ inline WindKeep cutKeepFunc(Winding winding, Winding sumWinding) {
 	FrameData wind(winding);
 	FrameData sum(sumWinding);
 	if (FrameFill::fill == wind.isFrame) {
-        if (!wind.left || (sum.left && sum.left != wind.left))
+        if (!wind.value || (sum.value && sum.value != wind.value))
              return WindKeep::Discard;
-        return sum.left ? WindKeep::Start : WindKeep::End;
+        return sum.value ? WindKeep::Start : WindKeep::End;
     }
-	return sum.left ? WindKeep::End : WindKeep::Discard;
+	return sum.value ? WindKeep::End : WindKeep::Discard;
 }
 
 inline void cutCallbacks(Context* context) {

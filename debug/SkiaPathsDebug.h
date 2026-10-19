@@ -76,28 +76,6 @@ void SetSkiaOpContourCallbacksDebug(PathOpsV0Lib::Context* , PathOpsV0Lib::Conto
 void AddDebugSkiaPath(PathOpsV0Lib::Context* , PathOpsV0Lib::Contour* , const SkPath& path);
 #endif
 
-// !!! unsure if visual debugger needs these or not in the long run; for now, disable
-#if 0 && OP_DEBUG_DUMP && OP_DEBUG
-#define DEBUG_SKIAPATH_TAGGED_FUNCTIONS \
-    OP_TAGGED_FUNCTION(dumpUnaryContourFunc), \
-    OP_TAGGED_FUNCTION(dumpBinaryContourFunc), \
-    OP_TAGGED_FUNCTION(dumpBinaryContextFunc), \
-    OP_TAGGED_FUNCTION(debugSimplifyPathFunc), \
-    OP_TAGGED_FUNCTION(debugSimplifyGetDrawFunc), \
-    OP_TAGGED_FUNCTION(debugSimplifySetDrawFunc), \
-    OP_TAGGED_FUNCTION(debugOpPathFunc), \
-    OP_TAGGED_FUNCTION(debugOpGetDrawFunc), \
-    OP_TAGGED_FUNCTION(debugOpSetDrawFunc), \
-    OP_TAGGED_FUNCTION(debugOpSetIsOppFunc), \
-
-#endif
-
-#if OP_DEBUG_DUMP
-#define SKIAPATH_TAGGED_FUNCTIONS \
-    OP_TAGGED_FUNCTION(emptySkPathFunc), \
-
-#endif
-
 #if OP_DEBUG_SERIALIZE
 #define DEBUG_WRITE(type, x, y, ...) debugOutput->append(type, x, y, ...)
 #endif

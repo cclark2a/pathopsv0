@@ -270,8 +270,7 @@ inline bool dConicIsLine(Curve c, float threshold) {
     return linePts.ptOnLine(control.pt, threshold);
 }
 
-inline OpRoots dConicRotatedT(Curve curve, Axis axis, float intercept  
-		OP_DEBUG_PARAMS(const OpRoots& )) {
+inline OpRoots dConicRotatedT(Curve curve, Axis axis, float intercept) {
     DPointWeight control(curve);
     double a = curve.data->end.choice(axis);
     double b = control.pt.choice(axis) * control.weight - intercept * control.weight + intercept;
@@ -282,11 +281,10 @@ inline OpRoots dConicRotatedT(Curve curve, Axis axis, float intercept
     return result;
 }
 
-inline OpRoots dConicAxisT(Curve curve, Axis axis, float intercept  
-		OP_DEBUG_PARAMS(const OpRoots& debugAdded)) {
-    OpRoots result = dConicRotatedT(curve, axis, intercept  OP_DEBUG_PARAMS(debugAdded));
+inline float dConicAxisT(Curve curve, Axis axis, float intercept) {
+    OpRoots result = dConicRotatedT(curve, axis, intercept);
     result = result.keepValidT();
-    return result;
+    return result.empty() ? OpNaN : result.roots[0];
 }
 
 inline OpPoint dConicPtAtT(Curve c, float t) {

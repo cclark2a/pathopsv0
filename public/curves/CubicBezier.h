@@ -431,8 +431,7 @@ inline bool cubicIsLine(Curve c, float threshold) {
 // cubic must be monotonic and non-linear (e.g., an arc, not a line)
 // axis-aligned intercept can at most cross the cubic at one point
 // if match ends is set, return appropriate root immediately
-inline OpRoots cubicAxisT(Curve c, Axis axis, float axisIntercept  
-		OP_DEBUG_PARAMS(const OpRoots& debugAdded)) {
+inline float_t cubicAxisT(Curve c, Axis axis, float axisIntercept) {
     CubicControls controls(c);
     OpCubicFloatType A = c.data->end.choice(axis);   // d
     OpCubicFloatType B = controls.pts[1].choice(axis) * 3;  // 3*c
@@ -441,20 +440,17 @@ inline OpRoots cubicAxisT(Curve c, Axis axis, float axisIntercept
     A -= D - C + B;     // A =   -a + 3*b - 3*c + d
     B += 3 * D - 2 * C; // B =  3*a - 6*b + 3*c
     C -= 3 * D;         // C = -3*a + 3*b
-	OpRoots test;
-	test.add(OpMath::CubicRoot(A, B, C, D - axisIntercept));
-	return test;
+	return OpMath::CubicRoot(A, B, C, D - axisIntercept);
 }
 
 // if curve is rotated, break at extrema before calling intersection finder
-inline OpRoots cubicRotatedT(Curve c, Axis axis, float intercept  
-		OP_DEBUG_PARAMS(const OpRoots& debugAdded)) {
+inline OpRoots cubicRotatedT(Curve c, Axis axis, float intercept) {
 	OpPoint start = c.data->start;
 	OpPoint end = c.data->end;
     CubicControls controls(c);
 	OpRoots tValues = AddExtrema(start, end, controls, true);
 	if (tValues.empty())
-		return cubicAxisT(c, axis, intercept  OP_DEBUG_PARAMS(debugAdded));
+		return OpRoots(cubicAxisT(c, axis, intercept));
     tValues.sort();
     std::vector<OpPtT> ptTs(tValues.count() + 2);
     ptTs.front() = { start, 0 };
@@ -484,9 +480,8 @@ inline OpRoots cubicRotatedT(Curve c, Axis axis, float intercept
         OP_ASSERT(curveData[0] != curveData[1]);
         *(CubicControls*)&curveData[2] = CubicControlPt(start, controls, end, startT, endT);
 		Curve part { c.context, (CurveData*) curveData, c.size, c.type };
-		OpRoots partRoot = cubicAxisT(part, axis, intercept  OP_DEBUG_PARAMS(debugAdded));
-		for (float root : partRoot.roots)
-			result.add(startT + root * (endT - startT), RootEnd::none);
+		float root = cubicAxisT(part, axis, intercept);
+		result.add(startT + root * (endT - startT), RootEnd::none);
 	}
 
 	return result;

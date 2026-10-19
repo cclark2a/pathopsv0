@@ -44,6 +44,16 @@
             }
         },
         {
+            "name": "example_test",
+            "type": "lldb",
+            "request": "launch",
+            "program": "/Users/cary/pathopsv0/build/frame_example",
+            "preLaunchTask": "example test",
+            "args": [],
+            "cwd": "${fileDirname}",
+            "console": "internalConsole"
+        },
+        {
             "name": "skia_test_asan",
             "type": "cppdbg",
             "request": "launch",
