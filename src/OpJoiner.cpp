@@ -123,7 +123,7 @@ void OpLimb::addEach(OpContour& contour) {
 	// check if tree's best distance is small enough with a user-provided multiplier
 	// (motivated by loop193532 whose best distance 9.53e-7 exceeds threshold length 8.18e-7;
 	//  an alternative would be to find the intersection of edges 198 and 208 -- somehow missed)
-			if (contour.context->allowError(PathOpsV0Lib::ContextError::missing, &edge->curve.c))
+			if (contour.context->allowError(PathOpsV0Lib::ContextError::closedLoop, &edge->curve.c))
 				return;
 			if (tree->gap(tree->bestDistance)) {
 				tree->smallGap = true;
@@ -223,34 +223,27 @@ void OpLimb::set(OpEdge* test, OpLimb* p, EdgeMatch m, OpContour* contour,
     // cut test needs to be given each possibility and then have a way to provide
     // selection akin to best-perimeter once all possible choices are known...
     if (looped) {
-        PathOpsV0Lib::CurveOutput outFunc = tree->context->contextCallbacks.bestLoopFuncPtr;
-        if (outFunc) {
-        	bool kept = false;
-            const OpLimb* limb = this;
-            bool ptFirst = true;
-	        do {
-                OpEdge* outEdge = limb->edge;
-                if (EdgeMatch::end == limb->match) {
-                    outEdge = outEdge->lastEdge;
-                    do {
-	                    OpCurve copy(outEdge->curve.c, Rotated::no);
-                        copy.reverse();
-                        OpEdge* next = outEdge->priorEdge;
-                        kept |= PathOpsV0Lib::WindKeep::Discard != copy.bestLoop(outFunc, 
-								outEdge->winding.w, ptFirst, !!next  OP_DEBUG_PARAMS(outEdge->id));
-                        ptFirst = false;
-                        outEdge = next;
-                    } while (outEdge && !kept);
-                } else {
-                    do {
-                        OpEdge* next = outEdge->nextEdge;
-                        kept |= PathOpsV0Lib::WindKeep::Discard != outEdge->curve.bestLoop(outFunc,
-                                outEdge->winding.w, ptFirst, !!next  OP_DEBUG_PARAMS(outEdge->id));
-                        outEdge = next;
-                    } while (outEdge && !kept);
-                }
-            } while ((limb = limb->parent) && !kept);
-            if (kept)
+        OpEdge* trunkEdge = tree->trunk->edge;
+        if (trunkEdge->winding.linkable(trunkEdge->sum)) {
+            const OpLimb* testParent = &tree->nthLimb(tree->totalUsed - 1);
+            bool keep = true;
+            bool first = true;
+            while (testParent) {
+                const OpLimb* nextLimb = testParent->parent;
+                const OpEdge* link = testParent->edge;
+                EdgeMatch linkDir = link->priorEdge ? EdgeMatch::start : EdgeMatch::end;
+                // add link direction
+                const OpEdge* next;
+                do {
+                    next = EdgeMatch::start == linkDir ? link->priorEdge : link->nextEdge;
+                    keep &= link->outputLimb(first, !next && !nextLimb, 
+                            EdgeMatch::end == testParent->match);
+                    first = false;
+                    link = next;
+                } while (link);
+                testParent = nextLimb;
+            }
+            if (keep)
                 tree->bestLimb = this;
         } else if (tree->bestPerimeter > limbBounds.perimeter()) {
 		    tree->bestPerimeter = limbBounds.perimeter();
@@ -368,7 +361,7 @@ OpTree::OpTree(OpEdge* edge)
 	, limbPass(LimbPass::linked)
 //	, disabled(false)
 	, smallGap(false)
-    , allowGap(context->allowError(PathOpsV0Lib::ContextError::missing, &edge->curve.c))
+    , allowGap(context->allowError(PathOpsV0Lib::ContextError::closedLoop, &edge->curve.c))
  {
 	passIndex.push_back(0);
 	OP_ASSERT((size_t) limbPass == passIndex.size());
@@ -568,7 +561,7 @@ bool OpTree::join(OpJoiner& join) {
 		best = bestL->edge;
 	}
 	// close path unless caller allows disjoint results (by allowing context error missing) 
-	bool allowGaps = context->allowError(PathOpsV0Lib::ContextError::missing, &join.edge->curve.c);
+	bool allowGaps = context->allowError(PathOpsV0Lib::ContextError::closedLoop, &join.edge->curve.c);
 	EdgeOutput edgeOutput(context, join.edge, !allowGaps);
 	OP_DEBUG_DUMP_CODE(context->dumpFile("treeJoined"));
 	for (OpEdge* edge : linkupsErasures) {
@@ -887,6 +880,8 @@ bool OpJoiner::linkRemaining(OpContour* contour) {
 		};
 		if (edgeIsSmall())
 			return true;
+        if (!edge->linkable)  // for frame, check if no frame edges are left to connect
+            return true;
 		OP_DEBUG_VALIDATE_CODE(debugValidate());
         if (!edge->lastEdge) {
             OP_ASSERT(!edge->priorEdge);  // !!! leftover tail after loop was output?
@@ -912,51 +907,12 @@ bool OpJoiner::linkRemaining(OpContour* contour) {
 					singleLinks.push_back(linkup);
 				}
 			}
-    #if 0   // !!! test is overly general; if edge touches filler and filler is tiny, edge is
-            // removed. Disable code to find better example of link / filler overlap that requires
-            // removing edge from contour's link ups
-			for (;;) {  // assume there are possibly many fillers, but few unlinked linkables
-				OpEdge* fillerEdge = context->fillerStorage->edgeIndex(fillerIndex);
-				if (!fillerEdge)
-					break;
-				OpRect fillerBounds = fillerEdge->curve.callerBounds();
-				for (OpEdge* linkup : singleLinks) {
-					OpRect linkupBounds = linkup->curve.callerBounds();
-					if (!fillerBounds.nearlyContains(linkupBounds, context->threshold))
-						continue;
-					if (!linkupBounds.nearlyContains(fillerBounds, context->threshold))
-						continue;
-					erasures.push_back(linkup);  // filler and linkup are nearly the same
-				}
-				++fillerIndex;
-			}
-    #endif
 			if (!erasures.empty()) {
 				contour->eraseLinks(erasures);
 				std::vector<OpEdge*>& unsortables = contour->unsortables;
 				unsortables.insert(unsortables.end(), erasures.begin(), erasures.end());
 			}
 		}
-		// contour generated by match links may allow for link up edges to now have a single link
-    #if 0
-    // !!! not sure how this is different from other link (unambiguous, remaining)
-    //     if it is required, see if it can reuse existing code rather than rolling its own
-    //     for instance, currently it fails to detect if match has an incorrect winding
-		RelinkJoins relink = RelinkJoins::uninitialized;
-		do {
-			for (OpContour* member : contour->members()) {
-				size_t linkupsIndex = 0;
-				for (;;) {
-					relink = member->relinkUnambiguous(this, linkupsIndex);
-					if (RelinkJoins::unmatched != relink)
-						break;
-					++linkupsIndex;
-				}
-				if (RelinkJoins::unchanged == relink || RelinkJoins::again == relink)
-					break;
-			}
-		} while (RelinkJoins::again == relink);
-    #endif
 		OP_DEBUG_VALIDATE_CODE(debugValidate());
 		OP_DEBUG_CODE(if (++debugLoopCounter < 0) OpDebugOut(""));  // allows seeing loop iteration that failed
 	}
@@ -1086,6 +1042,8 @@ bool OpJoiner::matchLinks(OpContour* contour, bool popLast) {
 	bool treeFailed = !tree.makeTrunk(edge) && tree.exhausted(tree.allowGap);
 	OP_DEBUG_DUMP_CODE(context->dumpFile("treeMade"));
 	if (treeFailed) {
+        if (context->allowError(PathOpsV0Lib::ContextError::tree, &edge->curve.c))
+            return true;
         OP_DEBUG_CODE(OP_ASSERT(context->debugFail()));
         context->setError(PathOpsV0Lib::ContextError::tree  OP_DEBUG_PARAMS(edge->id));
 		return false;
@@ -1158,6 +1116,10 @@ void LinkUps::sort(OpContext* context) {
 	PathOpsV0Lib::ContextValue scaleFuncPtr = context->contextCallbacks.linkupScaleFuncPtr;
 	float scale = scaleFuncPtr ? (*scaleFuncPtr)((ContextPtr) context) : 1024.f;  // !!! wild guess : testCubics3465653 requires 400K or smaller
 	std::sort(l.begin(), l.end(), [leftMost, scale](const auto& s1, const auto& s2) {
+        if (s1->linkable < s2->linkable)
+            return true;
+        if (s2->linkable < s1->linkable)
+            return false;
 		// if much smaller, ignore leftmost
 		float s1perimeter = s1->linkBounds.perimeter();
 		float s2perimeter = s2->linkBounds.perimeter();

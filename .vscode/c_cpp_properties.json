@@ -1,7 +1,25 @@
 {
     "configurations": [
         {
+            "name": "cut_test",
+            "includePath": [ "${default}" ],
+            "defines": [ "_GLIBCXX_DEBUG" ],
+            "compilerPath": "/opt/homebrew/opt/llvm/bin/clang++",
+            "cStandard": "c17",
+            "cppStandard": "c++20",
+            "intelliSenseMode": "macos-clang-arm64"
+        }, 
+        {
             "name": "example_test",
+            "includePath": [ "${default}" ],
+            "defines": [ "_GLIBCXX_DEBUG" ],
+            "compilerPath": "/opt/homebrew/opt/llvm/bin/clang++",
+            "cStandard": "c17",
+            "cppStandard": "c++20",
+            "intelliSenseMode": "macos-clang-arm64"
+        }, 
+        {
+            "name": "frame_example",
             "includePath": [ "${default}" ],
             "defines": [ "_GLIBCXX_DEBUG" ],
             "compilerPath": "/opt/homebrew/opt/llvm/bin/clang++",

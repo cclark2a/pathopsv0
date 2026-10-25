@@ -300,6 +300,7 @@ void OpContour::clear() {
     unsectByArea.clear();
     disabledBackwards.clear();
     disabledCenterless.clear();
+    disabledEdges.clear();
     disabledPals.clear();
     unsortables.clear();
     linkups.clear();
@@ -322,6 +323,7 @@ void OpContour::clearSegments() {
 	    segment.winding = segment.contour->winding();
         segment.init();
         segment.sects.clear();
+        segment.edgeList.clear();
     }
 }
 
@@ -523,6 +525,7 @@ bool OpContour::joinSetup() {
 		return true;
 	for (auto e : byArea) {
 		e->setActive(true);
+        e->linkable = e->winding.linkable(e->sum);
 	}
 	for (auto unsectable : unsectByArea) {
 		unsectable->setActive(true);
@@ -815,8 +818,10 @@ bool OpContour::fixCCSects() {
 			safetyCount = (*safetyLimitFun)(winding());
 		while (segment.fixCCSects() && --safetyCount)
 			;
-		if (!safetyCount)
-			return context->setError(PathOpsV0Lib::ContextError::loop  OP_DEBUG_PARAMS(segment.id));
+		if (!safetyCount) {
+            OP_ASSERT(OpDebugExpect::fail == context->debugExpect);
+			return false;
+        }
 	}
 	return true;
 }
@@ -850,6 +855,15 @@ void OpContour::init() {
 	palsBuilt = false;
 	disabled = false;
 	overlapsMerged = false;
+    segEndsMerged = false;
+	segMerged = false;
+    segCollapsed = false;
+#if OP_DEBUG || OP_DEBUGGER
+    debugEmpty = false;
+#endif
+#if OP_DEBUGGER
+    debugColor = blue;
+#endif
 }
 
 bool OpContour::isEmpty() {

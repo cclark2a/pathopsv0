@@ -681,9 +681,19 @@ bool OpSegment::fixCCSects() {
 }
 
 void OpSegment::init() {
+    tScale = 1;
 	disabled = false;
+    endsMerged = false;
 	hasCoin = false;
+    hasPals = false;
 	hasUnsectable = false;
+    merged = false;
+#if OP_DEBUGGER
+	debugColor = debugBlack;
+#endif
+#if OP_DEBUG_PROFILE
+    debugSnipTrack = 0;
+#endif
 	OpContext* context = contour->context;
 	if (!c.isFinite()) {
 		context->setError(PathOpsV0Lib::ContextError::finite  OP_DEBUG_PARAMS(id));

@@ -220,19 +220,19 @@ struct OpContour {
 	bool palsBuilt;
 	bool disabled;
 	bool overlapsMerged;
-	bool segEndsMerged = false;
-	bool segMerged = false;  // set if all segs' sects are unique in point and t
-    bool segCollapsed = false;  // set true if some seg references collapsed segment via opp sect
+	bool segEndsMerged;
+	bool segMerged;  // set if all segs' sects are unique in point and t
+    bool segCollapsed;  // set true if some seg references collapsed segment via opp sect
 #if OP_DEBUG || OP_DEBUGGER
-	bool debugEmpty = false;  // if empty, when cloned, this is reused in release
+	bool debugEmpty;  // if empty, when cloned, this is reused in release
 #endif
 #if OP_TEST
 	std::vector<PathOpsV0Lib::DebugCurveData> debugCurveData;
-	OpWinding debugWinding = OpWinding(WindingUninitialized::dummy);
+	OpWinding debugWinding {WindingUninitialized::dummy};
 #endif
 #if OP_DEBUGGER
     // AddQuads/AddCubics/AddLine/AddConics save original curve for graphics debugger
-	uint32_t debugColor = blue;
+	uint32_t debugColor;
 #endif
 };
 

@@ -759,7 +759,7 @@ bool OpEdge::outputLinkedList() {
 	OpEdge* firstEdge = this;
 	OpEdge* edge = this;
 	bool result = true;
-	bool closeLoop = context()->allowError(PathOpsV0Lib::ContextError::missing, &curve.c);
+	bool closeLoop = context()->allowError(PathOpsV0Lib::ContextError::closedLoop, &curve.c);
 	do {
 		OpEdge* next = edge->nextEdge;
 		edge->outputLink(firstEdge, closeLoop);
@@ -779,7 +779,7 @@ void OpEdge::outputLink(OpEdge* firstEdge, bool closeLoop) {
 	bool last = !nextEdge || firstEdge == nextEdge;
 	OpEdge* nextPtEdge = nextEdge ? nextEdge : firstEdge;
 	OpPoint nextPt = nextPtEdge->whichCallerPt();
-	bool addFiller = nextPt != copy.callerLast();
+	bool addFiller = nextPt != copy.callerLast() && winding.isWound();
 	PathOpsV0Lib::WindKeep keep = copy.output(winding.w, this == firstEdge, last && !addFiller 
             OP_DEBUG_RASTER_PARAMS(this));
 #if 0 && OP_TEST_RASTER
@@ -799,6 +799,11 @@ void OpEdge::outputLink(OpEdge* firstEdge, bool closeLoop) {
 		OpEdge* filler = context()->addFiller(copy.callerLast(), nextPt, segment);
     	filler->curve.output(winding.w, false, last  OP_DEBUG_RASTER_PARAMS(filler));
 	}
+}
+
+bool OpEdge::outputLimb(bool first, bool last, bool reverse) const {
+    PathOpsV0Lib::WindKeep keep = curve.output(winding.w, first, last, reverse);
+    return PathOpsV0Lib::WindKeep::Start == keep;
 }
 
 // in function to make setting breakpoints easier

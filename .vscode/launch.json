@@ -44,11 +44,31 @@
             }
         },
         {
+            "name": "cut_test",
+            "type": "lldb",
+            "request": "launch",
+            "program": "/Users/cary/pathopsv0/build/cut_test",
+            "preLaunchTask": "cut test",
+            "args": [],
+            "cwd": "${fileDirname}",
+            "console": "internalConsole"
+        },
+        {
             "name": "example_test",
             "type": "lldb",
             "request": "launch",
-            "program": "/Users/cary/pathopsv0/build/frame_example",
+            "program": "/Users/cary/pathopsv0/build/cut_example",
             "preLaunchTask": "example test",
+            "args": [],
+            "cwd": "${fileDirname}",
+            "console": "internalConsole"
+        },
+        {
+            "name": "frame_example",
+            "type": "lldb",
+            "request": "launch",
+            "program": "/Users/cary/pathopsv0/build/frame_example",
+            "preLaunchTask": "frame example",
             "args": [],
             "cwd": "${fileDirname}",
             "console": "internalConsole"

@@ -10,6 +10,18 @@ https://code.visualstudio.com/docs/cpp/natvis
 
 https://github.com/vadimcn/codelldb/blob/v1.11.8/MANUAL.md
 
+
+callbacks:3
+0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 quadAxisT quadRotatedT quadHull quadIsFinite
+ quadIsLine quadSetBounds quadTangent quadsEqual quadPtAtT quadHullPtCount quadRotate quadSubDivide quadXYAtT 0 0 0 0 0 0 0 0 0
+ nativeCurveTypes:3 0 1 2 
+0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 cutMaxLoopsFunc 0 0 0 0 frameAddFunc cutKeepFunc frameSubtractFunc frameWoundFunc
+ frameVisibleFunc frameZeroFunc frameIntersectFunc 0 0 0 debugCallbacks:3
+0 0 0 0 0 debugLineScale 0 lineDebugDumpName 0 0 debugQuadScale quadPtAtDT quadDebugDumpName 0 quadDebugSubDivide
+ debugContextCallbacks:frameDebugIsFill 0 0 frameDumpOutFunc frameDumpSetFunc frameDumpOutFunc frameImageNamesFunc 0 0
+ debugEdgeColorFuncName:frameColorFunc curveDataStorage:used:312 
+
+
 battle totalTests:381
 chalkboard totalTests:594038
 ....................................................................................................

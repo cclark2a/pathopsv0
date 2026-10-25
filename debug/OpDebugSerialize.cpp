@@ -398,12 +398,10 @@ namespace PathOpsV0Lib {
 
 std::vector<ContextErrorName> contextErrorNames {
 	CONTEXT_ERROR_NAME(none),
-	CONTEXT_ERROR_NAME(end),
+	CONTEXT_ERROR_NAME(disjoint),
     CONTEXT_ERROR_NAME(finite),
     CONTEXT_ERROR_NAME(gap),
-	CONTEXT_ERROR_NAME(intersection),
-	CONTEXT_ERROR_NAME(loop),
-	CONTEXT_ERROR_NAME(missing),
+	CONTEXT_ERROR_NAME(closedLoop),
 	CONTEXT_ERROR_NAME(root),
 	CONTEXT_ERROR_NAME(toVertical),
     CONTEXT_ERROR_NAME(tree),
@@ -1267,14 +1265,9 @@ std::string OpContext::debugDump(DebugLevel l, DebugBase b, DumpRaster dumpRaste
 #if 0  // omit curve output function
     s += debugFindTag(reinterpret_cast<DebugFunction>(contextCallbacks.curveOutputFuncPtr));
 #endif
-#if 0  // skip find tag for best loop function
 	DEBUG_FIND_TAG(contextCallbacks, curveOutputFuncPtr, emptyCallerPathFuncPtr);
-	DEBUG_FIND_TAG(contextCallbacks, emptyCallerPathFuncPtr, bestLoopFuncPtr);
-#else
-	ASSERT_SERIAL(contextCallbacks, curveOutputFuncPtr, emptyCallerPathFuncPtr);
-	ASSERT_SERIAL(contextCallbacks, emptyCallerPathFuncPtr, bestLoopFuncPtr);
-#endif
-	DEBUG_FIND_TAG(contextCallbacks, bestLoopFuncPtr, setLineTypeFuncPtr);
+	DEBUG_FIND_TAG(contextCallbacks, emptyCallerPathFuncPtr, keepLoopFuncPtr);
+	DEBUG_FIND_TAG(contextCallbacks, keepLoopFuncPtr, setLineTypeFuncPtr);
 	DEBUG_FIND_TAG(contextCallbacks, setLineTypeFuncPtr, maxAngleMatchFuncPtr);
 	DEBUG_FIND_TAG(contextCallbacks, maxAngleMatchFuncPtr, maxAngleSweepFuncPtr);
 	DEBUG_FIND_TAG(contextCallbacks, maxAngleSweepFuncPtr, maxSplitFuncPtr);
@@ -1309,7 +1302,8 @@ std::string OpContext::debugDump(DebugLevel l, DebugBase b, DumpRaster dumpRaste
 	DEBUG_FIND_TAG(windingCallbacks, windingKeepFuncPtr, windingSubtractFuncPtr);
     DEBUG_FIND_TAG(windingCallbacks, windingSubtractFuncPtr, windingWoundFuncPtr);
     DEBUG_FIND_TAG(windingCallbacks, windingWoundFuncPtr, windingVisibleFuncPtr);
-    DEBUG_FIND_TAG(windingCallbacks, windingVisibleFuncPtr, windingZeroFuncPtr);
+    DEBUG_FIND_TAG(windingCallbacks, windingVisibleFuncPtr, windingLinkableFuncPtr);
+    DEBUG_FIND_TAG(windingCallbacks, windingLinkableFuncPtr, windingZeroFuncPtr);
 	DEBUG_FIND_TAG(windingCallbacks, windingZeroFuncPtr, windingIntersectFuncPtr);
     DEBUG_FIND_TAG(windingCallbacks, windingIntersectFuncPtr, windingShortFuncPtr);
     DEBUG_FIND_TAG(windingCallbacks, windingShortFuncPtr, windingShortAllFuncPtr);
@@ -2122,7 +2116,8 @@ std::string OpEdge::debugDump(DebugLevel l, DebugBase b) const {
 	EDGE_BOOL(unsortable, active_impl);
     EDGE_BOOL(active_impl, inLinkups);
     EDGE_BOOL(inLinkups, linkHead);
-    EDGE_BOOL(linkHead, inOutput);
+    EDGE_BOOL(linkHead, linkable);
+    EDGE_BOOL(linkable, inOutput);
     EDGE_BOOL(inOutput, disabled);
     EDGE_BOOL(disabled, smallTRange);
     EDGE_BOOL(smallTRange, isUnsplitable);
@@ -2141,7 +2136,7 @@ std::string OpEdge::debugDump(DebugLevel l, DebugBase b) const {
     EDGE_BOOL(unsummable, snipped);
 #endif
 #if OP_DEBUG
-    ASSERT_ORDERED_OFFSET(unsummable, debugMatch, 2);
+    ASSERT_ORDERED_OFFSET(unsummable, debugMatch, 1);
     if (debugMatch)
         s += "debugMatch:" + (debugMatch ? STR(debugMatch->id) : std::string("-")) + " ";
     ASSERT_ORDERED(debugMatch, debugZeroErr);

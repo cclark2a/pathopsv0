@@ -89,20 +89,19 @@ struct TinyState {
     std::array<SuiteError, 100> suiteErrors;
     std::atomic<float> pixelError = 0.f;
     std::atomic_int runIndex = 0; 
-    std::atomic_int endError = 0;
+    std::atomic_int disjointError = 0;
     std::atomic_int finiteError = 0;
     std::atomic_int gapError = 0;
-    std::atomic_int intersectionError = 0;
-    std::atomic_int loopError = 0;
-    std::atomic_int missingError = 0;
+    std::atomic_int closedLoopError = 0;
     std::atomic_int rootError = 0;
+    std::atomic_int toVerticalError = 0;
+    std::atomic_int treeError = 0;
     std::atomic_int testsError = 0;
     std::atomic_int testsRun = 0;
     std::atomic_int testsDot = 0;
     std::atomic_int testsLine = 0;
     std::atomic_int testsSkipped = 0;
     std::atomic_int testsToSkip = TESTS_TO_SKIP;
-    std::atomic_int treeError = 0;
     std::atomic_int verticalError = 0;
     #if OP_DEBUG_FAST_TEST
     std::mutex out_mutex;
@@ -164,18 +163,22 @@ void TinyState::addADot(const OpDebugData& debugData) {
 std::string TinyState::stats() {
     std::string s;
     s += "testsRun:" + STR(testsRun) + " testsSkipped:" + STR(testsSkipped) + " ";
+    if (disjointError)
+        s += "disjointError:" + STR(disjointError) + " ";
     if (finiteError)
         s += "finiteError:" + STR(finiteError) + " ";
     if (gapError)
         s += "gapError:" + STR(gapError) + " ";
-    if (intersectionError)
-        s += "intersectionError:" + STR(intersectionError) + " ";
+    if (closedLoopError)
+        s += "closedLoopError:" + STR(closedLoopError) + " ";
     if (rootError)
         s += "rootError:" + STR(rootError) + " ";
-    if (testsError)
-        s += "testsError:" + STR(testsError) + " ";
+    if (toVerticalError)
+        s += "toVerticalError:" + STR(toVerticalError) + " ";
     if (treeError)
         s += "treeError:" + STR(treeError) + " ";
+    if (testsError)
+        s += "testsError:" + STR(testsError) + " ";
     if (verticalError)
         s += "verticalError:" + STR(verticalError) + " ";
     if (pixelError && testsRun)
@@ -202,9 +205,9 @@ void TinyState::trackError(PathOpsV0Lib::ContextError contextError, std::string 
 	switch (contextError) {
 		case PathOpsV0Lib::ContextError::none:
 			return;
-        case PathOpsV0Lib::ContextError::end:
-            errorCount = ++endError;
-            errStr = "end";
+        case PathOpsV0Lib::ContextError::disjoint:
+            errorCount = ++disjointError;
+            errStr = "disjoint";
             break;
 		case PathOpsV0Lib::ContextError::finite:  // input was not finite
 			errorCount = ++finiteError; 
@@ -214,17 +217,9 @@ void TinyState::trackError(PathOpsV0Lib::ContextError contextError, std::string 
 			errorCount = ++gapError;
             errStr = "gap";
 			break;
-        case PathOpsV0Lib::ContextError::intersection:
-            errorCount = ++intersectionError;
-            errStr = "intersection";
-            break;
-        case PathOpsV0Lib::ContextError::loop:
-            errorCount = ++loopError;
-            errStr = "loop";
-            break;
-        case PathOpsV0Lib::ContextError::missing:
-            errorCount = ++missingError;
-            errStr = "missing";
+        case PathOpsV0Lib::ContextError::closedLoop:
+            errorCount = ++closedLoopError;
+            errStr = "closedLoop";
             break;
         case PathOpsV0Lib::ContextError::root:
             errorCount = ++rootError;

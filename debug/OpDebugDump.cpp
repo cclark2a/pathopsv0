@@ -702,13 +702,8 @@ void OpContext::dumpSet(const char*& str) {
 	contextCallbacks.curveOutputFuncPtr = (PathOpsV0Lib::CurveOutput) debugFindFunction(str);
 #endif
     DEBUG_FIND_FUNCTION(contextCallbacks, curveOutputFuncPtr, emptyCallerPathFuncPtr);
-#if 0  // skip find function for best loop func
-	DEBUG_FIND_FUNCTION(contextCallbacks, emptyCallerPathFuncPtr, bestLoopFuncPtr);
-	DEBUG_FIND_FUNCTION(contextCallbacks, bestLoopFuncPtr, setLineTypeFuncPtr);
-#else
-	ASSERT_SERIAL(contextCallbacks, emptyCallerPathFuncPtr, bestLoopFuncPtr);
-	ASSERT_SERIAL(contextCallbacks, bestLoopFuncPtr, setLineTypeFuncPtr);
-#endif
+	DEBUG_FIND_FUNCTION(contextCallbacks, emptyCallerPathFuncPtr, keepLoopFuncPtr);
+	DEBUG_FIND_FUNCTION(contextCallbacks, keepLoopFuncPtr, setLineTypeFuncPtr);
 	DEBUG_FIND_FUNCTION(contextCallbacks, setLineTypeFuncPtr, maxAngleMatchFuncPtr);
 	DEBUG_FIND_FUNCTION(contextCallbacks, maxAngleMatchFuncPtr, maxAngleSweepFuncPtr);
 	DEBUG_FIND_FUNCTION(contextCallbacks, maxAngleSweepFuncPtr, maxSplitFuncPtr);
@@ -742,7 +737,8 @@ void OpContext::dumpSet(const char*& str) {
 	DEBUG_FIND_FUNCTION(windingCallbacks, windingKeepFuncPtr, windingSubtractFuncPtr);
     DEBUG_FIND_FUNCTION(windingCallbacks, windingSubtractFuncPtr, windingWoundFuncPtr);
 	DEBUG_FIND_FUNCTION(windingCallbacks, windingWoundFuncPtr, windingVisibleFuncPtr);
-    DEBUG_FIND_FUNCTION(windingCallbacks, windingVisibleFuncPtr, windingZeroFuncPtr);
+    DEBUG_FIND_FUNCTION(windingCallbacks, windingVisibleFuncPtr, windingLinkableFuncPtr);
+    DEBUG_FIND_FUNCTION(windingCallbacks, windingLinkableFuncPtr, windingZeroFuncPtr);
     DEBUG_FIND_FUNCTION(windingCallbacks, windingZeroFuncPtr, windingIntersectFuncPtr);
     DEBUG_FIND_FUNCTION(windingCallbacks, windingIntersectFuncPtr, windingShortFuncPtr);
     DEBUG_FIND_FUNCTION(windingCallbacks, windingShortFuncPtr, windingShortAllFuncPtr);
@@ -1924,7 +1920,8 @@ void OpEdge::dumpSet(const char*& str) {
 	DEBUG_SET_BOOL(unsortable, active_impl);
     DEBUG_SET_BOOL(active_impl, inLinkups);
     DEBUG_SET_BOOL(inLinkups, linkHead);
-    DEBUG_SET_BOOL(linkHead, inOutput);
+    DEBUG_SET_BOOL(linkHead, linkable);
+    DEBUG_SET_BOOL(linkable, inOutput);
     DEBUG_SET_BOOL(inOutput, disabled);
     DEBUG_SET_BOOL(disabled, smallTRange);
     DEBUG_SET_BOOL(smallTRange, isUnsplitable);
@@ -1943,7 +1940,7 @@ void OpEdge::dumpSet(const char*& str) {
     DEBUG_SET_BOOL(unsummable, snipped);
 #endif
 #if OP_DEBUG
-    ASSERT_SERIAL_OFFSET(*this, unsummable, 2, debugMatch);
+    ASSERT_SERIAL_OFFSET(*this, unsummable, 1, debugMatch);
     debugMatch = (OpEdge*) strID("debugMatch");
     ASSERT_ORDERED(debugMatch, debugZeroErr);
     debugZeroErr = (OpEdge*) strID("debugZeroErr");
@@ -2736,6 +2733,7 @@ void EdgeRun::dumpSet(const char*& str) {
     rawDist = OpDebugReadNamedFloat(str, "rawDist");
     fromFoundT = OpDebugOptional(str, "fromFoundT") ? LimitFrom::yes : LimitFrom::no;
     byZero = OpDebugOptional(str, "byZero");
+    midFlip = OpDebugOptional(str, "midFlip");
 #if OP_DEBUG
 //    OpDebugRequired(str, "debugBetween");
 //    debugBetween = (int) OpDebugReadSizeT(str);

@@ -484,6 +484,7 @@ public:
 		return curve.normalDirection(axis, edgeInsideT); }
 	bool output(bool closed);  // provided by the graphics implementation
 	void outputLink(OpEdge* , bool closeLoop);
+    bool outputLimb(bool first, bool last, bool reverse) const;
 	bool outputLinkedList();
 	OpPtT ptT(EdgeMatch match) const { 
 		return EdgeMatch::start == match ? startPtT() : endPtT(); }
@@ -589,6 +590,7 @@ public:
 //	bool alternateEnd;  // set if line length is proportionately similar to end to sect end dist
 	bool inLinkups; // set for edges in linkups l vector
 	bool linkHead;  // used to remove edge from contour linkups when edge is output 
+    bool linkable;  // set if edge may start output path
 	bool inOutput;	// set when edge is added to output path
 	bool disabled;	// winding is zero, or apply disqualified edge from appearing in output
 	bool smallTRange;  // t range is below some caller defined threshold

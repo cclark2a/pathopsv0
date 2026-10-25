@@ -202,24 +202,25 @@ struct OpSegment {
 	#include "OpDebugDeclarations.h"
 #endif
 
+    // members are not initialized directly in struct because context reset calls segment init
 	OpContour* contour;
 	OpCurve c;
 	OpIntersections sects;
 	std::vector<OpEdge> edgeList;
 	OpWinding winding;
-    float tScale = 1;  // factor to advance to significantly different points at adjacent t values
+    float tScale;  // factor to advance to significantly different points at adjacent t values
 	int id;     // used to normalize each end point once
 	bool disabled; // winding has canceled this edge out
-	bool endsMerged = false;
+	bool endsMerged;
 	bool hasCoin;
-	bool hasPals = false;
+	bool hasPals;
 	bool hasUnsectable;
-	bool merged = false;  // set true if each point and t are unique
+	bool merged;  // set true if each point and t are unique
 #if OP_DEBUGGER
-	uint32_t debugColor = debugBlack;
+	uint32_t debugColor;
 #endif
 #if OP_DEBUG_PROFILE
-    mutable int debugSnipTrack = 0;
+    mutable int debugSnipTrack;
 #endif
     OP_LINE_FILE_DECLARE(debugSetDisabled)
 };

@@ -35,6 +35,7 @@ std::vector<DebugTags> debugTags {
     UNARY_WINDING_TAGGED_FUNCTIONS
     BINARY_WINDING_TAGGED_FUNCTIONS
     FRAME_WINDING_TAGGED_FUNCTIONS
+    CUT_WINDING_TAGGED_FUNCTIONS
 #if OP_DEBUG
     DEBUG_SCALE_TAGGED_FUNCTIONS
 #endif
@@ -46,7 +47,6 @@ std::vector<DebugTags> debugTags {
     DUMP_UNARY_WINDING_TAGGED_FUNCTIONS
     DUMP_BINARY_WINDING_TAGGED_FUNCTIONS
     DUMP_FRAME_WINDING_TAGGED_FUNCTIONS
-    DUMP_CUT_WINDING_TAGGED_FUNCTIONS
 #endif
 #if OP_DEBUG_SERIALIZE
     UNARY_IMAGE_TAGGED_FUNCTIONS
@@ -67,8 +67,7 @@ std::string debugFindTag(DebugFunction function) {
         if (function == debugTag.function)
             return debugTag.tag + " ";
     }
-    OP_ASSERT(0);
-    return "??? ";
+    return "0 ";
 }
 
 DebugFunction debugFindFunction(const char*& str) {

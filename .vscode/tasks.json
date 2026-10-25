@@ -22,7 +22,47 @@
         },
         {
             "type": "shell",
+            "label": "cut test",
+            "command": "cmake",
+            "args": [
+                "--build",
+                "build",
+                "-j10",
+                "--target",
+                "cut_test"
+            ],
+            "problemMatcher": [
+                "$gcc"
+            ],
+            "group": {
+                "kind": "build",
+                "isDefault": false
+            },
+            "detail": "cmake"
+        },
+        {
+            "type": "shell",
             "label": "example test",
+            "command": "cmake",
+            "args": [
+                "--build",
+                "build",
+                "-j10",
+                "--target",
+                "cut_example"
+            ],
+            "problemMatcher": [
+                "$gcc"
+            ],
+            "group": {
+                "kind": "build",
+                "isDefault": false
+            },
+            "detail": "cmake"
+        },
+        {
+            "type": "shell",
+            "label": "frame example",
             "command": "cmake",
             "args": [
                 "--build",

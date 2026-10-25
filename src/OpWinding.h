@@ -90,6 +90,7 @@ struct OpWinding {
 	bool isSet() const { return WindingType::uninitialized != type; }
     bool isWound() const;
     PathOpsV0Lib::WindKeep keep(const OpWinding& sum) const;
+    bool linkable(const OpWinding& ) const;  // true if output may start here (for frame)
 	void subtract(const PathOpsV0Lib::Winding& );
 	void subtract(const OpWinding& );
 	void move(const OpWinding& opp, bool backwards);

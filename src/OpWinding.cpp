@@ -144,6 +144,15 @@ PathOpsV0Lib::WindKeep OpWinding::keep(const OpWinding& sum) const {
     return (*keepFunc)(w, sum.w);
 }
 
+bool OpWinding::linkable(const OpWinding& sum) const {
+    OpContext* context = ((OpContour*) w.contour)->context;
+    PathOpsV0Lib::WindingLinkable linkableFunc = context->windingCallbacks.windingLinkableFuncPtr;
+    if (linkableFunc)
+	    return (*linkableFunc)(w, sum.w);
+    // default windings (binary, unary) are always loop output starts
+    return true;
+}
+
 void OpWinding::setWind(const OpWinding& fromSegment) {
 	w = fromSegment.w;
 	OP_ASSERT(WindingType::uninitialized == type);

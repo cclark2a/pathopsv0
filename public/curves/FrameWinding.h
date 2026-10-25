@@ -7,7 +7,6 @@
 
 namespace PathOpsV0Lib {
 
-
 enum class FrameFill {
     fill,
 	frame
@@ -97,9 +96,15 @@ inline bool frameVisibleFunc(Winding winding) {
     return FrameFill::frame == test.isFrame || !!test.value;
 }
 
+inline bool frameLinkableFunc(Winding winding, Winding sumWinding) {
+    FrameData test(winding);
+	FrameData sum(sumWinding);
+    return FrameFill::frame == test.isFrame && !!sum.value;
+}
+
 inline void frameCallbacks(Context* context) {
-    SetWindingCallbacks(context, { frameAddFunc, frameKeepFunc, frameSubtractFunc, 
-            frameWoundFunc, frameVisibleFunc,  frameZeroFunc, frameIntersectFunc });
+    SetWindingCallbacks(context, { frameAddFunc, frameKeepFunc, frameSubtractFunc, frameWoundFunc,
+            frameVisibleFunc, frameLinkableFunc, frameZeroFunc, frameIntersectFunc });
 }
 
 #if OP_DEBUG || OP_DEBUGGER
@@ -184,9 +189,9 @@ inline Context* frameContext(CurveOutput output = nullptr) {
     frameCallbacks(context);
 #if OP_DEBUG
 	SetDebugContextCallbacks(context, { 
-        frameDebugIsFill, nullptr, nullptr
-        OP_DEBUG_SERIALIZE_PARAMS(frameDumpOutFunc, frameDumpSetFunc, nullptr,
-                frameDumpOutFunc, frameImageNamesFunc, nullptr, nullptr)
+            frameDebugIsFill, nullptr, nullptr
+            OP_DEBUG_SERIALIZE_PARAMS(frameDumpOutFunc, frameDumpSetFunc, nullptr,
+            frameDumpOutFunc, frameImageNamesFunc, nullptr, nullptr)
 #if OP_DEBUGGER
     , frameColorFunc
 #else

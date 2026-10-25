@@ -799,20 +799,32 @@ PathOpsV0Lib::WindKeep OpCurve::bestLoop(PathOpsV0Lib::CurveOutput curveOutput,
 PathOpsV0Lib::WindKeep OpCurve::output(PathOpsV0Lib::Winding w, 
 		bool firstPt, bool lastPt  OP_DEBUG_RASTER_PARAMS(OpEdge* edge)) {
     PathOpsV0Lib::CurveOutput curveOutput = context().contextCallbacks.curveOutputFuncPtr;
-    if (curveOutput) {
-    	context().initOutOnce();
-        PathOpsV0Lib::CurveType curveType = c.type;
-        if (!curveType)
-            curveType = lineType();
-        PathOpsV0Lib::Curve curve { c.context, c.data, c.size, context().nativeCurveTypes[curveType] };
-        PathOpsV0Lib::LoopAttribute attr = loopAttribute(firstPt, lastPt, reversed);
+    if (!curveOutput) 
+        return PathOpsV0Lib::WindKeep::Discard;
+    context().initOutOnce();
+    PathOpsV0Lib::CurveType curveType = c.type;
+    if (!curveType)
+        curveType = lineType();
+    PathOpsV0Lib::Curve curve { c.context, c.data, c.size, context().nativeCurveTypes[curveType] };
+    PathOpsV0Lib::LoopAttribute attr = loopAttribute(firstPt, lastPt, reversed);
 #if OP_TEST_RASTER
-		if (context().debugRaster)
-		    context().debugRaster->addOutput({ curve, w, attr }, edge);
+    if (context().debugRaster)
+        context().debugRaster->addOutput({ curve, w, attr }, edge);
 #endif
-	    return (*curveOutput)({ curve, w, attr });
-    }
-    return PathOpsV0Lib::WindKeep::Discard;
+    return (*curveOutput)({ curve, w, attr });
+}
+
+PathOpsV0Lib::WindKeep OpCurve::output(PathOpsV0Lib::Winding w, 
+		bool firstPt, bool lastPt, bool rev) const {
+    PathOpsV0Lib::CurveOutput curveOutput = context().contextCallbacks.keepLoopFuncPtr;
+    if (!curveOutput)
+        return PathOpsV0Lib::WindKeep::Discard;
+    PathOpsV0Lib::CurveType curveType = c.type;
+    if (!curveType)
+        curveType = lineType();
+    PathOpsV0Lib::Curve curve { c.context, c.data, c.size, context().nativeCurveTypes[curveType] };
+    PathOpsV0Lib::LoopAttribute attr = loopAttribute(firstPt, lastPt, rev);
+    return (*curveOutput)({ curve, w, attr });
 }
 
 OpPoint OpCurve::whichAlias(EdgeMatch match) const {

@@ -45,6 +45,8 @@ void SetError(Context* , ContextError );
 // error callback; allows overriding error behavior
 void SetErrorHandler(Context* , ErrorDispatch );
 
+const CurveCallbacks* GetCurveCallbacks(const Context* , CurveType );
+
 // curve callbacks; describes geometry between endpoints
 void SetCurveCallbacks(Context* , CurveType nativeType, const CurveCallbacks& );
 

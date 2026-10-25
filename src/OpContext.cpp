@@ -466,10 +466,9 @@ WindingCondition OpContext::pathOps() {
 	    if (checkEmpty())
 		    return 0;
 	    if (FoundIntersections::fail == sortedSegments.findIntersections())
-		    return setError(PathOpsV0Lib::ContextError::intersection  
-				    OP_DEBUG_PARAMS(sortedSegments.debugFailSegID));
+            OP_DEBUG_FAIL(*this, -1);  // no existing tests exercises
 	    OP_DEBUG_VALIDATE_CODE(debugValidateIntersections());
-	    if (allowError(PathOpsV0Lib::ContextError::missing))
+	    if (allowError(PathOpsV0Lib::ContextError::disjoint))
 		    addDisjointIntersections();
 	    sortIntersections(SortSmall::yes);
 		mergeEndPoints();

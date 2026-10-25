@@ -3,6 +3,7 @@
 #define CutWinding_DEFINED
 
 #include "curves/FrameWinding.h"
+#include "PathOps.h"
 
 namespace PathOpsV0Lib {
 
@@ -25,7 +26,7 @@ inline WindKeep cutKeepFunc(Winding winding, Winding sumWinding) {
 
 inline void cutCallbacks(Context* context) {
     SetWindingCallbacks(context, { frameAddFunc, cutKeepFunc, frameSubtractFunc, frameWoundFunc,
-            frameVisibleFunc, frameZeroFunc, frameIntersectFunc });
+            frameVisibleFunc, frameLinkableFunc, frameZeroFunc, frameIntersectFunc });
 }
 
 // CutData (context user data) contains desired output loop direction, and tracks output pass.
@@ -34,16 +35,36 @@ enum class CutDirection {
     counterclockwise
 };
 
-enum class CutPass {
-    checkDirection,
-    discardFill,
-    discardFrame,
-    outputLoop
-};
+inline OpPtT cutTopLeft(const Curve& curve) {
+    OpPoint start = curve.data->start;
+    OpPoint end = curve.data->end;
+    return start.y < end.y || (start.y == end.y && start.x < end.x) 
+            ? OpPtT(start, 0) : OpPtT(end, 1);
+}
 
-struct CutCurve {
-    bool isFrame;
-    bool isReversed;
+struct CutTop {
+    CutTop() {
+    }
+
+    CutTop(const Curve& curve, bool rev) {
+        top = curve;
+        tl = cutTopLeft(curve);
+        reversed = rev;
+    }
+
+    OpVector tangent(Context* context) {
+        const CurveCallbacks* calls = GetCurveCallbacks(context, top.type);
+        if (!calls)
+            return OpVector();
+        OpVector tangent = calls->curveTangentFuncPtr 
+                ? (*calls->curveTangentFuncPtr)(top, tl.t)
+                : top.data->end - top.data->start;
+        return reversed ? -tangent : tangent;
+    }
+
+    PathOpsV0Lib::Curve top;
+    OpPtT tl;
+    bool reversed;
 };
 
 struct CutData {
@@ -51,49 +72,72 @@ struct CutData {
         : direction(dir) {
     }
 
-    std::array<OpPoint, 3> corner;  // outside corner used to determine winding direction
-    std::array<CutCurve, 2> curves;  // corner of interest has one frame and one fill curve
-    OpPoint priorPt;
-    OpPoint firstPt;
-    CutDirection direction; 
-    CutPass pass = CutPass::checkDirection;
-    bool sawFrame = false;
-    bool frameFirst = false;  // if true, corner is frame/fill; if false, corner is fill/frame
+    CutTop top;
+    CutTop mate;
+    CutDirection direction;
 };
 
-inline int cutMaxLoopsFunc(Context* context) {
+inline WindKeep cutKeepLoopFunc(Output output) {
+    const Curve& curve = output.curve;
+    LoopAttribute loopAttr = output.attribute;
+    Context* context = curve.context;
     PathOpsV0Lib::ContextUserData data = UserData(context, UserDataType::outData);
     CutData* cutData = (CutData*) data.data;
-    cutData->pass = CutPass::checkDirection;
-    cutData->sawFrame = false;
-    return 3;  // maximum number of passes through output loop
+    auto loopAttributeSet = [loopAttr](LoopAttribute attr) {
+        return !!((int) loopAttr & (int) attr);
+    };
+    bool firstPt = loopAttributeSet(LoopAttribute::first);
+    bool lastPt = loopAttributeSet(LoopAttribute::last);
+    bool reversed = loopAttributeSet(LoopAttribute::reversed);
+    if (firstPt)
+        cutData->top = CutTop(curve, reversed);
+    else {
+        OpPtT testTL = cutTopLeft(curve);
+        OpPtT cutTL = cutData->top.tl;
+        if (cutTL.pt.y > testTL.pt.y || (cutTL.pt.y == testTL.pt.y && cutTL.pt.x > testTL.pt.x))
+            cutData->top = CutTop(curve, reversed);
+        else if (cutTL.pt == testTL.pt) 
+            cutData->mate = CutTop(curve, reversed);
+    }
+    if (lastPt) {
+        OpVector cutTangent = cutData->top.tangent(context);
+        OpVector testTangent = cutData->mate.tangent(context);
+        cutTangent.normalize();
+        testTangent.normalize();
+        if ((cutTangent.cross(testTangent) < 0)
+                == (CutDirection::clockwise == cutData->direction))
+            return WindKeep::Discard;
+    }
+    return WindKeep::Start;
 }
 
-inline Context* cutContext(ContextUserData userData, CurveOutput output = nullptr,
-        CurveOutput best = nullptr) {
+#define CUT_WINDING_TAGGED_FUNCTIONS \
+    OP_TAGGED_FUNCTION(cutKeepFunc), \
+    OP_TAGGED_FUNCTION(cutKeepLoopFunc), \
+
+inline Context* cutContext(ContextUserData userData, CurveOutput output = nullptr) {
     Context* context = CreateContext();
+#if OP_DEBUG && OP_DEBUG_ONE_TEST
+    SetDebugData(context, { "cutTest" } );
+#endif
     AddUserData(context, userData);
-    ContextCallbacks contextCallbacks { output, nullptr, best };
-    contextCallbacks.maxLoopsFuncPtr = cutMaxLoopsFunc;
+    ContextCallbacks contextCallbacks { output, nullptr, cutKeepLoopFunc };
     SetContextCallbacks(context, contextCallbacks);
 #if OP_DEBUG
-	SetDebugContextCallbacks(context, { frameDebugIsFill, nullptr, nullptr
-            OP_DEBUG_DUMP_PARAMS(frameDumpOutFunc, frameDumpSetFunc, nullptr,
+	SetDebugContextCallbacks(context, { 
+            frameDebugIsFill, nullptr, nullptr
+            OP_DEBUG_SERIALIZE_PARAMS(frameDumpOutFunc, frameDumpSetFunc, nullptr,
             frameDumpOutFunc, frameImageNamesFunc, nullptr, nullptr)
 #if OP_DEBUGGER
             , frameColorFunc
+#else
+            , "frameColorFunc"
 #endif
     });
 #endif
     return context;
 }
 
-#if OP_DEBUG_DUMP
-#define DUMP_CUT_WINDING_TAGGED_FUNCTIONS \
-    OP_TAGGED_FUNCTION(cutKeepFunc), \
-    OP_TAGGED_FUNCTION(cutMaxLoopsFunc), \
-
-#endif
 }
 
 #endif

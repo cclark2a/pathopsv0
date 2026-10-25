@@ -119,6 +119,15 @@ void SetCurveCallbacksX(Context* interfaceContext, int nativeCurveType,
 }
 #endif
 
+const CurveCallbacks* GetCurveCallbacks(const Context* interfaceContext, CurveType nativeCurveType) {
+    const OpContext* context = (const OpContext*) interfaceContext;
+    for (size_t index = 0; index < context->nativeCurveTypes.size(); ++index) {
+        if (context->nativeCurveTypes[index] == nativeCurveType)
+            return &context->callbacks[index];
+    }
+    return nullptr;
+}
+
 void SetCurveCallbacks(Context* interfaceContext, CurveType nativeCurveType,
         const CurveCallbacks& curveCallbacks) {
     OpContext* context = toImplementation(interfaceContext);
