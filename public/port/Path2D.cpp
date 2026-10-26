@@ -619,7 +619,7 @@ ContextError FillPath::simplify() {
 }
 
 static bool allowDisjointLines(ContextError err, PathOpsV0Lib::Curve* ) {
-	return ContextError::end == err || ContextError::missing == err;
+	return ContextError::disjoint == err || ContextError::closedLoop == err;
 }
 
 ContextError Path::handleError(Context* context) {
@@ -641,7 +641,7 @@ ContextError FramePath::opCommon(FillPath& path, Ops oper) {
     SetContextCallbacks(context, { Path2DOutput, EmptyFunc });
 	WindingKeep operatorFunc = Ops::sect == oper ? frameKeepFunc : frameDiscardFunc;
     SetWindingCallbacks(context, { frameAddFunc, operatorFunc, frameSubtractFunc, frameWoundFunc,
-            frameVisibleFunc, frameZeroFunc });
+            frameVisibleFunc, frameLinkableFunc, frameZeroFunc });
 	SetupCurves(context);
     FrameWinding frameWinding(context, FrameFill::frame);
 	opAddPath(context, frameWinding.winding.contour, false);

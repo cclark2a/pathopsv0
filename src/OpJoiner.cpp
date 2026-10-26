@@ -223,8 +223,9 @@ void OpLimb::set(OpEdge* test, OpLimb* p, EdgeMatch m, OpContour* contour,
     // cut test needs to be given each possibility and then have a way to provide
     // selection akin to best-perimeter once all possible choices are known...
     if (looped) {
+        bool hasKeeper = !!tree->context->contextCallbacks.keepLoopFuncPtr;
         OpEdge* trunkEdge = tree->trunk->edge;
-        if (trunkEdge->winding.linkable(trunkEdge->sum)) {
+        if (hasKeeper && trunkEdge->winding.linkable(trunkEdge->sum)) {
             const OpLimb* testParent = &tree->nthLimb(tree->totalUsed - 1);
             bool keep = true;
             bool first = true;

@@ -15,7 +15,7 @@ constexpr WindingCondition framePartiallyContained = 1;
 constexpr WindingCondition frameFullyContained = 2;
 
 static bool allowDisjointLines(ContextError err, Curve* ) {
-	return ContextError::end == err || ContextError::missing == err;
+	return ContextError::disjoint == err || ContextError::closedLoop == err;
 }
 
 static WindingCondition framePartiallyContainsFunc(Context* , WindKeep keep) {
@@ -64,11 +64,11 @@ void ContainsExample() {
             exit(1);
     };
     SetWindingCallbacks(context, { frameAddFunc, frameKeepFunc, frameSubtractFunc, frameWoundFunc,
-            frameVisibleFunc, frameZeroFunc, frameIntersectFunc, framePartiallyContainsFunc });
+            frameVisibleFunc, frameLinkableFunc, frameZeroFunc, frameIntersectFunc, framePartiallyContainsFunc });
     WindingCondition isOutside = Resolve(context);
     handleError(isOutside, framePartiallyContained);
     SetWindingCallbacks(context, { frameAddFunc, frameKeepFunc, frameSubtractFunc, frameWoundFunc,
-            frameVisibleFunc, frameZeroFunc, frameIntersectFunc, nullptr, frameFullyContainsFunc });
+            frameVisibleFunc, frameLinkableFunc, frameZeroFunc, frameIntersectFunc, nullptr, frameFullyContainsFunc });
     isOutside = Resolve(context);
     handleError(isOutside, 0);  // not fully contained
     DeleteContext(context);

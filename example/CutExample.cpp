@@ -30,7 +30,7 @@ static WindKeep cutExampleOutput(Output o) {
 }
 
 static bool allowDisjointLines(ContextError err, Curve* ) {
-	return ContextError::end == err || ContextError::missing == err;
+	return ContextError::disjoint == err || ContextError::closedLoop == err;
 }
 
 void CutExample() {
