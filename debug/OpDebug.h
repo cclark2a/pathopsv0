@@ -110,7 +110,8 @@ struct OpDebugData {
 		: testname(tn) {
 	}
 	OpDebugData(std::string tn, OpDebugExpect expected, float maxErr, int cc1, int cc2, int ccDepth, 
-			bool ccAll, bool unambiguous, bool noBreaks, bool noDumps, bool runOne, bool showErr) 
+			bool ccAll, bool unambiguous, bool remaining, bool noBreaks, bool noDumps, bool runOne, 
+            bool showErr) 
 		: testname(tn)
 		, expect(expected)
 		, maxError(maxErr)
@@ -119,6 +120,7 @@ struct OpDebugData {
         , curveCurveDepth(ccDepth)
 		, dumpAllCcs(ccAll)
 		, dumpUnambiguous(unambiguous)
+		, dumpRemaining(remaining)
 		, defeatBreak(noBreaks)
 		, defeatDumps(noDumps)
         , runOneFile(runOne)
@@ -140,6 +142,7 @@ struct OpDebugData {
 	int limitContours = 0;  // for very large tests, number of contours to test
 	bool dumpAllCcs = true;
 	bool dumpUnambiguous = true;
+	bool dumpRemaining = true;
 	bool defeatBreak = false;
 	bool defeatDumps = false;
 	bool limitTest = false;  // set true to respect limit bounds and limit contours

@@ -75,6 +75,7 @@ set (SKIA_TESTS
     "tests/UnitTestPathOps.cpp"
     "tests/V0Battles.cpp"
     "tests/V0Chalkboard.cpp"
+    "tests/V0Figma.cpp"
     "tests/V0Fuzz763.cpp"
     "tests/V0Inverse.cpp"
     "tests/V0Issue3651.cpp"

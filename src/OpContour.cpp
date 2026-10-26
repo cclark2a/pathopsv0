@@ -521,9 +521,11 @@ bool OpContour::eraseLinks(std::vector<OpEdge*>& linkupsErasures) {
 
 // !!! reverse return bool : now true if no edges to join (reverse caller also)
 bool OpContour::joinSetup() {
+    OpBreak(this, 212);
 	if (!byArea.size() && !unsectByArea.size() && !linkups.l.size())
 		return true;
 	for (auto e : byArea) {
+        OpBreak(e, 1719);
 		e->setActive(true);
         e->linkable = e->winding.linkable(e->sum);
 	}

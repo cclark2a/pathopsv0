@@ -41,6 +41,7 @@ struct TinySuite {
 std::vector<TinySuite> tinySuites = {
     { V0Battles, "battle", .17f },
     { V0Chalkboard, "chalkboard" },
+    { V0Figma, "figma" },
     { V0Fuzz763, "fuzz763" },
     { V0Inverse, "inverse" },
     { V0Issue3651, "issue3651" },
@@ -324,7 +325,8 @@ TestDone TestOptions::testSetup(SkPath& left, SkPath& right, TinyOps op, SkPath*
     debugData = OpDebugData(testTrack.testName, 
             testFunc.mayFail ? OpDebugExpect::fail : OpDebugExpect::success, testTrack.maxError, 
             CURVE_CURVE_1, CURVE_CURVE_2, CURVE_CURVE_DEPTH, CURVE_CURVE_DUMP, UNAMBIGUOUS_DUMP,
-            testTrack.tinyState->defeatBreak, TEST_DEFEAT_DUMPS, testTrack.runNamedTest, !ignoreRaster);
+            REMAINING_DUMP, testTrack.tinyState->defeatBreak, TEST_DEFEAT_DUMPS, 
+            testTrack.runNamedTest, !ignoreRaster);
     return testPart(left, right, op, result);
 }
 

@@ -619,7 +619,7 @@ bool FoundLimits::setEnds(std::vector<OpIntersection*>& matchingSects) {
         if (oppHi < 0 || i[oppHi].oppPtT.t < oPtT.t)
             oppHi = (int) i.size();
         cc->splitMid = true;
-		i.emplace_back(nullptr, nullptr, sPtT, oPtT, 0  OP_LINE_FILE_PARGS()); // no edges
+		i.emplace_back(nullptr, nullptr, sPtT, oPtT, 0.f  OP_LINE_FILE_PARGS()); // no edges
 		if (!addSnip(matchingSect, sPtT, oPtT, 1))
 			return false;
     }

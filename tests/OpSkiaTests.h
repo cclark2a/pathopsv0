@@ -6,10 +6,10 @@
 #error "OpDebug header must precede"
 #endif
 
-#define SKIP_TO_FILE "battle" // "simplify" // e.g.,  "tiger"   one file
+#define SKIP_TO_FILE "figma" // "simplify" // e.g.,  "tiger"   one file
 #define TEST_SUITE_FIRST ""  // e.g., "simplifyFail" skip suites prior to this one
 #if !OP_DEBUG_ALTW
-#define TEST_FIRST "battleOp1395" // e.g., "dean4" if file, one test (can be skipped test)
+#define TEST_FIRST "figma_zigzag32_offset_0" // e.g., "dean4" if file, one test (can be skipped test)
                         // !!! "loop8478" fails sometimes (san/valgrind found no error)
                         // cubic9092  cubic454498  cubic327361 troublesome unsectables
                         // only single tested files get full debugger dumps
@@ -38,7 +38,8 @@
 #define CURVE_CURVE_2 2  // id of segment 2 to break in divide and conquer
 #define CURVE_CURVE_DEPTH -1  // min depth for break (-1 to disable; INT_MAX for line/curve)
 #define CURVE_CURVE_DUMP 0  // 1: dump all ccs; 0: only dump matching curve (for very large tests)
-#define UNAMBIGUOUS_DUMP 0  // 1: dump all unamibiguous joins; 0: no dumps (for very large tests)
+#define UNAMBIGUOUS_DUMP 0  // 1: dump all 'link unamibiguous' joins; 0: no dumps (for very large tests)
+#define REMAINING_DUMP 0  // 1: dump all 'link remaining' joins; 0: no dumps (for very large tests)
 
 #define TEST_PATH_SKIP_TESTS { "grshapearc", "grshapearcs1" }  /* , "release_13", "pentrek10" */
 // when these tests are encountered, it and the remaining tests in the file are skipped

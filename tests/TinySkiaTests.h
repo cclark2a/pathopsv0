@@ -127,6 +127,7 @@ bool runTests(const std::vector<TestFunc>& , TestOptions*);
 
 extern void V0Battles(TestTrack* );
 extern void V0Chalkboard(TestTrack* );
+extern void V0Figma(TestTrack* );
 extern void V0Fuzz763(TestTrack* );
 extern void V0Inverse(TestTrack* );
 extern void V0Issue3651(TestTrack* );

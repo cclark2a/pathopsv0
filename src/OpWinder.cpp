@@ -143,7 +143,7 @@ bool SectRay::addContainers(OpEdge* addEdge) {
     bool added = addOne(contour);
     for (OpContour* merge : contour->merges)
         added |= addOne(merge);
-	return added;
+    return added;
 }
 
 struct RayWalk {

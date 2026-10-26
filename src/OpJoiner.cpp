@@ -856,7 +856,10 @@ OpJoiner::~OpJoiner() {
 
 bool OpJoiner::linkRemaining(OpContour* contour) {
 	LinkUps& linkups = contour->linkups;
-    OP_DEBUG_DUMP_CODE(context->dumpFile(__func__));
+#if OP_DEBUG_DUMP
+	if (context->debugData.dumpRemaining)
+    	context->dumpFile(__func__);
+#endif
 	linkPass = LinkPass::remaining;
 	// match links may add or remove from link ups. Iterate as long as link ups is not empty
 	for (auto e : linkups.l) {

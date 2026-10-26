@@ -388,6 +388,7 @@ private:
 //		, alternateEnd(false)
 		, inLinkups(false)
 		, linkHead(false)
+        , linkable(true)  // !!! probably should reverse sense for consistency
 		, inOutput(false)
 		, disabled(false)
 		, isUnsplitable(false)
