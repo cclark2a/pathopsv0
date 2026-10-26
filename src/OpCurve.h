@@ -55,6 +55,8 @@ struct OpCurve {
 	OpRoots axisRawHit(Axis offset, float axisIntercept, MatchEnds) const;
 	PathOpsV0Lib::WindKeep bestLoop(PathOpsV0Lib::CurveOutput , PathOpsV0Lib::Winding , 
 			bool firstPt, bool lastPt  OP_DEBUG_PARAMS(int parentID));
+	float bottom() const {
+		return std::max(start.y, end.y); }
 	OpRect callerBounds() const {
 		return OpRect(c.data->start, c.data->end); }
     OpPoint callerFirst() const {
@@ -125,6 +127,8 @@ struct OpCurve {
     OpRect rangeBounds(float start, float end) const;
 	OpRoots rawIntersect(const LinePts& line, MatchEnds ) const;  // requires sect to be on curve
 	OpRoots rayIntersect(const LinePts& line, MatchEnds ) const;
+	float right() const {
+		return std::max(start.x, end.x); }
 	void reverse();
 	void setFirstPt(OpPoint pt) {
 		start = c.data->start = pt; }

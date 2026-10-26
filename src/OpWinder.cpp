@@ -121,41 +121,28 @@ void SectRay::addDistance(OpEdge* addEdge, float xy, float root, bool reversed
 		distances.back().reversed = true;
 }
 
-// recursively add contours containing edges that can affect accumulated winding
+// add contours containing edges that can affect accumulated winding
 bool SectRay::addContainers(OpEdge* addEdge) {
 	auto addOne = [this, addEdge](OpContour* container) {
 		if (home->segment->contour == container)
 			return false;
-		OpRect& cBounds = container->bounds;
-		// r-reference avoids struct copy
-		OpRect homeBounds = home->bounds();
-		OpRect addBounds = addEdge->bounds();
-		OpRect&& bounds = Axis::horizontal == axis  // area in contour between addEdge and home
-			? OpRect(std::max(cBounds.left, addBounds.right), cBounds.top,
-					std::min(cBounds.right, homeBounds.left), cBounds.bottom)
-			: OpRect(cBounds.left, std::max(container->bounds.top, addBounds.bottom),
-					cBounds.right, std::min(container->bounds.bottom, homeBounds.top));
-		if (bounds.isEmpty())
+	    OpRect cBounds = container->bounds;
+		if (Axis::horizontal == axis) {  // area in contour between addEdge and home
+			cBounds.left = std::max(cBounds.left, addEdge->curve.right());
+			cBounds.right = std::min(cBounds.right, home->curve.left());
+        } else {
+			cBounds.top = std::max(cBounds.top, addEdge->curve.bottom());
+			cBounds.bottom = std::min(cBounds.bottom, home->curve.top());
+        }
+		if (cBounds.isEmpty())
 			return false;
-//		if (std::none_of(containers.begin(), containers.end(), [container](OpContour* test) {
-//				return container == test; }))
-//			containers.push_back(container);
-		return targets.addContainer(axis, container, bounds);
-	};
-	auto addContour = [addOne](OpContour* contour) {
-		bool added = addOne(contour);
-		for (OpContour* merge : contour->merges)
-			added |= addOne(merge);
-		return added;
+		return targets.addContainer(axis, container, cBounds);
 	};
 	// if added edge depends on contour not in winder target, add it
-	OpSegment* segment = addEdge->segment;
-	bool added = addContour(segment->contour);
-#if 0  // unnecessary?
-	for (OpContour* contour : segment->coinContours) {
-		added |= addContour(contour);
-	}
-#endif
+	OpContour* contour = addEdge->segment->contour;
+    bool added = addOne(contour);
+    for (OpContour* merge : contour->merges)
+        added |= addOne(merge);
 	return added;
 }
 
