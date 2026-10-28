@@ -155,6 +155,12 @@ struct OpContext {
 
 	void initOutOnce();
 
+    void linkSimple() {
+		for (auto contour : contours) {
+			contour->linkSimple();
+		}
+    }
+
 	void makeCoins() {
 	    for (auto contour : contours) {
 			contour->makeCoins();

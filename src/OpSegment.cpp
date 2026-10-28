@@ -702,6 +702,23 @@ void OpSegment::init() {
 		context->maxBounds.add(c.callerBounds());  // for threshold
 }
 
+void OpSegment::linkSimple() {
+#if 0   // !!! need to check edge start, end against opp segment first edge start, last edge end
+    OP_ASSERT(!disabled);
+    if (1 != edgeList.size())
+        return;
+    OpEdge& edge = edgeList.front();
+    if (!edge.simple)
+        return;
+    OP_ASSERT(2 == sects.i.size());
+    OpIntersection* first = sects.i.front()->opp;
+    OpSegment* opp = first->segment;
+    OpEdge& oEdgeFirst = opp->edgeList.front();
+    if (oEdgeFirst.curve.start == edge.curve.start)
+        ;
+#endif
+}
+
 void OpSegment::makeCoins() {
 	if (disabled)
 		return;

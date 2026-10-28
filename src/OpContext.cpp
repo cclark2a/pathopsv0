@@ -498,7 +498,7 @@ WindingCondition OpContext::pathOps() {
 	    makePals();  // edges too close to each other to sort or precisely intersect
 	    rebuildOverlaps(); // add coincident contours to intersecting contour bounds arrays
 		OP_DEBUG_DUMP_CODE(dumpFile("rebuildOverlaps"));
-
+        linkSimple();  // edges with single connections can be linked together
 	    // made edges may include lines that are coincident with other edges. Undetected for now...
     //    windCoincidences();  // for segment h/v lines, compute their winding considering coincidence
 	    FoundWindings foundWindings = OpWinder::SetWindings(*this);  // walk edges, compute windings

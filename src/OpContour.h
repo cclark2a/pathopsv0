@@ -101,6 +101,14 @@ struct OpContour {
 //	bool isSorted(Axis axis) const { return Axis::horizontal == axis ? isXSorted : isYSorted; }
 	bool joinSetup();
 	void joinSort();
+
+    void linkSimple() {
+		for (auto& segment : segments) {
+            if (!segment.disabled)
+			    segment.linkSimple();
+		}
+    }
+
 	void linkUp(OpJoiner* , OpEdge* );
 
 	void makeCoins() {

@@ -144,6 +144,7 @@ struct OpSegment {
     void init();
 	bool isFinite() const {
 		return c.start.isFinite() && c.end.isFinite(); } 
+    void linkSimple();
 	void makeCoins();
 	void makeEdge(OP_LINE_FILE_NP_ARGS());
 	void makeEdges();
