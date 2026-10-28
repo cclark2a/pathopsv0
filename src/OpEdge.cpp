@@ -523,6 +523,7 @@ void OpEdge::complete(OpPoint startPoint, OpPoint endPoint) {
     PathOpsV0Lib::CurveConst smallFuncPtr = context()->callback(curve.c.type).smallTFuncPtr;
     float smallT = (smallFuncPtr ? (*smallFuncPtr)(curve.c) : 32.f) * OpEpsilon;
     smallTRange = endT - startT <= smallT;
+    simple = 2 == segment->sects.i.size() && 0 == startT && 1 == endT;
 }
 
 OpContext* OpEdge::context() const {

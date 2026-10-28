@@ -1920,10 +1920,10 @@ void OpEdge::dumpSet(const char*& str) {
 	DEBUG_SET_BOOL(unsortable, active_impl);
     DEBUG_SET_BOOL(active_impl, inLinkups);
     DEBUG_SET_BOOL(inLinkups, linkHead);
-    DEBUG_SET_BOOL(linkHead, linkable);
-    DEBUG_SET_BOOL(linkable, inOutput);
+    DEBUG_SET_BOOL(linkHead, inOutput);
     DEBUG_SET_BOOL(inOutput, disabled);
-    DEBUG_SET_BOOL(disabled, smallTRange);
+    DEBUG_SET_BOOL(disabled, simple);
+    DEBUG_SET_BOOL(simple, smallTRange);
     DEBUG_SET_BOOL(smallTRange, isUnsplitable);
     DEBUG_SET_BOOL(isUnsplitable, ccEnd);
     DEBUG_SET_BOOL(ccEnd, ccLarge);
@@ -1933,14 +1933,15 @@ void OpEdge::dumpSet(const char*& str) {
     DEBUG_SET_BOOL(ccStart, centerless);
     DEBUG_SET_BOOL(centerless, startSeen);
     DEBUG_SET_BOOL(startSeen, endSeen);
-    DEBUG_SET_BOOL(endSeen, unsectableStart);
+    DEBUG_SET_BOOL(endSeen, unlinkable);
+    DEBUG_SET_BOOL(unlinkable, unsectableStart);
     DEBUG_SET_BOOL(unsectableStart, unsectableEnd);
     DEBUG_SET_BOOL(unsectableEnd, unsummable);
 #if CHECK_SNIP
     DEBUG_SET_BOOL(unsummable, snipped);
 #endif
 #if OP_DEBUG
-    ASSERT_SERIAL_OFFSET(*this, unsummable, 1, debugMatch);
+    ASSERT_SERIAL_OFFSET(*this, unsummable, 0, debugMatch);
     debugMatch = (OpEdge*) strID("debugMatch");
     ASSERT_ORDERED(debugMatch, debugZeroErr);
     debugZeroErr = (OpEdge*) strID("debugZeroErr");

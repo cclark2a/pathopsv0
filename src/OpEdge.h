@@ -388,9 +388,9 @@ private:
 //		, alternateEnd(false)
 		, inLinkups(false)
 		, linkHead(false)
-        , linkable(true)  // !!! probably should reverse sense for consistency
 		, inOutput(false)
 		, disabled(false)
+        , simple(false)
 		, isUnsplitable(false)
 		, ccEnd(false)
 		, ccLarge(false)
@@ -401,6 +401,7 @@ private:
 //		, windPal(false)
 		, startSeen(false)
 		, endSeen(false)
+        , unlinkable(false)
 		, unsectableStart(false)
 		, unsectableEnd(false)
 		, unsummable(false)
@@ -591,9 +592,9 @@ public:
 //	bool alternateEnd;  // set if line length is proportionately similar to end to sect end dist
 	bool inLinkups; // set for edges in linkups l vector
 	bool linkHead;  // used to remove edge from contour linkups when edge is output 
-    bool linkable;  // set if edge may start output path
 	bool inOutput;	// set when edge is added to output path
 	bool disabled;	// winding is zero, or apply disqualified edge from appearing in output
+    bool simple;  // set if prior and next are unique and can be determined at edge construction 
 	bool smallTRange;  // t range is below some caller defined threshold
 	bool isUnsplitable;  // too small to split in two during curve-curve intersection
 	bool ccEnd;  // set if edge end is closest to already found curve-curve intersection
@@ -604,6 +605,7 @@ public:
 	bool centerless;  // center could not be computed (likely edge is too small)
 	bool startSeen;  // tracks start of edge in joiner linked list to add to tree only once
 	bool endSeen;  // tracks end of edge in joiner linked list to add to tree only once
+    bool unlinkable;  // set if edge may not start output path (e.g., fill if output is frame)
 	bool unsectableStart;  // set if start intersection has an unsectable id
 	bool unsectableEnd;  // set if end intersection has an unsectable id
 	bool unsummable;  // set if ray through adjacent edge is too close

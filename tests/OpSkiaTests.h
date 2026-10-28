@@ -6,10 +6,10 @@
 #error "OpDebug header must precede"
 #endif
 
-#define SKIP_TO_FILE "figma" // "simplify" // e.g.,  "tiger"   one file
+#define SKIP_TO_FILE "v0" // "simplify" // e.g.,  "tiger"   one file
 #define TEST_SUITE_FIRST ""  // e.g., "simplifyFail" skip suites prior to this one
 #if !OP_DEBUG_ALTW
-#define TEST_FIRST "figma_zigzag32_offset_0" // e.g., "dean4" if file, one test (can be skipped test)
+#define TEST_FIRST "simpleEdge" // e.g., "dean4" if file, one test (can be skipped test)
                         // !!! "loop8478" fails sometimes (san/valgrind found no error)
                         // cubic9092  cubic454498  cubic327361 troublesome unsectables
                         // only single tested files get full debugger dumps

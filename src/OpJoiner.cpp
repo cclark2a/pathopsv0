@@ -884,7 +884,7 @@ bool OpJoiner::linkRemaining(OpContour* contour) {
 		};
 		if (edgeIsSmall())
 			return true;
-        if (!edge->linkable)  // for frame, check if no frame edges are left to connect
+        if (edge->unlinkable)  // for frame, check if no frame edges are left to connect
             return true;
 		OP_DEBUG_VALIDATE_CODE(debugValidate());
         if (!edge->lastEdge) {
@@ -1120,9 +1120,9 @@ void LinkUps::sort(OpContext* context) {
 	PathOpsV0Lib::ContextValue scaleFuncPtr = context->contextCallbacks.linkupScaleFuncPtr;
 	float scale = scaleFuncPtr ? (*scaleFuncPtr)((ContextPtr) context) : 1024.f;  // !!! wild guess : testCubics3465653 requires 400K or smaller
 	std::sort(l.begin(), l.end(), [leftMost, scale](const auto& s1, const auto& s2) {
-        if (s1->linkable < s2->linkable)
+        if (s2->unlinkable < s1->unlinkable)
             return true;
-        if (s2->linkable < s1->linkable)
+        if (s1->unlinkable < s2->unlinkable)
             return false;
 		// if much smaller, ignore leftmost
 		float s1perimeter = s1->linkBounds.perimeter();

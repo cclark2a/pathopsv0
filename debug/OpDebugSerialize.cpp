@@ -2116,10 +2116,10 @@ std::string OpEdge::debugDump(DebugLevel l, DebugBase b) const {
 	EDGE_BOOL(unsortable, active_impl);
     EDGE_BOOL(active_impl, inLinkups);
     EDGE_BOOL(inLinkups, linkHead);
-    EDGE_BOOL(linkHead, linkable);
-    EDGE_BOOL(linkable, inOutput);
+    EDGE_BOOL(linkHead, inOutput);
     EDGE_BOOL(inOutput, disabled);
-    EDGE_BOOL(disabled, smallTRange);
+    EDGE_BOOL(disabled, simple);
+    EDGE_BOOL(simple, smallTRange);
     EDGE_BOOL(smallTRange, isUnsplitable);
     EDGE_BOOL(isUnsplitable, ccEnd);
     EDGE_BOOL(ccEnd, ccLarge);
@@ -2129,14 +2129,15 @@ std::string OpEdge::debugDump(DebugLevel l, DebugBase b) const {
     EDGE_BOOL(ccStart, centerless);
     EDGE_BOOL(centerless, startSeen);
     EDGE_BOOL(startSeen, endSeen);
-    EDGE_BOOL(endSeen, unsectableStart);
+    EDGE_BOOL(endSeen, unlinkable);
+    EDGE_BOOL(unlinkable, unsectableStart);
     EDGE_BOOL(unsectableStart, unsectableEnd);
     EDGE_BOOL(unsectableEnd, unsummable);
 #if CHECK_SNIP
     EDGE_BOOL(unsummable, snipped);
 #endif
 #if OP_DEBUG
-    ASSERT_ORDERED_OFFSET(unsummable, debugMatch, 1);
+    ASSERT_ORDERED_OFFSET(unsummable, debugMatch, 0);
     if (debugMatch)
         s += "debugMatch:" + (debugMatch ? STR(debugMatch->id) : std::string("-")) + " ";
     ASSERT_ORDERED(debugMatch, debugZeroErr);

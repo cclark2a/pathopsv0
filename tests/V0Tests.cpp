@@ -1187,8 +1187,25 @@ void figma1(TestOptions* options) {
     options->testLast(b, path2, TinyOps::unite);
 }
 
+void simpleEdge(TestOptions* options) {
+    SkPath a, b;
+    a.moveTo(1, 8);
+    a.lineTo(9, 0);
+    a.lineTo(11, 2);
+    a.lineTo(3, 10);
+    a.close();
+    b.moveTo(3, 8);
+    b.lineTo(5, 6);
+    b.lineTo(7, 4);
+    b.lineTo(9, 2);
+    b.lineTo(11, 9);
+    b.close();
+    options->testOne(a, b, TinyOps::intersect);
+}
+
 void V0Tests(TestTrack* track) {
     static std::vector<TestFunc> tests = {
+        TEST_FUNC(simpleEdge),
         TEST_FUNC(figma1),
         TEST_FUNC(mikeClifton2),
         TEST_FUNC(mikeClifton1),

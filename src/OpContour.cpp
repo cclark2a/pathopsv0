@@ -527,7 +527,7 @@ bool OpContour::joinSetup() {
 	for (auto e : byArea) {
         OpBreak(e, 1719);
 		e->setActive(true);
-        e->linkable = e->winding.linkable(e->sum);
+        e->unlinkable = !e->winding.linkable(e->sum);
 	}
 	for (auto unsectable : unsectByArea) {
 		unsectable->setActive(true);
